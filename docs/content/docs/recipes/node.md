@@ -42,7 +42,7 @@ This tutorial assumes that you are familiar with the [Fluid Framework Overview](
      "test:report": "echo No test for this example"
    },
    ```
-   
+
    And add the following line after the `dependencies` section, before the final closing bracket:
 
    ```json
@@ -151,7 +151,7 @@ This tutorial assumes that you are familiar with the [Fluid Framework Overview](
    loadCli(container.initialObjects.sharedRandomNumber);
    ```
 
-2. Replace `TODO 6` with the following code. Note that, this code will first take the container id as the input. To create a new Fluid container, press Enter or type `undefined`. A new container will be initialized and the container id will be printed in the terminal. You can copy the container id, launch a new terminal window, and type/paste the initial container id to have multiple collaborative NodeJS clients.
+1. Replace `TODO 6` with the following code. Note that, this code will first take the container id as the input. To create a new Fluid container, press Enter or type `undefined`. A new container will be initialized and the container id will be printed in the terminal. You can copy the container id, launch a new terminal window, and type/paste the initial container id to have multiple collaborative NodeJS clients.
 
    ```js
    const containerId = readlineSync.question("Type a Container ID or press Enter to continue: ");

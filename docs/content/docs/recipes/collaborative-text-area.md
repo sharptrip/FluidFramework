@@ -149,6 +149,7 @@ This tutorial assumes that you are familiar with the [Fluid Framework Overview](
 ### Move the Fluid Data to the view
 
 Inside the `App()` function, add the following code. Note about this code:
+
 - The `sharedString` object returned from the code above is used to create a `SharedStringHelper` object, which is a class that provides helper APIs to interact with the `sharedString` object.
 - Next, the `SharedStringHelper` object is passed into the `CollaborativeTextArea` React component, which integrates `SharedString` with the default `textarea` HTML element to enable collaboration.
 
@@ -165,6 +166,7 @@ if (sharedString) {
   return <div />;
 }
 ```
+
 ### Create CollaborativeTextArea component
 
 `CollaborativeTextArea` is a React component which uses a `SharedStringHelper` object to control the text of an HTML `textarea` element. Follow the below steps to create this component.

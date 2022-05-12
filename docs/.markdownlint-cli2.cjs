@@ -13,7 +13,8 @@ const excludedTypography = [
 ];
 
 const excludedWords = [
-    "Azure Fluid Relay service",
+    "Azure Fluid Relay server",
+    "Azure Fluid Relay Service",
     "Azure Relay Service",
     "FRS",
     "`Tinylicious`",
@@ -29,8 +30,14 @@ const extractContext = (line, column) => {
 }
 
 module.exports = {
+    "globs": [
+        "**/*.md",
+        "!content/docs/apis",
+        "!_includes",
+        "!node_modules",
+    ],
     "customRules": [
-        "markdownlint-rule-emphasis-style",
+        // "markdownlint-rule-emphasis-style",
         "markdownlint-rule-github-internal-links",
         {
             "names": ["ban-words"],
@@ -80,31 +87,34 @@ module.exports = {
         },
     ],
     "config": {
-        "code-block-style": { // MD046
-            "style": "fenced"
-        },
-        "code-fence-style": { // MD048
-            "style": "",
-        },
-        "emphasis-style": { // custom
-            "style": "*",
-        },
+        // Tags (groups of rules) first
+        "blank_lines": true, // MD012, MD022, MD031, MD032, MD047
+        "blockquote": true, // MD027, MD028
+        "bullet": true, // MD004, MD005, MD006, MD007, MD032
+        "code": true, // MD014, MD031, MD038, MD040, MD046, MD048
+        "emphasis": true, // MD036, MD037, MD049, MD050
+        "hard-tab": true, // MD010
+        "headings": true, // MD001, MD002, MD003, MD018, MD019, MD020, MD021, MD022, MD023, MD024, MD025, MD026, MD036, MD041, MD043
+        "indentation": true, // MD005, MD006, MD007, MD027
+        "links": true, // MD011, MD034, MD039, MD042
+        "ol": true, // MD029, MD030, MD032
+        "spaces": true, // MD018, MD019, MD020, MD021, MD023
+        "ul": true, // MD004, MD005, MD006, MD007, MD030, MD032
+        "whitespace": true, // MD009, MD010, MD012, MD027, MD028, MD030, MD037, MD038, MD039
+
+        // Individual rules
+        "first-heading-h1" : false, // MD002 - superseded by first-line-heading
         "first-line-heading": { // MD041
-            "level": 2,
+            "level": 1,
         },
         "github-internal-links": { // custom
             "verbose": false,
         },
-        "heading-style": { // MD003
-            "style": "atx",
+        "hr-style": {
+            "style": "---",
         },
         "line-length": false, // MD013
-        // "line-length": { // MD013
-        //     "code_blocks": true,
-        //     "line_length": 120,
-        //     "tables": false,
-        // },
-        "no-empty-links": true, // MD042
+        "no-alt-text": true, // MD045
         "no-inline-html": false, //MD033
         "no-multiple-blanks": { // MD012
             "maximum": 2,
@@ -124,15 +134,12 @@ module.exports = {
                 "npm",
                 "Routerlicious",
                 "Tinylicious",
-                // Without the following entries, markdownlint incorrectly flags various correct usages of tinylicious.
+                // Without the following entries, markdownlint incorrectly flags various correct usages of
+                // microsoft/tinylicious.
+                "@microsoft/",
                 "tinylicious.md",
                 "tinylicious-client",
             ]
-        }
-    },
-    "globs": [
-        "content/**/*.md",
-        "!content/docs/apis",
-        "!node_modules",
-    ]
+        },
+    }
 };

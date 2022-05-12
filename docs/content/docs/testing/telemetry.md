@@ -282,6 +282,7 @@ in both Node.js and a web browser.
 ```js
 localStorage.debug = 'fluid:*'
 ```
+
 It's not recommended to set this in code; your users will see a very spammy console window if you do.
 
 **To enable Fluid Framework logging in a Node.js application,** set the `DEBUG` environment variable when running the app.

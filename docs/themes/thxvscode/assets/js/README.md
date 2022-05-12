@@ -9,4 +9,5 @@ yarn install
 yarn build
 ```
 
-The baseof template then takes the bundle.js file and process it (minify + fingerprint it) and loads it in the rendered pages.
+The baseof template then takes the bundle.js file and process it (minify + fingerprint it) and loads it in the rendered
+pages.

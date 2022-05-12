@@ -192,6 +192,7 @@ Mermaid diagrams can be put inline in a Markdown file using a code block with th
 
 **Input**
 
+<!-- markdownlint-disable code-fence-style -->
 ~~~markdown
 ```mermaid
 classDiagram
@@ -210,6 +211,7 @@ Class01 : int gorilla
 Class08 <--> C2: Cool label
 ```
 ~~~
+<!-- markdownlint-enable code-fence-style -->
 
 **Output**
 
@@ -246,6 +248,7 @@ Some simple samples are included below. See
 
 **Input**
 
+<!-- markdownlint-disable code-fence-style -->
 ~~~markdown
 ```goat
 +-------------------+    +---------------------+
@@ -257,6 +260,7 @@ Some simple samples are included below. See
 +-------------------+    +---------------------+
 ```
 ~~~
+<!-- markdownlint-enable code-fence-style -->
 
 **Output**
 
@@ -274,6 +278,7 @@ Some simple samples are included below. See
 
 **Input**
 
+<!-- markdownlint-disable code-fence-style -->
 ~~~markdown
 ```goat
           .               .                .               .--- 1          .-- 1     / 1
@@ -285,7 +290,7 @@ Some simple samples are included below. See
      1   2 3   4    1   2   3   4    1   2   3   4         '--- 4          '-- 4     \ 4
 ```
 ~~~
-
+<!-- markdownlint-enable code-fence-style -->
 
 **Output**
 

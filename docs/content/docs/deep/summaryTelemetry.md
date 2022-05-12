@@ -33,7 +33,7 @@ Logs right before attempting to spawn summarizer client.
 - `opsSinceLastAck` - count of ops since last summary ack, reported by SummaryCollection. This can be relevant for the initial delay bypass logic.
 - `opsToBypassInitialDelay` - count of ops since last summary ack that allow us to bypass the initial delay
 
-### RunningSummarizer
+### RunningSummarizer (Summary Manager)
 
 > Performance
 
@@ -200,7 +200,7 @@ All consecutive retry attempts to summarize by heuristics have failed. The summa
 - `summarizeReason` - reason for attempting to summarize
 - `message` - message returned with the last summarize result
 
-### UnexpectedSummarizeError
+### UnexpectedSummarizeError (summarizer running)
 
 > Unexpected Error
 
@@ -213,7 +213,7 @@ This should not be possible, but it indicates an error was thrown in the code th
 - `summarizeCount` - the number of summarize attempts this client has made. This can be used to correlate events for individual summary attempts.
 - `summarizerSuccessfulAttempts` - the number of successful summaries this summarizer instance has performed
 
-### UnexpectedSummarizeError
+### UnexpectedSummarizeError (generator)
 
 > Unexpected Error
 

@@ -6,9 +6,10 @@ menuPosition: 4
 This is a tutorial for integrating Fluid-powered real-time collaboration features into a [Microsoft Teams tab application](https://docs.microsoft.com/en-us/microsoftteams/platform/tabs/what-are-tabs). By the end of this tutorial you will be able to integrate any Fluid-powered applications into Microsoft Teams and collaborate with others in real-time.
 
 Concepts you will learn:
+
 1. How to integrate a Fluid client into a Microsoft Teams tab application
 2. How to run and connect your Teams application to a Fluid service (Azure Fluid Relay)
-3. How to create and get Fluid Containers and pass them to a React component
+3. How to create and get Fluid containers and pass them to a React component
 
 For an example of how this recipe may be used to build a more complex application, check out the [Teams Fluid Hello World](https://github.com/microsoft/FluidExamples/tree/main/teams-fluid-hello-world) example in our FluidExamples repo.
 

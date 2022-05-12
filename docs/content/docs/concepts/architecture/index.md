@@ -49,6 +49,7 @@ The Fluid loader connects to the Fluid service and loads a Fluid container.
 |                                                                           |
 +---------------------------------------------------------------------------+
 ```
+
 The Fluid architecture consists of a client and service. The
 client contains the Fluid loader and the Fluid container. The Fluid loader contains a document service factory, code
 loader, scopes, and a URL resolver. The Fluid runtime is encapsulated within a container, which is built using Fluid
