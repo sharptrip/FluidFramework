@@ -29,9 +29,12 @@ extends:
     publishOverride: skip
     releaseBuildOverride: none
     buildDirectory: docs
-    taskBuild: build
+    buildNumberInPatch: true
+    taskBuild: ci:build
     taskBuildDocs: false
+    taskBundleAnalysis: false
     taskLint: true
     taskTest: false
     taskPack: false
-    buildNumberInPatch: true
+    tagName: azure
+    poolBuild: Large
