@@ -3,10 +3,12 @@ for file in $(fd package.json --type file); do
     # echo "$file"
 
     # echo '  npm:      ==> pnpm:'
+    sd 'pnpm:' 'npm:' "$file"
     sd 'npm:' 'pnpm:' "$file"
     sd 'yarn:' 'pnpm:' "$file"
 
     # echo '  npm run   ==> pnpm run'
+    sd 'pnpm run ' 'npm run ' "$file"
     sd 'npm run ' 'pnpm run ' "$file"
     sd 'yarn run ' 'pnpm run ' "$file"
 
