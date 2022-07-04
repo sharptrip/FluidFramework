@@ -11,16 +11,35 @@ import {
   MapProperty,
   PropertyFactory,
   ReferenceArrayProperty,
+  ReferenceMapProperty,
   ReferenceProperty,
   Workspace,
 } from "@fluid-experimental/property-properties";
 import { BaseProxifiedProperty, PropertyProxy } from "@fluid-experimental/property-proxy";
 
+import Tooltip from "@material-ui/core/Tooltip";
 import memoize from "memoize-one";
+import React from "react";
+import Skeleton from "react-loading-skeleton";
+import { EditableValueCell } from "./EditableValueCell";
+import { TypeColumn } from "./TypeColumn";
+
+import { InspectorMessages, minRowWidth, rowWidthInterval } from "./constants";
 import { HashCalculator } from "./HashCalculator";
-import { IColumns, IExpandedMap, IInspectorRow, IInspectorSearchAbortHandler, IInspectorSearchCallback,
-  IInspectorSearchMatch, IInspectorSearchMatchMap, IInspectorTableProps } from "./InspectorTableTypes";
+import {
+  IColumns, IExpandedMap, IInspectorRow,
+  IInspectorSearchAbortHandler, IInspectorSearchCallback,
+  IInspectorSearchMatch, IInspectorSearchMatchMap, IPropertyToTableRowOptions,
+  IToTableRowsOptions, IToTableRowsProps,
+}
+  from "./InspectorTableTypes";
+
+import { NameCell } from "./NameCell";
+
 import { Utils } from "./typeUtils";
+import { ThemedSkeleton } from "./ThemedSkeleton";
+import { NewDataForm } from "./NewDataForm";
+import { NewDataRow } from "./NewDataRow";
 const { isEnumProperty, isEnumArrayProperty, isInt64Property, isReferenceProperty,
   isUint64Property, isCollectionProperty, isReferenceArrayProperty, isReferenceCollectionTypeid,
   isReferenceMapProperty } = Utils;
@@ -90,8 +109,7 @@ export const showNextResult = (
  * @param rowCounter - (default value 0) aggregation counter, used during recursive process
  */
 function findMatchingElementIndexInDataSet(data: IInspectorRow[], currentlyExpanded: IExpandedMap,
-                                           matchingElement: IInspectorSearchMatch, rowCounter = 0):
-                                           { idx: number; found: boolean; } {
+  matchingElement: IInspectorSearchMatch, rowCounter = 0): { idx: number; found: boolean; } {
   for (const row of data) {
     if (row.id === matchingElement.rowId) {
       return { idx: rowCounter, found: true };
@@ -238,8 +256,10 @@ export const search = (
       // TODO: Not sure if we pass the correct row index to the data getter. I think it should be the overall index in
       // the table. That's at least what the base table seems to pass to it.
       const column = columns[columnIndex];
-      const validGetter = dataGetter && dataGetter({ column, columnIndex, columns, rowData: item,
-        rowIndex: levelState.index });
+      const validGetter = dataGetter && dataGetter({
+        column, columnIndex, columns, rowData: item,
+        rowIndex: levelState.index,
+      });
       const cell = validGetter || item[column.dataKey];
       if ((cell !== undefined ? String(cell).toLowerCase() : "").includes(searchState.expression!)) {
         if (!searchState.matchesMap[item.id]) {
@@ -302,9 +322,10 @@ export const search = (
 
   return searchControls
     ? searchControls
-    : { abortHandler: abortSearch.bind(null, searchState),
-        state: searchState,
-      };
+    : {
+      abortHandler: abortSearch.bind(null, searchState),
+      state: searchState,
+    };
 };
 
 export const isPrimitive = memoize((typeid: string): boolean => {
@@ -369,7 +390,7 @@ const addAdditionalRow = (subRows, id, parentProperty) => {
   const undefinedRowData = {
     context: undefined,
     data: undefined,
-    id: `${ id }/Add`,
+    id: `${id}/Add`,
     name: "",
     parent: parentProperty,
     typeid: undefined,
@@ -407,19 +428,6 @@ const compareNameDesc = (a: string, b: string) => {
   return compareName(a, b) * -1;
 };
 
-interface IToTableRowsOptions {
-  depth: number;
-  addDummy: boolean;
-  followReferences: boolean;
-  ascending: boolean;
-  parentIsConstant?: boolean;
-}
-
-interface IPropertyToTableRowOptions extends Partial<IToTableRowsOptions> {
-  depth: number;
-  dataCreation: boolean;
-}
-
 export const dummyChild = {
   children: undefined,
   context: "d",
@@ -437,13 +445,11 @@ export const dummyChild = {
 
 const OPTION_DEFAULTS = { depth: 0, addDummy: true, followReferences: true, ascending: true, parentIsConstant: false };
 
-type IToTableRowsProps = Pick<IInspectorTableProps, "dataCreationHandler" | "dataCreationOptionGenerationHandler" |
-  "childGetter" | "nameGetter" | "readOnly">;
 export const toTableRows = (
   {
     data,
     id = "",
-  }: IInspectorRow,
+  }: Partial<IInspectorRow>,
   props: IToTableRowsProps,
   options: Partial<IToTableRowsOptions> = {},
   pathPrefix: string = "",
@@ -470,7 +476,7 @@ export const toTableRows = (
     case "single": {
       sortedKeys.forEach((key) => {
         const newRow = singlePropertyTableRow(data, key, id, props,
-            { ...OPTION_DEFAULTS, ...options, dataCreation }, pathPrefix);
+          { ...OPTION_DEFAULTS, ...options, dataCreation }, pathPrefix);
         subRows.push(newRow);
       });
       break;
@@ -489,8 +495,8 @@ export const toTableRows = (
 };
 
 const createInvalidReference = (parentData: BaseProxifiedProperty, propertyId: string, parentRowId: string,
-                                props: IToTableRowsProps, options: IPropertyToTableRowOptions,
-                                pathPrefix: string) => {
+  props: IToTableRowsProps, options: IPropertyToTableRowOptions,
+  pathPrefix: string) => {
   const parentProperty = parentData.getProperty();
   const newId = getShortId(pathPrefix + parentProperty.getAbsolutePath(), propertyId);
   const parentIsConstant = !!options.parentIsConstant;
@@ -516,8 +522,8 @@ const createInvalidReference = (parentData: BaseProxifiedProperty, propertyId: s
  * Construct a table row for an entry in a property that is not a collection.
  */
 export const singlePropertyTableRow = (parentData: BaseProxifiedProperty, propertyId: string, parentRowId: string,
-                                       props: IToTableRowsProps, options: IPropertyToTableRowOptions,
-                                       pathPrefix: string): IInspectorRow => {
+  props: IToTableRowsProps, options: IPropertyToTableRowOptions,
+  pathPrefix: string): IInspectorRow => {
   const { depth, addDummy, dataCreation, followReferences, ascending } = options;
   const parentIsConstant = !!options.parentIsConstant;
   const parentProperty = parentData.getProperty();
@@ -576,7 +582,8 @@ export const singlePropertyTableRow = (parentData: BaseProxifiedProperty, proper
           ascending,
           depth: depth - 1,
           followReferences,
-          parentIsConstant: newRow.isConstant || newRow.parentIsConstant },
+          parentIsConstant: newRow.isConstant || newRow.parentIsConstant,
+        },
         pathPrefix,
       );
     } else if (addDummy) {
@@ -591,11 +598,11 @@ export const singlePropertyTableRow = (parentData: BaseProxifiedProperty, proper
  * Construct a table row for an entry in a collection property.
  */
 export const collectionChildTableRow = (collectionPropertyProxy: BaseProxifiedProperty,
-                                        propertyId: string,
-                                        parentRowId: string,
-                                        props: IToTableRowsProps,
-                                        options: IPropertyToTableRowOptions,
-                                        pathPrefix: string): IInspectorRow => {
+  propertyId: string,
+  parentRowId: string,
+  props: IToTableRowsProps,
+  options: IPropertyToTableRowOptions,
+  pathPrefix: string): IInspectorRow => {
   const collectionProperty = collectionPropertyProxy.getProperty() as ContainerProperty;
   let prop;
   // when we try to access an non-existing element of an array, the 'get' method throws which causes app crash
@@ -734,22 +741,22 @@ export const fillExpanded = (
   toTableRowsOptions?: IToTableRowsOptions,
   pathPrefix: string = "",
 ) => {
-    for (const row of innerRows) {
-      if (row.id in expanded) {
-        const newPathPrefix = row.parent && row.isReference ?
-          pathPrefix + row.parent.getAbsolutePath() + idSeparator + row.name : pathPrefix;
+  for (const row of innerRows) {
+    if (row.id in expanded) {
+      const newPathPrefix = row.parent && row.isReference ?
+        pathPrefix + row.parent.getAbsolutePath() + idSeparator + row.name : pathPrefix;
 
-        if (row.children && row.children[0].context === "d") {
-          row.children = toTableRows(
-            { ...row },
-            props,
-            { ...toTableRowsOptions, parentIsConstant: row.isConstant || row.parentIsConstant },
-            newPathPrefix,
-          );
-        }
-        fillExpanded(expanded, row.children!, props, toTableRowsOptions, newPathPrefix);
+      if (row.children && row.children[0].context === "d") {
+        row.children = toTableRows(
+          { ...row },
+          props,
+          { ...toTableRowsOptions, parentIsConstant: row.isConstant || row.parentIsConstant },
+          newPathPrefix,
+        );
       }
+      fillExpanded(expanded, row.children!, props, toTableRowsOptions, newPathPrefix);
     }
+  }
 };
 
 const isPropertyProxy = (p: any): p is BaseProxifiedProperty => {
@@ -757,10 +764,9 @@ const isPropertyProxy = (p: any): p is BaseProxifiedProperty => {
 };
 
 const invalidReference = (parentProxy: BaseProxifiedProperty, id: string | number) => {
-  return `Invalid Reference: ${
-    isReferenceMapProperty(parentProxy.getProperty())
-      ? (parentProxy as any).get(`${ id }*`)
-      : parentProxy[`${ id }*`]}`;
+  return `Invalid Reference: ${isReferenceMapProperty(parentProxy.getProperty())
+      ? (parentProxy as any).get(`${id}*`)
+      : parentProxy[`${id}*`]}`;
 };
 
 /**
@@ -770,10 +776,10 @@ const invalidReference = (parentProxy: BaseProxifiedProperty, id: string | numbe
  * @return The property value.
  */
 export const getPropertyValue = (parent: ContainerProperty | BaseProxifiedProperty,
-                                 id: string,
-                                 context: string,
-                                 typeid: string,
-                                 followReferences = true): string | number | boolean => {
+  id: string,
+  context: string,
+  typeid: string,
+  followReferences = true): string | number | boolean => {
   let parentProperty;
   let parentProxy;
   if (isPropertyProxy(parent)) {
@@ -791,7 +797,7 @@ export const getPropertyValue = (parent: ContainerProperty | BaseProxifiedProper
     // Most likely failed due to some Reference mess up
     if (Utils.isReferenceCollectionTypeid(parentProperty.getTypeid()) ||
       Utils.isReferenceProperty(parentProxy.getProperty([id, BaseProperty.PATH_TOKENS.REF]))) {
-        return invalidReference(parentProxy, id);
+      return invalidReference(parentProxy, id);
     } else {
       throw (e);
     }
@@ -817,16 +823,16 @@ export const getPropertyValue = (parent: ContainerProperty | BaseProxifiedProper
   // If the property is a reference and we don't follow them, we store the reference path string instead.
   if (!followReferences && TypeIdHelper.isReferenceTypeId(typeid)) {
     if (parentContextIsSingle || isReferenceArrayProperty(parentProperty)) {
-      determinedValue = parentProxy[`${ id }*`];
+      determinedValue = parentProxy[`${id}*`];
     } else {
-      determinedValue = (parentProxy as any).get(`${ id }*`);
+      determinedValue = (parentProxy as any).get(`${id}*`);
     }
   } else if (contextIsSingle && propertyProxy !== undefined && isPrimitive(typeid)) {
     try {
-      if (parentProxy[`${ id }^`] !== undefined) {
-        determinedValue = parentProxy[`${ id }^`];
-      } else if ((parentProxy as any).get(`${ id }^`) !== undefined) {
-        determinedValue = (parentProxy as any).get(`${ id }^`);
+      if (parentProxy[`${id}^`] !== undefined) {
+        determinedValue = parentProxy[`${id}^`];
+      } else if ((parentProxy as any).get(`${id}^`) !== undefined) {
+        determinedValue = (parentProxy as any).get(`${id}^`);
       } else {
         determinedValue = parentProxy;
       }
@@ -835,16 +841,179 @@ export const getPropertyValue = (parent: ContainerProperty | BaseProxifiedProper
     }
   } else if (
     (propertyProxy === undefined &&
-    (isReferenceArrayProperty(parentProperty) || isReferenceMapProperty(parentProperty)) &&
-    !parentProperty.isReferenceValid(id as never)
+      (isReferenceArrayProperty(parentProperty) || isReferenceMapProperty(parentProperty)) &&
+      !parentProperty.isReferenceValid(id as never)
     ) ||
     (contextIsSingle &&
-    PropertyFactory.instanceOf(property, "Reference") &&
-    !(property as ReferenceProperty).isReferenceValid())
+      PropertyFactory.instanceOf(property, "Reference") &&
+      !(property as ReferenceProperty).isReferenceValid())
   ) {
     // Probably encountered an invalid Reference.
     determinedValue = invalidReference(parentProxy, id);
   }
 
   return determinedValue;
+};
+
+export const handleReferencePropertyEdit = async (rowData: IInspectorRow, newPath: string) => {
+  const parentProp = rowData!.parent!;
+  if (Utils.isReferenceArrayProperty(parentProp) || Utils.isReferenceMapProperty(parentProp)) {
+    parentProp.setValues({ [rowData.name]: newPath });
+    try {
+      (parentProp as unknown as ReferenceMapProperty).isReferenceValid(rowData.name);
+    } catch (e: any) {
+      // if maximum call stack size is exceeded, user probably created cyclic reference
+      // we can't delete cyclic references so we need set reference path to some other value
+      if (e.message.includes("Maximum call stack size exceeded")) {
+        parentProp.setValues({ [rowData.name]: "Could not resolve the reference" });
+      }
+    }
+  } else {
+    const unresolvedProperty =
+      (parentProp as ContainerProperty).get(
+        [rowData.name, BaseProperty.PATH_TOKENS.REF]) as unknown as ReferenceProperty;
+    unresolvedProperty.setValue(newPath);
+    try {
+      unresolvedProperty.isReferenceValid();
+    } catch (e: any) {
+      if (e.message.includes("Maximum call stack size exceeded")) {
+        unresolvedProperty.setValue("Could not resolve the reference");
+      }
+    }
+  }
+
+  parentProp!.getRoot().getWorkspace()!.commit();
+};
+
+const generateForm = (rowData: IInspectorRow) => {
+  if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleCreateData(rowData, "", rowData.parent!.getTypeid(), "single");
+    return false;
+  }
+  return true;
+};
+
+export const nameCellRenderer = ({ rowData, cellData, columnIndex, tableProps, searchResult }: ColumnRendererType) => {
+  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes } = tableProps;
+  if (checkoutInProgress) {
+    return getCellSkeleton(width);
+  }
+  if (cellData && dataGetter && rowData.context) { // cell data comes from data getter
+    return cellData;
+  } else {
+    const nameCell = (
+      <NameCell
+        iconRenderer={rowIconRenderer!}
+        rowData={rowData}
+        editReferenceHandler={() => (rowData)}
+        className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
+        readOnly={!!readOnly}
+      />
+    );
+    return rowData.context !== undefined ? nameCell : renderCreationRow(rowData);
+  }
+};
+
+export const typeCellRenderer = ({ rowData, tableProps }: { rowData: IInspectorRow; tableProps: any; }) => {
+  const { checkoutInProgress, width } = tableProps;
+  if (checkoutInProgress) {
+    return getCellSkeleton(width);
+  } else if (!rowData.typeid) {
+    return null;
+  } else {
+    return (<TypeColumn rowData={rowData} />);
+  }
+};
+
+const renderUneditableCell = (classes, rowData) => (
+  <div className={classes.typeIdRow}>
+    <div className={classes.typeIdRowLeft}>{rowData.value}</div>
+  </div>
+);
+
+interface SearchResult {
+  foundMatches:IInspectorSearchMatch[];
+  matchesMap: IInspectorSearchMatchMap;
+  currentResult: number;
+}
+
+const renderTooltipedUneditableCell = (message, classes, rowData) => (
+  <Tooltip
+    enterDelay={500}
+    classes={{
+      tooltip: classes.tooltip,
+    }}
+    placement="left"
+    title={message}
+  >
+    {renderUneditableCell(classes, rowData)}
+  </Tooltip>
+);
+
+
+/**
+ * @param width - width of the table
+ * @returns random width which fits half of the table
+ */
+ const getRandomWidth = (width: number) => {
+  return Math.random() * width * rowWidthInterval + width * minRowWidth;
+};
+
+/**
+ * @param width - width of the table
+ * @returns custom skeleton fitting the table with specified width
+ */
+ const getCellSkeleton = (width: number) => ThemedSkeleton(<Skeleton width={getRandomWidth(width)} />);
+
+const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
+  classes: any, searchResults: SearchResult) => {
+  const { foundMatches, matchesMap, currentResult } = searchResults;
+  const highlightedResult: IInspectorSearchMatch = (
+    currentResult !== -1 && currentResult !== undefined && foundMatches.length! > 0
+      ? foundMatches[currentResult] : { indexOfColumn: -1, rowId: "" });
+  return highlightedResult.rowId === rowData.id && highlightedResult.indexOfColumn === columnIndex ?
+    classes.currentMatch : (matchesMap[rowData.id] && matchesMap[rowData.id][columnIndex] ?
+      classes.match : "");
+};
+
+
+
+
+interface ColumnRendererType {
+  rowData: IInspectorRow;
+  cellData: React.ReactNode | undefined;
+  columnIndex: number;
+  tableProps: any;
+  searchResult: SearchResult;
+}
+
+export const valueCellRenderer = (
+  { rowData,
+     cellData,
+     columnIndex,
+     tableProps,
+     searchResult, }: ColumnRendererType) => {
+  const { classes, checkoutInProgress, followReferences,
+     rowIconRenderer, width, dataGetter, readOnly } = tableProps;
+  if (checkoutInProgress) {
+    return getCellSkeleton(width);
+  }
+  if (cellData && dataGetter && rowData.context) { // cell data comes from data getter
+    return cellData;
+  } else if (isPrimitive(rowData.typeid) && rowData.context === "single") {
+    return (
+      <EditableValueCell
+        className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
+        followReferences={followReferences}
+        iconRenderer={rowIconRenderer!}
+        rowData={rowData}
+        readOnly={!!readOnly}
+      />
+    );
+  } else {
+    return rowData.isConstant
+      ? renderTooltipedUneditableCell(InspectorMessages.CONSTANT_PROPERTY, classes, rowData)
+      : renderUneditableCell(classes, rowData);
+  }
 };

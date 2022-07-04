@@ -45,7 +45,7 @@
     "classnames": "^2.2.6",
     "lodash.debounce": "^4.0.8",
     "memoize-one": "^5.0.0",
-    "react-base-table": "1.0.2",
+    "react-base-table": "1.13.2",
     "react-loading-skeleton": "^1.1.2",
     "react-select": "^2.4.3",
     "react-virtualized-auto-sizer": "^1.0.2"

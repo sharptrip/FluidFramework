@@ -9,3 +9,6 @@ export * from "./PropertyDataCreationHandlers";
 export * from "./icons";
 export * from "./ModalManager";
 export * from "./ModalRoot";
+export * from "./CustomChip";
+export * from "./TypeColumn";
+export * from "./utils";

@@ -8,15 +8,9 @@ import ReactDOM from "react-dom";
 
 import _ from "lodash";
 import {
-     IDataCreationOptions,
-     IInspectorRow,
-     IInspectorTableProps,
-     InspectorTable,
-     ModalManager,
-     ModalRoot,
-     fetchRegisteredTemplates,
-     handlePropertyDataCreation,
-    } from "@fluid-experimental/property-inspector-table";
+    ModalManager,
+    ModalRoot,
+} from "@fluid-experimental/property-inspector-table";
 
 import { makeStyles } from "@material-ui/styles";
 import { MuiThemeProvider } from "@material-ui/core/styles";
@@ -27,7 +21,10 @@ import { DataBinder } from "@fluid-experimental/property-binder";
 import { SharedPropertyTree } from "@fluid-experimental/property-dds";
 import AutoSizer from "react-virtualized-auto-sizer";
 
+import { Box } from "@material-ui/core";
 import { theme } from "./theme";
+import { JsonTable } from "./jsonInspector/jsonTable";
+import { PropertyTable } from "./propertyInspector/propertyTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -65,27 +62,59 @@ const useStyles = makeStyles({
         height: "100%",
         width: "100%",
     },
+    defaultColor: {
+        color: "#808080",
+    },
+    enumColor: {
+        color: "#EC4A41",
+        flex: "none",
+    },
+    numberColor: {
+        color: "#32BCAD",
+    },
+    referenceColor: {
+        color: "#6784A6",
+    },
+    stringColor: {
+        color: "#0696D7",
+        height: "25px",
+    },
+    tooltip: {
+        backgroundColor: "black",
+        maxWidth: "100vw",
+        overflow: "hidden",
+        padding: "4px 8px",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    typesBox: {
+        display: "flex",
+        width: "100%",
+    },
 }, { name: "InspectorApp" });
 
-export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameOnly: boolean): IDataCreationOptions => {
-    if (nameOnly) {
-        return { name: "property" };
-    }
-    const templates = fetchRegisteredTemplates();
-    return { name: "property", options: templates };
-};
-
-const tableProps: Partial<IInspectorTableProps> = {
-    columns: ["name", "value", "type"],
-    dataCreationHandler: handlePropertyDataCreation,
-    dataCreationOptionGenerationHandler: handleDataCreationOptionGeneration,
-    expandColumnKey: "name",
-    width: 1000,
-    height: 600,
+const customData = {
+    test1: "dodo",
+    test2: 12,
+    test3: true,
+    ttt: false,
+    test4: {
+        test5: "hello booboo",
+    },
+    test6: [1, 2, "daba dee"],
+    // Maps are not supported
+    mapTest: new Map([["a", "b"], ["valA", "valB"]]),
+    setTest: new Set([1, 2, 3]),
+    nested: {
+        test9: {
+            strThing: "lolo",
+        },
+    },
 };
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
+    // const chipClasses = useChipStyles();
 
     return (
         <MuiThemeProvider theme={theme}>
@@ -94,16 +123,25 @@ export const InspectorApp = (props: any) => {
                 <div className={classes.root}>
                     <div className={classes.horizontalContainer}>
                         <div className={classes.tableContainer}>
-                        <AutoSizer>
+                            <AutoSizer>
                                 {
-                                ({ width, height }) =>
-                                            <InspectorTable
-                                                {...tableProps}
-                                                width={width}
-                                                height={height}
-                                                {...props} />
+                                    ({ width, height }) =>
+                                    <Box sx={{ display: "flex" }}>
+                                        <JsonTable
+                                            readOnly={true}
+                                            width={width / 2}
+                                            height={height}
+                                            {...props}
+                                            data={customData}
+                                        />
+                                        <PropertyTable
+                                            width={width / 2}
+                                            height={height}
+                                            {...props}
+                                        />
+                                    </Box>
                                 }
-                        </AutoSizer>
+                            </AutoSizer>
                         </div>
                     </div>
                 </div>
