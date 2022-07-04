@@ -8,6 +8,22 @@ import { BaseProperty } from "@fluid-experimental/property-properties";
 import { IRepoExpiryGetter, IRepoExpirySetter } from "./CommonTypes";
 import { IInspectorSearchState } from "./utils";
 
+export type IToTableRowsProps = Pick<IInspectorTableProps,
+  "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
+
+export interface IToTableRowsOptions {
+  depth: number;
+  addDummy: boolean;
+  followReferences: boolean;
+  ascending: boolean;
+  parentIsConstant?: boolean;
+}
+
+export interface IPropertyToTableRowOptions extends Partial<IToTableRowsOptions> {
+  depth: number;
+  dataCreation: boolean;
+}
+
 export interface IColumns {
   dataGetter?: (params: IDataGetterParameter) => React.ReactNode | null;
   key: string;
@@ -88,6 +104,10 @@ export interface IInspectorTableProps {
    */
   data?: BaseProxifiedProperty;
   /**
+   *  Reference property handler
+   */
+  editReferenceHandler?: (rowData: IInspectorRow, newPath: string) => Promise<void>;
+  /**
    * A callback function that is called on data creation. If not specified,
    * data creation will be disabled.
    */
@@ -160,6 +180,11 @@ export interface IInspectorTableProps {
    * if checkout is in progress
    */
   checkoutInProgress: boolean;
+  /**
+   * A transformation function from raw data to table rows
+   */
+  toTableRows: (row: Partial<IInspectorRow>, props: IToTableRowsProps,
+    options?: Partial<IToTableRowsOptions>, pathPrefix?: string) => IInspectorRow[];
 }
 
 export interface IInspectorSearchMatch {
@@ -175,7 +200,7 @@ export interface IInspectorSearchMatch {
 }
 
 export type IInspectorSearchCallback = (foundMatches: IInspectorSearchMatch[], matchesMap: IInspectorSearchMatchMap,
-                                        done: boolean, childToParentMap: { [key: string]: string; }) => void;
+  done: boolean, childToParentMap: { [key: string]: string; }) => void;
 
 export type IInspectorSearchAbortHandler = () => void;
 

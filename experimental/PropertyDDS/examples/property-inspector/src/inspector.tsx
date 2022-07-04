@@ -99,9 +99,18 @@ export const InspectorApp = (props: any) => {
                                 ({ width, height }) =>
                                             <InspectorTable
                                                 {...tableProps}
+                                                readOnly={true}
                                                 width={width}
                                                 height={height}
-                                                {...props} />
+                                                {...props}
+                                                data={ {} }
+                                                toTableRows = {() => [{
+                                                    id: null,
+                                                    name: "test",
+                                                    value: "20",
+                                                    context: "single",
+                                                    typeid: "boolean" }]}
+                                                />
                                 }
                         </AutoSizer>
                         </div>

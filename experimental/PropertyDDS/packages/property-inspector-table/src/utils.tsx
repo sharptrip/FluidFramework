@@ -11,6 +11,7 @@ import {
   MapProperty,
   PropertyFactory,
   ReferenceArrayProperty,
+  ReferenceMapProperty,
   ReferenceProperty,
   Workspace,
 } from "@fluid-experimental/property-properties";
@@ -18,8 +19,11 @@ import { BaseProxifiedProperty, PropertyProxy } from "@fluid-experimental/proper
 
 import memoize from "memoize-one";
 import { HashCalculator } from "./HashCalculator";
-import { IColumns, IExpandedMap, IInspectorRow, IInspectorSearchAbortHandler, IInspectorSearchCallback,
-  IInspectorSearchMatch, IInspectorSearchMatchMap, IInspectorTableProps } from "./InspectorTableTypes";
+import { IColumns, IExpandedMap, IInspectorRow,
+         IInspectorSearchAbortHandler, IInspectorSearchCallback,
+         IInspectorSearchMatch, IInspectorSearchMatchMap, IPropertyToTableRowOptions,
+         IToTableRowsOptions, IToTableRowsProps }
+      from "./InspectorTableTypes";
 import { Utils } from "./typeUtils";
 const { isEnumProperty, isEnumArrayProperty, isInt64Property, isReferenceProperty,
   isUint64Property, isCollectionProperty, isReferenceArrayProperty, isReferenceCollectionTypeid,
@@ -407,19 +411,6 @@ const compareNameDesc = (a: string, b: string) => {
   return compareName(a, b) * -1;
 };
 
-interface IToTableRowsOptions {
-  depth: number;
-  addDummy: boolean;
-  followReferences: boolean;
-  ascending: boolean;
-  parentIsConstant?: boolean;
-}
-
-interface IPropertyToTableRowOptions extends Partial<IToTableRowsOptions> {
-  depth: number;
-  dataCreation: boolean;
-}
-
 export const dummyChild = {
   children: undefined,
   context: "d",
@@ -437,13 +428,11 @@ export const dummyChild = {
 
 const OPTION_DEFAULTS = { depth: 0, addDummy: true, followReferences: true, ascending: true, parentIsConstant: false };
 
-type IToTableRowsProps = Pick<IInspectorTableProps, "dataCreationHandler" | "dataCreationOptionGenerationHandler" |
-  "childGetter" | "nameGetter" | "readOnly">;
 export const toTableRows = (
   {
     data,
     id = "",
-  }: IInspectorRow,
+  }: Partial<IInspectorRow>,
   props: IToTableRowsProps,
   options: Partial<IToTableRowsOptions> = {},
   pathPrefix: string = "",
@@ -847,4 +836,34 @@ export const getPropertyValue = (parent: ContainerProperty | BaseProxifiedProper
   }
 
   return determinedValue;
+};
+
+export const handleReferencePropertyEdit = async (rowData: IInspectorRow, newPath: string) => {
+  const parentProp = rowData!.parent!;
+  if (Utils.isReferenceArrayProperty(parentProp) || Utils.isReferenceMapProperty(parentProp)) {
+    parentProp.setValues({ [rowData.name]: newPath });
+    try {
+      (parentProp as unknown as ReferenceMapProperty).isReferenceValid(rowData.name);
+    } catch (e: any) {
+      // if maximum call stack size is exceeded, user probably created cyclic reference
+      // we can't delete cyclic references so we need set reference path to some other value
+      if (e.message.includes("Maximum call stack size exceeded")) {
+        parentProp.setValues({ [rowData.name]: "Could not resolve the reference" });
+      }
+    }
+  } else {
+    const unresolvedProperty =
+      (parentProp as ContainerProperty).get(
+        [rowData.name, BaseProperty.PATH_TOKENS.REF]) as unknown as ReferenceProperty;
+    unresolvedProperty.setValue(newPath);
+    try {
+      unresolvedProperty.isReferenceValid();
+    } catch (e: any) {
+      if (e.message.includes("Maximum call stack size exceeded")) {
+        unresolvedProperty.setValue("Could not resolve the reference");
+      }
+    }
+  }
+
+  parentProp!.getRoot().getWorkspace()!.commit();
 };
