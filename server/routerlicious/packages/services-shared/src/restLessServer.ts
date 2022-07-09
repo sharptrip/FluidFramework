@@ -7,6 +7,7 @@ import type { IncomingMessage, ServerResponse } from "http";
 import qs from "querystring";
 import { NetworkError, RestLessFieldNames } from "@fluidframework/server-services-client";
 import { urlencoded } from "body-parser";
+import { Lumberjack } from "@fluidframework/server-services-telemetry";
 
 export const decodeHeader = (
     header: string,
@@ -41,6 +42,7 @@ export class RestLessServer {
             await new Promise<void>((resolve, reject) =>
                 urlencoded(
                     {
+                        limit: "1gb",
                         extended: true,
                         // urlencoded does not recognize content-type: application/x-www-form-urlencoded;restless
                         type: (req) => req.headers["content-type"]?.startsWith("application/x-www-form-urlencoded"),
@@ -57,6 +59,7 @@ export class RestLessServer {
     }
 
     private translateRequestFields(request: IncomingMessageEx, fields: Record<string, any>): void {
+        Lumberjack.info(`RestLessServer.translateRequestFields: ${JSON.stringify(fields)}`);
         // Parse and override HTTP Method
         const methodOverrideField: RequestField = fields[
             RestLessFieldNames.Method
@@ -127,7 +130,9 @@ export class RestLessServer {
     }
 
     private static isRestLess(request: IncomingMessageEx) {
+        Lumberjack.info(`RestLessServer.isRestLess method: ${request.method}`);
         const isPost = request.method?.toLowerCase() === "post";
+        Lumberjack.info(`RestLessServer.isRestLess isPost: ${isPost}`);
         const contentTypeContents: string[] | undefined = request.headers["content-type"]?.toLowerCase()?.split(";");
         // TODO: maybe add multipart/form-data support in future if needed for blob uploads
         const isForm = contentTypeContents?.includes("application/x-www-form-urlencoded");

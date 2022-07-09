@@ -25,6 +25,7 @@ import winston from "winston";
 import { IAlfredTenant, ISession } from "@fluidframework/server-services-client";
 import { Provider } from "nconf";
 import { v4 as uuid } from "uuid";
+import { Lumberjack } from "@fluidframework/server-services-telemetry";
 import { Constants, getSession } from "../../../utils";
 
 export function create(
@@ -80,6 +81,7 @@ export function create(
         }),
         throttle(throttler, winston, commonThrottleOptions),
         async (request, response, next) => {
+            Lumberjack.info("Reached create document endpoint");
             // Tenant and document
             const tenantId = getParam(request.params, "tenantId");
             // If enforcing server generated document id, ignore id parameter
@@ -95,6 +97,7 @@ export function create(
 
             const enableDiscovery: boolean = request.body.enableDiscovery ?? false;
 
+            Lumberjack.info("Trying to create document");
             const createP = storage.createDocument(
                 tenantId,
                 id,
