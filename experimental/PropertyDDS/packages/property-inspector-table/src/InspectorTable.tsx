@@ -6,16 +6,16 @@
 import "@hig/fonts/build/ArtifaktElement.css";
 import Button from "@material-ui/core/Button";
 import { createStyles, Theme, withStyles, WithStyles } from "@material-ui/core/styles";
-import Tooltip from "@material-ui/core/Tooltip";
+import Skeleton from "react-loading-skeleton";
+
 import classNames from "classnames";
 import debounce from "lodash.debounce";
 import * as React from "react";
 import BaseTable, { SortOrder } from "react-base-table";
+import { ModalConsumer } from "./ModalManager";
 // eslint-disable-next-line import/no-unassigned-import
 import "react-base-table/styles.css";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import { InspectorMessages, minRows, minRowWidth, rowWidthInterval } from "./constants";
-import { EditableValueCell } from "./EditableValueCell";
+import { InspectorMessages, minRows } from "./constants";
 import { EditReferencePath } from "./EditReferencePath";
 import { computeIconSize, Empty } from "./Empty";
 import { ExpiryModal } from "./ExpiryModal";
@@ -27,15 +27,11 @@ import {
   IInspectorSearchMatch, IInspectorSearchMatchMap, IInspectorTableProps,
   IInspectorTableState,
 } from "./InspectorTableTypes";
-import { ModalConsumer } from "./ModalManager";
-import { NameCell } from "./NameCell";
-import { NewDataForm } from "./NewDataForm";
-import { NewDataRow } from "./NewDataRow";
-import { TypeColumn } from "./TypeColumn";
 import {
   expandAll, fillExpanded, getReferenceValue, handleReferencePropertyEdit,
-  IInspectorSearchControls, isPrimitive, search, showNextResult, toTableRows,
+  IInspectorSearchControls, search, showNextResult, toTableRows,
 } from "./utils";
+import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
 
 /**
  * @TODO -s
@@ -166,38 +162,12 @@ const styles = (theme: Theme) => createStyles({
 });
 
 /**
- * @param inSkeleton - basic skeleton
- * @returns Custom skeleton
- */
-const themedSkeleton = (inSkeleton: JSX.Element) => {
-  return (
-    <SkeletonTheme color="#C4C4C4">
-      {inSkeleton}
-    </SkeletonTheme>
-  );
-};
-
-/**
- * @param width - width of the table
- * @returns random width which fits half of the table
- */
-const getRandomWidth = (width: number) => {
-  return Math.random() * width * rowWidthInterval + width * minRowWidth;
-};
-
-/**
  * @param width - width of the table
  * @returns random width which fits half of the table
  */
 const getRandomRowsNum = () => {
   return Math.floor(Math.random() * minRows + minRows);
 };
-
-/**
- * @param width - width of the table
- * @returns custom skeleton fitting the table with specified width
- */
-const getCellSkeleton = (width: number) => themedSkeleton(<Skeleton width={getRandomWidth(width)} />);
 
 /**
  * The default implementation for the InspectorTable `childGetter` callback.
@@ -616,31 +586,10 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
         title: currentId[0].toUpperCase() + currentId.slice(1), // Capitalize title
         width,
       };
-      if (currentId === "name") { newColumn.cellRenderer = this.nameCellRenderer; }
-      if (currentId === "value") { newColumn.cellRenderer = this.valueCellRenderer; }
-      if (currentId === "type") { newColumn.cellRenderer = this.typeCellRenderer; }
+      newColumn.cellRenderer = this.props.columnsRenderers ? this.props.columnsRenderers[currentId] : undefined;
       columns.push(newColumn);
     }
     return columns;
-  };
-
-  private handleInitiateCreate(rowData: IInspectorRow) {
-    this.setState({ showFormRowID: rowData.id });
-    this.forceUpdateBaseTable();
-  }
-
-  private async handleCreateData(rowData: IInspectorRow, name: string, type: string, context: string) {
-    if (this.dataCreation) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.props.dataCreationHandler!(rowData, name, type, context);
-      this.setState({ showFormRowID: "0" });
-      this.forceUpdateBaseTable();
-    }
-  }
-
-  private readonly handleCancelCreate = () => {
-    this.setState({ showFormRowID: "0" });
-    this.forceUpdateBaseTable();
   };
 
   private readonly handleInitialEditReference = (rowData: IInspectorRow) => {
@@ -703,7 +652,7 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
   ): IInspectorSearchControls | undefined => {
     const { data } = this.props;
     const { searchState, tableRows } = this.state;
-    const currentWorkspace = data && data.getProperty().getRoot().getWorkspace();
+    const currentWorkspace = data;
     if (currentWorkspace) {
       const searchControls = search(searchExpression, tableRows, this.props.dataGetter,
         this.columns, callback, this.props,
@@ -777,129 +726,6 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
     this.setState({ expanded: {} });
   };
 
-  private renderCreationRow(rowData: IInspectorRow) {
-    const { dataCreationOptionGenerationHandler, classes } = this.props;
-    const result = dataCreationOptionGenerationHandler!(rowData, true);
-
-    const addDataRow = (
-      <NewDataRow
-        dataType={result.name}
-        onClick={this.handleInitiateCreate.bind(this, rowData)}
-      />
-    );
-
-    const addDataForm = (options) => (
-      <div className={classes.dataForm}>
-        <NewDataForm
-          onCancelCreate={this.handleCancelCreate}
-          onDataCreate={this.handleCreateData.bind(this, rowData)}
-          options={options}
-          rowData={rowData}
-        />
-      </div>
-    );
-
-    return (
-      <div className={classes.dataFormContainer}>
-        {
-          this.state.showFormRowID === rowData.id ?
-            this.generateForm(rowData) &&
-            addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
-            addDataRow
-        }
-      </div>
-    );
-  }
-
-  private readonly determineCellClassName = (rowData: IInspectorRow, columnIndex: number) => {
-    const { classes } = this.props;
-    const { foundMatches, matchesMap, currentResult } = this.state;
-    const highlightedResult: IInspectorSearchMatch = (
-      currentResult !== -1 && currentResult !== undefined && foundMatches.length! > 0
-        ? foundMatches[currentResult] : { indexOfColumn: -1, rowId: "" });
-    return highlightedResult.rowId === rowData.id && highlightedResult.indexOfColumn === columnIndex ?
-      classes.currentMatch : (matchesMap[rowData.id] && matchesMap[rowData.id][columnIndex] ?
-        classes.match : "");
-  };
-
-  private readonly nameCellRenderer = ({ rowData, cellData, columnIndex }:
-    { rowData: IInspectorRow; cellData: React.ReactNode | undefined; columnIndex: number; }) => {
-    const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly } = this.props;
-    if (checkoutInProgress) {
-      return getCellSkeleton(width);
-    }
-    if (cellData && dataGetter && rowData.context) { // cell data comes from data getter
-      return cellData;
-    } else {
-      const nameCell = (
-        <NameCell
-          iconRenderer={rowIconRenderer!}
-          rowData={rowData}
-          editReferenceHandler={() => this.handleInitialEditReference(rowData)}
-          className={this.determineCellClassName(rowData, columnIndex)}
-          readOnly = {!!readOnly}
-        />
-      );
-      return rowData.context !== undefined ? nameCell : this.renderCreationRow(rowData);
-    }
-  };
-
-  // eslint-disable-next-line max-len
-  private readonly valueCellRenderer = ({ rowData, cellData, columnIndex }: { rowData: IInspectorRow; cellData: React.ReactNode | undefined; columnIndex: number; }) => {
-    const { classes, checkoutInProgress, followReferences, rowIconRenderer, width, dataGetter, readOnly } =
-      this.props;
-    if (checkoutInProgress) {
-      return getCellSkeleton(width);
-    }
-    if (cellData && dataGetter && rowData.context) { // cell data comes from data getter
-      return cellData;
-    } else if (isPrimitive(rowData.typeid) && rowData.context === "single") {
-      return (
-        <EditableValueCell
-          className={this.determineCellClassName(rowData, columnIndex)}
-          followReferences={followReferences}
-          iconRenderer={rowIconRenderer!}
-          rowData={rowData}
-          readOnly={!!readOnly}
-        />
-      );
-    } else {
-      return rowData.isConstant
-        ? this.renderTooltipedUneditableCell(InspectorMessages.CONSTANT_PROPERTY, classes, rowData)
-        : this.renderUneditableCell(classes, rowData);
-    }
-  };
-
-  private readonly typeCellRenderer = ({ rowData }: { rowData: IInspectorRow; }) => {
-    const { checkoutInProgress, width } = this.props;
-    if (checkoutInProgress) {
-      return getCellSkeleton(width);
-    } else if (!rowData.typeid) {
-      return null;
-    } else {
-      return (<TypeColumn rowData={rowData} />);
-    }
-  };
-
-  private readonly renderTooltipedUneditableCell = (message, classes, rowData) => (
-    <Tooltip
-      enterDelay={500}
-      classes={{
-        tooltip: classes.tooltip,
-      }}
-      placement="left"
-      title={message}
-    >
-      {this.renderUneditableCell(classes, rowData)}
-    </Tooltip>
-  );
-
-  private readonly renderUneditableCell = (classes, rowData) => (
-    <div className={classes.typeIdRow}>
-      <div className={classes.typeIdRowLeft}>{rowData.value}</div>
-    </div>
-  );
-
   /**
    * Maps the expanded row to either the filteredExpanded list or the whole dataset expanded list. This
    * allows the user to come back to the state before performing the filtering
@@ -924,14 +750,6 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
     });
   };
 
-  private readonly generateForm = (rowData: IInspectorRow) => {
-    if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.handleCreateData(rowData, "", rowData.parent!.getTypeid(), "single");
-      return false;
-    }
-    return true;
-  };
 
   private readonly updateSearchState = (foundMatches: IInspectorSearchMatch[], matchesMap: IInspectorSearchMatchMap,
     done: boolean, childToParentMap: { [key: string]: string; }) => {

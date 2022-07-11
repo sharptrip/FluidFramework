@@ -185,6 +185,7 @@ export interface IInspectorTableProps {
    */
   toTableRows: (row: Partial<IInspectorRow>, props: IToTableRowsProps,
     options?: Partial<IToTableRowsOptions>, pathPrefix?: string) => IInspectorRow[];
+  columnsRenderers: Record<string, () => any>;
 }
 
 export interface IInspectorSearchMatch {
