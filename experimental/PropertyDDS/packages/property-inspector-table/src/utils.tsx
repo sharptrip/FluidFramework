@@ -885,7 +885,6 @@ export const handleReferencePropertyEdit = async (rowData: IInspectorRow, newPat
   parentProp!.getRoot().getWorkspace()!.commit();
 };
 
-
 function handleInitiateCreate(rowData: IInspectorRow) {
   this.setState({ showFormRowID: rowData.id });
   this.forceUpdateBaseTable();
@@ -893,7 +892,6 @@ function handleInitiateCreate(rowData: IInspectorRow) {
 
  async function handleCreateData(rowData: IInspectorRow, name: string, type: string, context: string) {
   if (this.dataCreation) {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.props.dataCreationHandler!(rowData, name, type, context);
     this.setState({ showFormRowID: "0" });
     this.forceUpdateBaseTable();
@@ -904,7 +902,6 @@ const handleCancelCreate = () => {
   this.setState({ showFormRowID: "0" });
   this.forceUpdateBaseTable();
 };
-
 
 const generateForm = (rowData: IInspectorRow) => {
   if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
@@ -947,11 +944,10 @@ export const renderCreationRow = (rowData: IInspectorRow) => {
       }
     </div>
   );
-}
+};
 
-export const nameCellRenderer = ({ rowData, cellData, columnIndex }:
-  { rowData: IInspectorRow; cellData: React.ReactNode | undefined; columnIndex: number; }) => {
-  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly } = this.props;
+export const nameCellRenderer = ({ rowData, cellData, columnIndex, tableProps, searchResult }: ColumnRendererType) => {
+  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   }
@@ -962,8 +958,8 @@ export const nameCellRenderer = ({ rowData, cellData, columnIndex }:
       <NameCell
         iconRenderer={rowIconRenderer!}
         rowData={rowData}
-        editReferenceHandler={() => this.handleInitialEditReference(rowData)}
-        className={this.determineCellClassName(rowData, columnIndex)}
+        editReferenceHandler={() => handleInitialEditReference(rowData)}
+        className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
         readOnly={!!readOnly}
       />
     );
@@ -971,8 +967,8 @@ export const nameCellRenderer = ({ rowData, cellData, columnIndex }:
   }
 };
 
-export const typeCellRenderer = ({ rowData }: { rowData: IInspectorRow; }) => {
-  const { checkoutInProgress, width } = this.props;
+export const typeCellRenderer = ({ rowData, tableProps }: { rowData: IInspectorRow; tableProps: any; }) => {
+  const { checkoutInProgress, width } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   } else if (!rowData.typeid) {
@@ -988,6 +984,12 @@ const renderUneditableCell = (classes, rowData) => (
   </div>
 );
 
+interface SearchResult {
+  foundMatches:IInspectorSearchMatch[];
+  matchesMap: IInspectorSearchMatchMap;
+  currentResult: number;
+}
+
 const renderTooltipedUneditableCell = (message, classes, rowData) => (
   <Tooltip
     enterDelay={500}
@@ -1000,6 +1002,7 @@ const renderTooltipedUneditableCell = (message, classes, rowData) => (
     {renderUneditableCell(classes, rowData)}
   </Tooltip>
 );
+
 
 /**
  * @param width - width of the table
@@ -1015,9 +1018,9 @@ const renderTooltipedUneditableCell = (message, classes, rowData) => (
  */
  const getCellSkeleton = (width: number) => ThemedSkeleton(<Skeleton width={getRandomWidth(width)} />);
 
-const determineCellClassName = (rowData: IInspectorRow, columnIndex: number) => {
-  const { classes } = this.props;
-  const { foundMatches, matchesMap, currentResult } = this.state;
+const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
+  classes: any, searchResults: SearchResult) => {
+  const { foundMatches, matchesMap, currentResult } = searchResults;
   const highlightedResult: IInspectorSearchMatch = (
     currentResult !== -1 && currentResult !== undefined && foundMatches.length! > 0
       ? foundMatches[currentResult] : { indexOfColumn: -1, rowId: "" });
@@ -1026,14 +1029,25 @@ const determineCellClassName = (rowData: IInspectorRow, columnIndex: number) => 
       classes.match : "");
 };
 
-interface ValueRendererType { rowData: IInspectorRow; cellData: React.ReactNode | undefined; columnIndex: number; }
+
+
+
+interface ColumnRendererType {
+  rowData: IInspectorRow;
+  cellData: React.ReactNode | undefined;
+  columnIndex: number;
+  tableProps: any;
+  searchResult: SearchResult;
+}
 
 export const valueCellRenderer = (
   { rowData,
      cellData,
-     columnIndex }: ValueRendererType) => {
-  const { classes, checkoutInProgress, followReferences, rowIconRenderer, width, dataGetter, readOnly } =
-    this.props;
+     columnIndex,
+     tableProps,
+     searchResult, }: ColumnRendererType) => {
+  const { classes, checkoutInProgress, followReferences,
+     rowIconRenderer, width, dataGetter, readOnly } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   }
@@ -1042,7 +1056,7 @@ export const valueCellRenderer = (
   } else if (isPrimitive(rowData.typeid) && rowData.context === "single") {
     return (
       <EditableValueCell
-        className={determineCellClassName(rowData, columnIndex)}
+        className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
         followReferences={followReferences}
         iconRenderer={rowIconRenderer!}
         rowData={rowData}

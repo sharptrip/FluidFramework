@@ -10,14 +10,9 @@ import _ from "lodash";
 import {
     IDataCreationOptions,
     IInspectorRow,
-    IInspectorTableProps,
-    InspectorTable,
     ModalManager,
     ModalRoot,
     fetchRegisteredTemplates,
-    handlePropertyDataCreation,
-    // CustomChip,
-    // useChipStyles,
 } from "@fluid-experimental/property-inspector-table";
 
 import { makeStyles } from "@material-ui/styles";
@@ -29,10 +24,8 @@ import { DataBinder } from "@fluid-experimental/property-binder";
 import { SharedPropertyTree } from "@fluid-experimental/property-dds";
 import AutoSizer from "react-virtualized-auto-sizer";
 
-import { TreeNavigationResult, TreeType } from "@fluid-internal/tree";
-import { Box, Chip } from "@material-ui/core";
 import { theme } from "./theme";
-import { JsonCursor, JsonType } from "./jsonCursor";
+import { JsonTable } from "./jsonInspector/jsonTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -72,33 +65,33 @@ const useStyles = makeStyles({
     },
     defaultColor: {
         color: "#808080",
-      },
-      enumColor: {
+    },
+    enumColor: {
         color: "#EC4A41",
         flex: "none",
-      },
-      numberColor: {
+    },
+    numberColor: {
         color: "#32BCAD",
-      },
-      referenceColor: {
+    },
+    referenceColor: {
         color: "#6784A6",
-      },
-      stringColor: {
+    },
+    stringColor: {
         color: "#0696D7",
         height: "25px",
-      },
-      tooltip: {
+    },
+    tooltip: {
         backgroundColor: "black",
         maxWidth: "100vw",
         overflow: "hidden",
         padding: "4px 8px",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-      },
-      typesBox: {
+    },
+    typesBox: {
         display: "flex",
         width: "100%",
-      },
+    },
 }, { name: "InspectorApp" });
 
 export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameOnly: boolean): IDataCreationOptions => {
@@ -109,86 +102,23 @@ export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameO
     return { name: "property", options: templates };
 };
 
-const tableProps: Partial<IInspectorTableProps> = {
-    columns: ["name", "value", "type"],
-    dataCreationHandler: handlePropertyDataCreation,
-    dataCreationOptionGenerationHandler: handleDataCreationOptionGeneration,
-    expandColumnKey: "name",
-    width: 1000,
-    height: 600,
-};
-
 const customData = {
     test1: "dodo",
-    test2: "hello world",
-    test3: "ggggg",
+    test2: 12,
+    test3: true,
     test4: {
         test5: "hello booboo",
     },
-    test6: [1, 2, 3],
-    test7: new Map([["a", "b"], ["valA", "valB"]]),
+    test6: [1, 2, "daba dee"],
+    // Maps are not supported
+    mapTest: new Map([["a", "b"], ["valA", "valB"]]),
+    setTest: new Set([1, 2, 3]),
     nested: {
         test9: {
             strThing: "lolo",
         },
     },
 };
-
-// const fromTypeToContext(type: TreeType) {
-//     switch (type) {
-//         case JsonType.Array
-//         case JsonType.Object:
-//             return
-
-//             break;
-
-//         default:
-//             break;
-//     }
-// }
-
-const mapJsonTypesToStrings = (type: TreeType) => {
-    switch (type) {
-        case JsonType.Array:
-            return "Array";
-        case JsonType.String:
-            return "String";
-        case JsonType.Boolean:
-            return "Boolean";
-        case JsonType.Number:
-            return "Number";
-        case JsonType.Null:
-            return "Null";
-        case JsonType.Object:
-            return "Object";
-        default:
-            return "Unknown Type";
-    }
-};
-
-function toTableRows({ data, id }: any) {
-    const res: Record<string, any>[] = [];
-    const jsonCursor = new JsonCursor(data);
-    for (const key of jsonCursor.keys) {
-        const len = jsonCursor.length(key);
-        for (let idx = 0; idx < len; idx++) {
-            const result = jsonCursor.down(key, idx);
-            if (result === TreeNavigationResult.Ok) {
-                res.push({
-                    id: key,
-                    name: key,
-                    value: jsonCursor.value,
-                    type: mapJsonTypesToStrings(jsonCursor.type),
-                    // context: "single",
-                    children: jsonCursor.type === 5 || jsonCursor.type === 4 ? toTableRows({ data: data[key] }) : [],
-                });
-            }
-        }
-        jsonCursor.up();
-    }
-
-    return res;
-}
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
@@ -204,29 +134,15 @@ export const InspectorApp = (props: any) => {
                             <AutoSizer>
                                 {
                                     ({ width, height }) =>
-                                        <InspectorTable
-                                            {...tableProps}
+                                        <JsonTable
                                             readOnly={true}
                                             width={width}
                                             height={height}
                                             {...props}
                                             data={customData}
-                                            columns={["name", "value", "type"]}
-                                            rowIconRenderer={() => { }}
-                                            toTableRows={toTableRows}
-                                            columnsRenderers={
-                                                {
-                                                    type: ({ rowData }) =>
-                                                    (<Box className={classes.typesBox}>
-                                                            <Chip
-                                                                label={ rowData.type }
-                                                                className={classes.stringColor}/>
-                                                    </Box>),
-                                                }
-                                            }
                                         />
                                 }
-                            </AutoSizer>w
+                            </AutoSizer>
                         </div>
                     </div>
                 </div>
