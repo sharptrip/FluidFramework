@@ -885,24 +885,6 @@ export const handleReferencePropertyEdit = async (rowData: IInspectorRow, newPat
   parentProp!.getRoot().getWorkspace()!.commit();
 };
 
-function handleInitiateCreate(rowData: IInspectorRow) {
-  this.setState({ showFormRowID: rowData.id });
-  this.forceUpdateBaseTable();
-}
-
- async function handleCreateData(rowData: IInspectorRow, name: string, type: string, context: string) {
-  if (this.dataCreation) {
-    this.props.dataCreationHandler!(rowData, name, type, context);
-    this.setState({ showFormRowID: "0" });
-    this.forceUpdateBaseTable();
-  }
-}
-
-const handleCancelCreate = () => {
-  this.setState({ showFormRowID: "0" });
-  this.forceUpdateBaseTable();
-};
-
 const generateForm = (rowData: IInspectorRow) => {
   if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -910,40 +892,6 @@ const generateForm = (rowData: IInspectorRow) => {
     return false;
   }
   return true;
-};
-
-export const renderCreationRow = (rowData: IInspectorRow) => {
-  const { dataCreationOptionGenerationHandler, classes } = this.props;
-  const result = dataCreationOptionGenerationHandler!(rowData, true);
-
-  const addDataRow = (
-    <NewDataRow
-      dataType={result.name}
-      onClick={handleInitiateCreate.bind(this, rowData)}
-    />
-  );
-
-  const addDataForm = (options) => (
-    <div className={classes.dataForm}>
-      <NewDataForm
-        onCancelCreate={handleCancelCreate}
-        onDataCreate={handleCreateData.bind(this, rowData)}
-        options={options}
-        rowData={rowData}
-      />
-    </div>
-  );
-
-  return (
-    <div className={classes.dataFormContainer}>
-      {
-        this.state.showFormRowID === rowData.id ?
-          this.generateForm(rowData) &&
-          addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
-          addDataRow
-      }
-    </div>
-  );
 };
 
 export const nameCellRenderer = ({ rowData, cellData, columnIndex, tableProps, searchResult }: ColumnRendererType) => {
@@ -958,7 +906,7 @@ export const nameCellRenderer = ({ rowData, cellData, columnIndex, tableProps, s
       <NameCell
         iconRenderer={rowIconRenderer!}
         rowData={rowData}
-        editReferenceHandler={() => handleInitialEditReference(rowData)}
+        editReferenceHandler={() => (rowData)}
         className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
         readOnly={!!readOnly}
       />

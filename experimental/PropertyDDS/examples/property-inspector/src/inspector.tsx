@@ -8,11 +8,8 @@ import ReactDOM from "react-dom";
 
 import _ from "lodash";
 import {
-    IDataCreationOptions,
-    IInspectorRow,
     ModalManager,
     ModalRoot,
-    fetchRegisteredTemplates,
 } from "@fluid-experimental/property-inspector-table";
 
 import { makeStyles } from "@material-ui/styles";
@@ -24,8 +21,10 @@ import { DataBinder } from "@fluid-experimental/property-binder";
 import { SharedPropertyTree } from "@fluid-experimental/property-dds";
 import AutoSizer from "react-virtualized-auto-sizer";
 
+import { Box } from "@material-ui/core";
 import { theme } from "./theme";
 import { JsonTable } from "./jsonInspector/jsonTable";
+import { PropertyTable } from "./propertyInspector/propertyTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -94,18 +93,11 @@ const useStyles = makeStyles({
     },
 }, { name: "InspectorApp" });
 
-export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameOnly: boolean): IDataCreationOptions => {
-    if (nameOnly) {
-        return { name: "property" };
-    }
-    const templates = fetchRegisteredTemplates();
-    return { name: "property", options: templates };
-};
-
 const customData = {
     test1: "dodo",
     test2: 12,
     test3: true,
+    ttt: false,
     test4: {
         test5: "hello booboo",
     },
@@ -134,13 +126,20 @@ export const InspectorApp = (props: any) => {
                             <AutoSizer>
                                 {
                                     ({ width, height }) =>
+                                    <Box sx={{ display: "flex" }}>
                                         <JsonTable
                                             readOnly={true}
-                                            width={width}
+                                            width={width / 2}
                                             height={height}
                                             {...props}
                                             data={customData}
                                         />
+                                        <PropertyTable
+                                            width={width / 2}
+                                            height={height}
+                                            {...props}
+                                        />
+                                    </Box>
                                 }
                             </AutoSizer>
                         </div>

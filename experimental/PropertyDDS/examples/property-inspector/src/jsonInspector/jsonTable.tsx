@@ -25,6 +25,10 @@ const useStyles = makeStyles({
     defaultColor: {
         color: "#808080",
     },
+    typesCell: {
+        color: "#EC4A41",
+        height: "25px",
+    },
     enumColor: {
         color: "#EC4A41",
         flex: "none",
@@ -126,7 +130,7 @@ export const JsonTable = (props: IJsonTableProps) => {
                     return <Box className={classes.typesBox}>
                         <Chip
                             label={rowData.type}
-                            className={classes.stringColor} />
+                            className={classes.typesCell} />
                     </Box>;
                 },
                 value: ({ rowData, readOnly }) => {

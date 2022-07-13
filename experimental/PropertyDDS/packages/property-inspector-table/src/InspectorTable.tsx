@@ -32,6 +32,8 @@ import {
   IInspectorSearchControls, search, showNextResult, toTableRows,
 } from "./utils";
 import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
+import { NewDataForm } from "./NewDataForm";
+import { NewDataRow } from "./NewDataRow";
 
 /**
  * @TODO -s
@@ -722,6 +724,58 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
     }
   };
 
+  private readonly handleInitiateCreate(rowData: IInspectorRow) {
+    this.setState({ showFormRowID: rowData.id });
+    this.forceUpdateBaseTable();
+  }
+
+  private async handleCreateData(rowData: IInspectorRow, name: string, type: string, context: string) {
+    if (this.dataCreation) {
+      this.props.dataCreationHandler!(rowData, name, type, context);
+      this.setState({ showFormRowID: "0" });
+      this.forceUpdateBaseTable();
+    }
+  }
+
+  private readonly handleCancelCreate = () => {
+    this.setState({ showFormRowID: "0" });
+    this.forceUpdateBaseTable();
+  };
+
+  private readonly renderCreationRow = (rowData: IInspectorRow) => {
+    const { dataCreationOptionGenerationHandler, handleInitiateCreate, generateForm, classes } = this.props;
+    const result = dataCreationOptionGenerationHandler!(rowData, true);
+
+    const addDataRow = (
+      <NewDataRow
+        dataType={result.name}
+        onClick={handleInitiateCreate.bind(this, rowData)}
+      />
+    );
+
+    const addDataForm = (options) => (
+      <div className={classes.dataForm}>
+        <NewDataForm
+          onCancelCreate={handleCancelCreate}
+          onDataCreate={handleCreateData.bind(this, rowData)}
+          options={options}
+          rowData={rowData}
+        />
+      </div>
+    );
+
+    return (
+      <div className={classes.dataFormContainer}>
+        {
+          this.state.showFormRowID === rowData.id ?
+            generateForm.call(this, rowData) &&
+            addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
+            addDataRow
+        }
+      </div>
+    );
+  };
+
   private readonly handleCollapseAll = () => {
     this.setState({ expanded: {} });
   };
@@ -749,7 +803,6 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
       sortBy,
     });
   };
-
 
   private readonly updateSearchState = (foundMatches: IInspectorSearchMatch[], matchesMap: IInspectorSearchMatchMap,
     done: boolean, childToParentMap: { [key: string]: string; }) => {
