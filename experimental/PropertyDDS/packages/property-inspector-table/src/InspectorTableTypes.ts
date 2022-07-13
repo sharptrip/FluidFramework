@@ -3,11 +3,9 @@
  * Licensed under the MIT License.
  */
 
-import { BaseProxifiedProperty } from "@fluid-experimental/property-proxy";
-import { BaseProperty } from "@fluid-experimental/property-properties";
+import { BaseTableProps, SortOrder } from "react-base-table";
 import { IRepoExpiryGetter, IRepoExpirySetter } from "./CommonTypes";
 import { IInspectorSearchState } from "./utils";
-import { SortOrder } from "react-base-table";
 
 export type IToTableRowsProps = Pick<IInspectorTableProps,
   "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
@@ -39,17 +37,17 @@ export interface IColumns {
 /**
  * The interface for an entry of the visualization data array.
  */
-export interface IInspectorRow {
+export interface IInspectorRow<T = any> {
   context: string;
   data: any;
-  children: IInspectorRow[] | undefined;
+  children: IInspectorRow<T>[] | undefined;
   id: string;
   isConstant: boolean;
   isReference: boolean;
   name: string;
   typeid: string;
   value: number | string | boolean;
-  parent?: BaseProperty;
+  parent?: T;
   parentId: string;
   parentIsConstant: boolean;
   propertyId: string;
@@ -76,9 +74,11 @@ export interface IDataCreationOptions {
   options?: any;
 }
 
-export type IInspectorColumnsKeys = "context" | "name" | "type" | "value";
+export type IInspectorColumnsKeys = "name" | "type" | "value";
 
-export interface IInspectorTableProps {
+type BaseTablePropsPartial<T> = Omit<BaseTableProps<T>, "columns"> ;
+
+export interface IInspectorTableProps<T = any> extends BaseTablePropsPartial<T> {
   /**
    * The active repository guid. Used as the prefix for the table row ids.
    */
@@ -91,7 +91,7 @@ export interface IInspectorTableProps {
    * A callback to override the child of a row,
    * defaults to the hierarchical child of the property the row visualizes.
    */
-  childGetter?: (child: any, name: string, parent: BaseProperty, typeid: string, context: string) => any;
+  childGetter?: (child: any, name: string, parent: any, typeid: string, context: string) => any;
   /**
    * Current Urn
    */
@@ -103,20 +103,20 @@ export interface IInspectorTableProps {
   /**
    * The raw data to be visualized.
    */
-  data?: BaseProxifiedProperty;
+  data?: T[];
   /**
    *  Reference property handler
    */
-  editReferenceHandler?: (rowData: IInspectorRow, newPath: string) => Promise<void>;
+  editReferenceHandler?: (rowData: T, newPath: string) => Promise<void>;
   /**
    * A callback function that is called on data creation. If not specified,
    * data creation will be disabled.
    */
-  dataCreationHandler?: (rowData: IInspectorRow, name: string, typeid: string, context: string) => Promise<any>;
+  dataCreationHandler?: (rowData: T, name: string, typeid: string, context: string) => Promise<any>;
   /**
    * A callback that is executed to compute the name and the options available for the data creation.
    */
-  dataCreationOptionGenerationHandler?: (rowData: IInspectorRow, nameOnly: boolean) => IDataCreationOptions;
+  dataCreationOptionGenerationHandler?: (rowData: T, nameOnly: boolean) => IDataCreationOptions;
   /**
    * A handler to delete (expire) a repository.
    */
@@ -132,7 +132,7 @@ export interface IInspectorTableProps {
   /**
    * A callback to override the name of a row, defaults to the id of the property the row visualizes.
    */
-  nameGetter?: (name: string, parent: BaseProperty, typeid: string, context: string) => string;
+  nameGetter?: (name: string, parent: any, typeid: string, context: string) => string;
   /**
    * Indicates if the table is in read only mode
    */
@@ -140,7 +140,7 @@ export interface IInspectorTableProps {
   /**
    * Callback that is invoked to determine the icon.
    */
-  rowIconRenderer?: (rowData: IInspectorRow) => React.ReactNode;
+  rowIconRenderer?: (rowData: T) => React.ReactNode;
   /**
    * Width of the table
    */
@@ -184,8 +184,8 @@ export interface IInspectorTableProps {
   /**
    * A transformation function from raw data to table rows
    */
-  toTableRows: (row: Partial<IInspectorRow>, props: IToTableRowsProps,
-    options?: Partial<IToTableRowsOptions>, pathPrefix?: string) => IInspectorRow[];
+  toTableRows: (row: Partial<T>, props: IToTableRowsProps,
+    options?: Partial<IToTableRowsOptions>, pathPrefix?: string) => T[];
   columnsRenderers?: Record<string, (...props: any) => any>;
 }
 
@@ -214,13 +214,13 @@ export interface IExpandedMap {
   [key: string]: boolean;
 }
 
-export interface IInspectorTableState {
-  childToParentMap: { [key: string]: string; };
-  commitHistoryVisible: boolean;
+export interface IInspectorTableState<T = any> {
+  childToParentMap?: { [key: string]: string; };
+  commitHistoryVisible?: boolean;
   currentResult?: number;
   foundMatches: IInspectorSearchMatch[];
   matchesMap: IInspectorSearchMatchMap;
-  editReferenceRowData: IInspectorRow | null;
+  editReferenceRowData: T | null;
   expanded: IExpandedMap;
   expandedRepoGuid: string | undefined;
   expandedRepoMap: { [key: string]: IExpandedMap; };
@@ -234,5 +234,5 @@ export interface IInspectorTableState {
     key: React.Key;
     order: SortOrder;
   };
-  tableRows: IInspectorRow[];
+  tableRows: T[];
 }

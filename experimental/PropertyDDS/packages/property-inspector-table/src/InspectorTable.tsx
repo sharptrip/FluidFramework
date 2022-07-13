@@ -11,7 +11,7 @@ import Skeleton from "react-loading-skeleton";
 import classNames from "classnames";
 import debounce from "lodash.debounce";
 import * as React from "react";
-import BaseTable from "react-base-table";
+import BaseTable, { SortOrder } from "react-base-table";
 import { ModalConsumer } from "./ModalManager";
 // eslint-disable-next-line import/no-unassigned-import
 import "react-base-table/styles.css";
@@ -26,6 +26,7 @@ import {
   IColumns, IDataGetterParameter, IInspectorRow, IInspectorSearchCallback,
   IInspectorSearchMatch, IInspectorSearchMatchMap, IInspectorTableProps,
   IInspectorTableState,
+  IToTableRowsOptions,
 } from "./InspectorTableTypes";
 import {
   expandAll, fillExpanded, getReferenceValue, handleReferencePropertyEdit,
@@ -35,8 +36,8 @@ import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
 import { NewDataForm } from "./NewDataForm";
 import { NewDataRow } from "./NewDataRow";
 
-// @TODO Figure out why SortOrder is not resolved as value after updating the table version
-enum SortOrder{
+// // @TODO Figure out why SortOrder is not resolved as value after updating the table version
+enum SortOrder {
   ASC = "asc",
   DSC = "dsc",
 }
@@ -55,7 +56,7 @@ enum SortOrder{
  *
 * 3-
  */
-const defaultSort = { key: "name", order: SortOrder.ASC };
+const defaultSort = { key: "name", order: SortOrder.ASC } as { key: React.Key; order: SortOrder; };
 
 const footerHeight = 32;
 
@@ -202,8 +203,10 @@ export const defaultInspectorTableDataGetter = (params: IDataGetterParameter): R
  * the data. How many columns and in which order these are shown is configurable by the user via the 'column' prop.
  * @hidden
  */
-class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styles> & IInspectorTableProps,
-  IInspectorTableState> {
+class InspectorTable<
+  T = any,
+  ITableProps = IInspectorTableProps<T>,
+ > extends React.Component<ITableProps, Partial<IInspectorTableState>> {
   public static defaultProps: Partial<IInspectorTableProps> = {
     childGetter: defaultInspectorTableChildGetter,
     expandColumnKey: "name",
@@ -215,11 +218,11 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
     toTableRows,
   };
 
-  public static getDerivedStateFromProps(
-    props: IInspectorTableProps,
-    state: IInspectorTableState,
-  ): Partial<IInspectorTableState> {
-    let newState: Partial<IInspectorTableState> = {};
+  public static getDerivedStateFromProps<T = any>(
+    props: IInspectorTableProps<T>,
+    state: IInspectorTableState<T>,
+  ): Partial<IInspectorTableState<T>> {
+    let newState: Partial<IInspectorTableState<T>> = {};
     if (props.checkoutInProgress) {
       newState = { editReferenceRowData: null };
     }
@@ -236,7 +239,7 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
     return newState;
   }
 
-  public state: IInspectorTableState = {
+  public state: Readonly<IInspectorTableState> = {
     childToParentMap: {},
     commitHistoryVisible: false,
     currentResult: -1,
@@ -253,17 +256,16 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
     sortBy: defaultSort,
     tableRows: [],
   };
-  
   private readonly dataCreation: boolean;
   private columns: any;
   private readonly debouncedSearchChange: (searchExpression: string) => void;
   private readonly table = React.createRef();
-  private toTableRowOptions;
+  private toTableRowOptions: IToTableRowsOptions | undefined;
 
-  public constructor(props) {
+  public constructor(props: IInspectorTableProps<T>) {
     super(props);
-    const { followReferences } = props;
-    this.dataCreation = !!this.props.dataCreationHandler && !!this.props.dataCreationOptionGenerationHandler;
+    const { followReferences, dataCreationHandler, dataCreationOptionGenerationHandler } = props;
+    this.dataCreation = !!dataCreationHandler && !!dataCreationOptionGenerationHandler;
     this.columns = this.generateColumns(props.width);
     this.toTableRowOptions = {
       addDummy: true, ascending: defaultSort.order === SortOrder.ASC,
@@ -271,8 +273,7 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
     };
 
     this.debouncedSearchChange = debounce((searchExpression: string) => {
-      const newState: Pick<IInspectorTableState, "currentResult" | "foundMatches" | "matchesMap" |
-        "searchAbortHandler" | "searchInProgress" | "searchState" | "childToParentMap" | "searchDone"> = {
+      const newState: Partial<IInspectorTableState> = {
         childToParentMap: {}, currentResult: undefined, foundMatches: [], matchesMap: {},
         searchAbortHandler: undefined, searchDone: false, searchInProgress: false, searchState: undefined,
       };
@@ -318,11 +319,11 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
   }
 
   public componentDidUpdate(prevProps, prevState) {
-    const { data, checkoutInProgress, followReferences } = this.props;
+    const { data, checkoutInProgress, followReferences } = this. ;
     const { currentResult, expanded, tableRows, searchExpression, sortBy } = this.state;
     let { foundMatches, childToParentMap } = this.state;
     this.toTableRowOptions.followReferences = followReferences;
-    const newState = {} as Pick<IInspectorTableState, "currentResult" | "expanded" | "foundMatches" | "matchesMap" |
+    const newState = {} as Pick<ITableState, "currentResult" | "expanded" | "foundMatches" | "matchesMap" |
       "searchAbortHandler" | "searchDone" | "searchInProgress" | "searchState" | "tableRows" | "childToParentMap">;
     let forceUpdateRequired = false;
 
@@ -601,7 +602,7 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
     return columns;
   };
 
-  private readonly handleInitialEditReference = (rowData: IInspectorRow) => {
+  private readonly handleInitialEditReference = (rowData: T) => {
     this.setState({ editReferenceRowData: rowData });
   };
 
@@ -642,7 +643,7 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
   };
 
   private readonly continueSearchOnDemand = () => {
-    const newState: Pick<IInspectorTableState, "searchAbortHandler" | "searchInProgress" | "searchState"> = {
+    const newState: Pick<ITableState, "searchAbortHandler" | "searchInProgress" | "searchState"> = {
       searchInProgress: true,
     };
     const { searchExpression } = this.state;
@@ -696,7 +697,7 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
   };
 
   // @TODO: Add tests.
-  private traverseTree(item: IInspectorRow, func: (item: IInspectorRow) => any) {
+  private traverseTree(item: T, func: (item: T) => any) {
     if (item) {
       func(item);
       const tableRows = item.children;
@@ -731,12 +732,12 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
     }
   };
 
-  private readonly handleInitiateCreate(rowData: IInspectorRow) {
+  private readonly handleInitiateCreate(rowData: T) {
     this.setState({ showFormRowID: rowData.id });
     this.forceUpdateBaseTable();
   }
 
-  private async handleCreateData(rowData: IInspectorRow, name: string, type: string, context: string) {
+  private async handleCreateData(rowData: T, name: string, type: string, context: string) {
     if (this.dataCreation) {
       this.props.dataCreationHandler!(rowData, name, type, context);
       this.setState({ showFormRowID: "0" });
@@ -750,21 +751,21 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
   };
 
   private readonly renderCreationRow = (rowData: IInspectorRow) => {
-    const { dataCreationOptionGenerationHandler, handleInitiateCreate, generateForm, classes } = this.props;
+    const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
     const result = dataCreationOptionGenerationHandler!(rowData, true);
 
     const addDataRow = (
       <NewDataRow
         dataType={result.name}
-        onClick={handleInitiateCreate.bind(this, rowData)}
+        onClick={this.handleInitiateCreate.bind(rowData)}
       />
     );
 
     const addDataForm = (options) => (
       <div className={classes.dataForm}>
         <NewDataForm
-          onCancelCreate={handleCancelCreate}
-          onDataCreate={handleCreateData.bind(this, rowData)}
+          onCancelCreate={this.handleCancelCreate}
+          onDataCreate={this.handleCreateDatarowData)}
           options={options}
           rowData={rowData}
         />
@@ -791,8 +792,8 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
    * Maps the expanded row to either the filteredExpanded list or the whole dataset expanded list. This
    * allows the user to come back to the state before performing the filtering
    */
-  // eslint-disable-next-line max-len
-  private readonly handleRowExpanded = ({ expanded: newExpandedFlag, rowData }: { expanded: boolean; rowData: IInspectorRow; }) => {
+
+  private readonly handleRowExpanded = ({ expanded: newExpandedFlag, rowData }: { expanded: boolean; rowData: T; }) => {
     const newExpanded = { ...this.state.expanded };
     const idInExpanded = rowData.id in newExpanded;
     if (newExpandedFlag && !idInExpanded) {
@@ -813,7 +814,7 @@ class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styl
 
   private readonly updateSearchState = (foundMatches: IInspectorSearchMatch[], matchesMap: IInspectorSearchMatchMap,
     done: boolean, childToParentMap: { [key: string]: string; }) => {
-    const newState = {} as Pick<IInspectorTableState, "currentResult" | "foundMatches" | "matchesMap" |
+    const newState = {} as Pick<IStableState, "currentResult" | "foundMatches" | "matchesMap" |
       "searchInProgress" | "searchAbortHandler" | "searchExpression" | "childToParentMap" | "searchDone" |
       "searchState">;
 

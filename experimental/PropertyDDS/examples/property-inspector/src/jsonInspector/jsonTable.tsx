@@ -87,7 +87,7 @@ function toTableRows({ data, id }: Partial<IInspectorRow>, props: IToTableRowsPr
                     value: jsonCursor.value || data[key],
                     type: mapJsonTypesToStrings(jsonCursor.type) as string,
                     children:
-                        jsonCursor.type === JsonType.Boolean || jsonCursor.type === JsonType.Array
+                        jsonCursor.type === JsonType.Object || jsonCursor.type === JsonType.Array
                             ? toTableRows({ data: data[key] }, props)
                             : [],
                 } as any);
@@ -99,7 +99,9 @@ function toTableRows({ data, id }: Partial<IInspectorRow>, props: IToTableRowsPr
     return res;
 }
 
-const jsonTableProps: Partial<IInspectorTableProps> = {
+export type IJsonTableProps = IInspectorTableProps;
+
+const jsonTableProps: Partial<IJsonTableProps> = {
     columns: ["name", "value", "type"],
     expandColumnKey: "name",
     toTableRows,
@@ -117,7 +119,6 @@ const jsonTableProps: Partial<IInspectorTableProps> = {
     width: 1000,
     height: 600,
 };
-export type IJsonTableProps = IInspectorTableProps;
 
 export const JsonTable = (props: IJsonTableProps) => {
     const classes = useStyles();
