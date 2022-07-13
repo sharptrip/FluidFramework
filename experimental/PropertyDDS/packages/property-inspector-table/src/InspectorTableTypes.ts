@@ -7,6 +7,7 @@ import { BaseProxifiedProperty } from "@fluid-experimental/property-proxy";
 import { BaseProperty } from "@fluid-experimental/property-properties";
 import { IRepoExpiryGetter, IRepoExpirySetter } from "./CommonTypes";
 import { IInspectorSearchState } from "./utils";
+import { SortOrder } from "react-base-table";
 
 export type IToTableRowsProps = Pick<IInspectorTableProps,
   "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
@@ -229,6 +230,9 @@ export interface IInspectorTableState {
   searchInProgress: boolean;
   searchState?: IInspectorSearchState;
   showFormRowID: string;
-  sortBy: { [key: string]: string; };
+  sortBy: {
+    key: React.Key;
+    order: SortOrder;
+  };
   tableRows: IInspectorRow[];
 }

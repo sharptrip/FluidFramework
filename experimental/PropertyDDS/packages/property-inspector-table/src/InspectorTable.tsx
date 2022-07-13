@@ -11,7 +11,7 @@ import Skeleton from "react-loading-skeleton";
 import classNames from "classnames";
 import debounce from "lodash.debounce";
 import * as React from "react";
-import BaseTable, { SortOrder } from "react-base-table";
+import BaseTable from "react-base-table";
 import { ModalConsumer } from "./ModalManager";
 // eslint-disable-next-line import/no-unassigned-import
 import "react-base-table/styles.css";
@@ -34,6 +34,12 @@ import {
 import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
 import { NewDataForm } from "./NewDataForm";
 import { NewDataRow } from "./NewDataRow";
+
+// @TODO Figure out why SortOrder is not resolved as value after updating the table version
+enum SortOrder{
+  ASC = "asc",
+  DSC = "dsc",
+}
 
 /**
  * @TODO -s
@@ -196,7 +202,7 @@ export const defaultInspectorTableDataGetter = (params: IDataGetterParameter): R
  * the data. How many columns and in which order these are shown is configurable by the user via the 'column' prop.
  * @hidden
  */
-class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspectorTableProps,
+class InspectorTable<T = unknown> extends React.Component<WithStyles<typeof styles> & IInspectorTableProps,
   IInspectorTableState> {
   public static defaultProps: Partial<IInspectorTableProps> = {
     childGetter: defaultInspectorTableChildGetter,
@@ -247,6 +253,7 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
     sortBy: defaultSort,
     tableRows: [],
   };
+  
   private readonly dataCreation: boolean;
   private columns: any;
   private readonly debouncedSearchChange: (searchExpression: string) => void;
@@ -534,8 +541,8 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
 
     return (
       <div className={classes.root}>
-        <BaseTable
-          ref={this.table}
+        <BaseTable<T>
+          // ref={this.table}
           data={rowsData}
           width={width}
           className={classes.table}
@@ -785,7 +792,7 @@ class InspectorTable extends React.Component<WithStyles<typeof styles> & IInspec
    * allows the user to come back to the state before performing the filtering
    */
   // eslint-disable-next-line max-len
-  private readonly handleRowExpanded = ({ rowData, expanded: newExpandedFlag }: { rowData: IInspectorRow; expanded: boolean; }) => {
+  private readonly handleRowExpanded = ({ expanded: newExpandedFlag, rowData }: { expanded: boolean; rowData: IInspectorRow; }) => {
     const newExpanded = { ...this.state.expanded };
     const idInExpanded = rowData.id in newExpanded;
     if (newExpandedFlag && !idInExpanded) {
