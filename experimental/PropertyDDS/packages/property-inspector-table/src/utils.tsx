@@ -38,8 +38,9 @@ import { NameCell } from "./NameCell";
 
 import { Utils } from "./typeUtils";
 import { ThemedSkeleton } from "./ThemedSkeleton";
-import { NewDataForm } from "./NewDataForm";
-import { NewDataRow } from "./NewDataRow";
+// import { NewDataForm } from "./NewDataForm";
+// import { NewDataRow } from "./NewDataRow";
+import { IInspectorTableProps } from ".";
 const { isEnumProperty, isEnumArrayProperty, isInt64Property, isReferenceProperty,
   isUint64Property, isCollectionProperty, isReferenceArrayProperty, isReferenceCollectionTypeid,
   isReferenceMapProperty } = Utils;
@@ -431,7 +432,6 @@ const compareNameDesc = (a: string, b: string) => {
 export const dummyChild = {
   children: undefined,
   context: "d",
-  data: "d",
   id: "d",
   isConstant: false,
   isReference: false,
@@ -449,17 +449,20 @@ export const toTableRows = (
   {
     data,
     id = "",
-  }: Partial<IInspectorRow>,
+  }: IInspectorRow,
   props: IToTableRowsProps,
   options: Partial<IToTableRowsOptions> = {},
   pathPrefix: string = "",
 ): IInspectorRow[] => {
+  if (!data) {
+    return [];
+  }
   const { ascending, parentIsConstant } = { ...OPTION_DEFAULTS, ...options };
   const dataCreation = (props.readOnly !== true) && !parentIsConstant &&
     !!props.dataCreationHandler && !!props.dataCreationOptionGenerationHandler;
   const subRows: IInspectorRow[] = [];
 
-  const parentProperty = data.getProperty();
+  const parentProperty = data.getProperty() as ContainerProperty;
   const dataContext = parentProperty.getContext();
   const keys = Object.keys(parentProperty.getEntriesReadOnly());
 
@@ -744,7 +747,7 @@ export const fillExpanded = (
   for (const row of innerRows) {
     if (row.id in expanded) {
       const newPathPrefix = row.parent && row.isReference ?
-        pathPrefix + row.parent.getAbsolutePath() + idSeparator + row.name : pathPrefix;
+        pathPrefix + (row.parent.getAbsolutePath() as string) + idSeparator + row.name : pathPrefix;
 
       if (row.children && row.children[0].context === "d") {
         row.children = toTableRows(
@@ -885,7 +888,7 @@ export const handleReferencePropertyEdit = async (rowData: IInspectorRow, newPat
   parentProp!.getRoot().getWorkspace()!.commit();
 };
 
-const generateForm = (rowData: IInspectorRow) => {
+export const generateForm = (rowData: IInspectorRow, handleCreateData: any) => {
   if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     handleCreateData(rowData, "", rowData.parent!.getTypeid(), "single");
@@ -895,7 +898,7 @@ const generateForm = (rowData: IInspectorRow) => {
 };
 
 export const nameCellRenderer = ({ rowData, cellData, columnIndex, tableProps, searchResult }: ColumnRendererType) => {
-  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes } = tableProps;
+  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes, renderCreationRow } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   }
@@ -933,7 +936,7 @@ const renderUneditableCell = (classes, rowData) => (
 );
 
 interface SearchResult {
-  foundMatches:IInspectorSearchMatch[];
+  foundMatches: IInspectorSearchMatch[];
   matchesMap: IInspectorSearchMatchMap;
   currentResult: number;
 }
@@ -950,7 +953,6 @@ const renderTooltipedUneditableCell = (message, classes, rowData) => (
     {renderUneditableCell(classes, rowData)}
   </Tooltip>
 );
-
 
 /**
  * @param width - width of the table
@@ -977,14 +979,11 @@ const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
       classes.match : "");
 };
 
-
-
-
 interface ColumnRendererType {
   rowData: IInspectorRow;
   cellData: React.ReactNode | undefined;
   columnIndex: number;
-  tableProps: any;
+  tableProps: IInspectorTableProps;
   searchResult: SearchResult;
 }
 
@@ -993,7 +992,8 @@ export const valueCellRenderer = (
      cellData,
      columnIndex,
      tableProps,
-     searchResult, }: ColumnRendererType) => {
+     searchResult,
+    }: ColumnRendererType) => {
   const { classes, checkoutInProgress, followReferences,
      rowIconRenderer, width, dataGetter, readOnly } = tableProps;
   if (checkoutInProgress) {

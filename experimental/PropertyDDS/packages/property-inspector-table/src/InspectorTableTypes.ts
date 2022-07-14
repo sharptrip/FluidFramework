@@ -3,12 +3,24 @@
  * Licensed under the MIT License.
  */
 
+import { BaseProxifiedProperty } from "@fluid-experimental/property-proxy";
+import { BaseProperty } from "@fluid-experimental/property-properties";
+
 import { BaseTableProps, SortOrder } from "react-base-table";
 import { IRepoExpiryGetter, IRepoExpirySetter } from "./CommonTypes";
 import { IInspectorSearchState } from "./utils";
 
 export type IToTableRowsProps = Pick<IInspectorTableProps,
   "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
+
+export interface IRowData<T = any, C = IRowData<any, any>> {
+    data?: T;
+    id: string;
+    children?: C[];
+    // TODO revisit those types which required for propertyDDS
+    isReference?: boolean;
+    context?: string;
+  }
 
 export interface IToTableRowsOptions {
   depth: number;
@@ -37,17 +49,14 @@ export interface IColumns {
 /**
  * The interface for an entry of the visualization data array.
  */
-export interface IInspectorRow<T = any> {
+export interface IInspectorRow extends IRowData<BaseProxifiedProperty, IInspectorRow>{
   context: string;
-  data: any;
-  children: IInspectorRow<T>[] | undefined;
-  id: string;
   isConstant: boolean;
   isReference: boolean;
   name: string;
   typeid: string;
   value: number | string | boolean;
-  parent?: T;
+  parent?: BaseProperty;
   parentId: string;
   parentIsConstant: boolean;
   propertyId: string;
@@ -78,7 +87,7 @@ export type IInspectorColumnsKeys = "name" | "type" | "value";
 
 type BaseTablePropsPartial<T> = Omit<BaseTableProps<T>, "columns"> ;
 
-export interface IInspectorTableProps<T = any> extends BaseTablePropsPartial<T> {
+export interface IInspectorTableProps<T extends IRowData<T> = any> extends BaseTablePropsPartial<T> {
   /**
    * The active repository guid. Used as the prefix for the table row ids.
    */
@@ -103,7 +112,7 @@ export interface IInspectorTableProps<T = any> extends BaseTablePropsPartial<T> 
   /**
    * The raw data to be visualized.
    */
-  data?: T[];
+  data?: any;
   /**
    *  Reference property handler
    */
@@ -184,7 +193,7 @@ export interface IInspectorTableProps<T = any> extends BaseTablePropsPartial<T> 
   /**
    * A transformation function from raw data to table rows
    */
-  toTableRows: (row: Partial<T>, props: IToTableRowsProps,
+  toTableRows: (row: any, props: IToTableRowsProps,
     options?: Partial<IToTableRowsOptions>, pathPrefix?: string) => T[];
   columnsRenderers?: Record<string, (...props: any) => any>;
 }
@@ -215,7 +224,7 @@ export interface IExpandedMap {
 }
 
 export interface IInspectorTableState<T = any> {
-  childToParentMap?: { [key: string]: string; };
+  childToParentMap: { [key: string]: string; };
   commitHistoryVisible?: boolean;
   currentResult?: number;
   foundMatches: IInspectorSearchMatch[];

@@ -1,12 +1,12 @@
 import * as React from "react";
 
 import {
-    IInspectorRow,
     IInspectorTableProps,
     InspectorTable,
     IToTableRowsOptions,
     IToTableRowsProps,
     typeidToIconMap,
+    ITableRow,
 } from "@fluid-experimental/property-inspector-table";
 import { Box, Chip, Switch, TextField, FormLabel } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
@@ -72,9 +72,9 @@ const mapJsonTypesToStrings = (type: TreeType) => {
     }
 };
 
-function toTableRows({ data, id }: Partial<IInspectorRow>, props: IToTableRowsProps,
-    _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string): IInspectorRow[] {
-    const res: IInspectorRow[] = [];
+function toTableRows({ data, id }: Partial<ITableRow>, props: IToTableRowsProps,
+    _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string): ITableRow[] {
+    const res: ITableRow[] = [];
     const jsonCursor = new JsonCursor(data);
     for (const key of jsonCursor.keys) {
         const len = jsonCursor.length(key);

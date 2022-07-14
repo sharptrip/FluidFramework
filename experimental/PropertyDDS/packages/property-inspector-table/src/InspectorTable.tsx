@@ -5,7 +5,7 @@
 // eslint-disable-next-line import/no-unassigned-import
 import "@hig/fonts/build/ArtifaktElement.css";
 import Button from "@material-ui/core/Button";
-import { createStyles, Theme, withStyles, WithStyles } from "@material-ui/core/styles";
+import { createStyles, Theme, withStyles } from "@material-ui/core/styles";
 import Skeleton from "react-loading-skeleton";
 
 import classNames from "classnames";
@@ -23,9 +23,10 @@ import { getDefaultInspectorTableIcons } from "./icons";
 import { InspectorTableFooter } from "./InspectorTableFooter";
 import { InspectorTableHeader } from "./InspectorTableHeader";
 import {
-  IColumns, IDataGetterParameter, IInspectorRow, IInspectorSearchCallback,
+  IColumns, IDataGetterParameter, IInspectorSearchCallback,
   IInspectorSearchMatch, IInspectorSearchMatchMap, IInspectorTableProps,
   IInspectorTableState,
+  IRowData,
   IToTableRowsOptions,
 } from "./InspectorTableTypes";
 import {
@@ -33,11 +34,11 @@ import {
   IInspectorSearchControls, search, showNextResult, toTableRows,
 } from "./utils";
 import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
-import { NewDataForm } from "./NewDataForm";
+// import { NewDataForm } from "./NewDataForm";
 import { NewDataRow } from "./NewDataRow";
 
 // // @TODO Figure out why SortOrder is not resolved as value after updating the table version
-enum SortOrder {
+enum TableSortOrder {
   ASC = "asc",
   DSC = "dsc",
 }
@@ -56,7 +57,7 @@ enum SortOrder {
  *
 * 3-
  */
-const defaultSort = { key: "name", order: SortOrder.ASC } as { key: React.Key; order: SortOrder; };
+const defaultSort = { key: "name", order: TableSortOrder.ASC } as { key: React.Key; order: SortOrder; };
 
 const footerHeight = 32;
 
@@ -204,9 +205,9 @@ export const defaultInspectorTableDataGetter = (params: IDataGetterParameter): R
  * @hidden
  */
 class InspectorTable<
-  T = any,
-  ITableProps = IInspectorTableProps<T>,
- > extends React.Component<ITableProps, Partial<IInspectorTableState>> {
+  T extends IRowData<T> = IRowData,
+  ITableProps = IInspectorTableProps<IRowData<T>>,
+  > extends React.Component<ITableProps & IInspectorTableProps<IRowData<T>>, IInspectorTableState> {
   public static defaultProps: Partial<IInspectorTableProps> = {
     childGetter: defaultInspectorTableChildGetter,
     expandColumnKey: "name",
@@ -216,10 +217,11 @@ class InspectorTable<
     rowIconRenderer: getDefaultInspectorTableIcons,
     editReferenceHandler: handleReferencePropertyEdit,
     toTableRows,
+    fillExpanded: () => {},
   };
 
-  public static getDerivedStateFromProps<T = any>(
-    props: IInspectorTableProps<T>,
+  public static getDerivedStateFromProps<T>(
+    props: IInspectorTableProps,
     state: IInspectorTableState<T>,
   ): Partial<IInspectorTableState<T>> {
     let newState: Partial<IInspectorTableState<T>> = {};
@@ -239,36 +241,38 @@ class InspectorTable<
     return newState;
   }
 
-  public state: Readonly<IInspectorTableState> = {
-    childToParentMap: {},
-    commitHistoryVisible: false,
-    currentResult: -1,
-    editReferenceRowData: null,
-    expanded: {},
-    expandedRepoGuid: "",
-    expandedRepoMap: {},
-    foundMatches: [],
-    matchesMap: {},
-    searchDone: false,
-    searchExpression: "",
-    searchInProgress: false,
-    showFormRowID: "0",
-    sortBy: defaultSort,
-    tableRows: [],
-  };
   private readonly dataCreation: boolean;
   private columns: any;
   private readonly debouncedSearchChange: (searchExpression: string) => void;
   private readonly table = React.createRef();
-  private toTableRowOptions: IToTableRowsOptions | undefined;
+  private toTableRowOptions: IToTableRowsOptions;
 
-  public constructor(props: IInspectorTableProps<T>) {
-    super(props);
+  public constructor(props: Readonly<IInspectorTableProps<T>>) {
+    super(props as any);
+
+    this.state = {
+      childToParentMap: {},
+      commitHistoryVisible: false,
+      currentResult: -1,
+      editReferenceRowData: null,
+      expanded: {},
+      expandedRepoGuid: "",
+      expandedRepoMap: {},
+      foundMatches: [],
+      matchesMap: {},
+      searchDone: false,
+      searchExpression: "",
+      searchInProgress: false,
+      showFormRowID: "0",
+      sortBy: defaultSort,
+      tableRows: [],
+    };
+
     const { followReferences, dataCreationHandler, dataCreationOptionGenerationHandler } = props;
     this.dataCreation = !!dataCreationHandler && !!dataCreationOptionGenerationHandler;
     this.columns = this.generateColumns(props.width);
     this.toTableRowOptions = {
-      addDummy: true, ascending: defaultSort.order === SortOrder.ASC,
+      addDummy: true, ascending: defaultSort.order === TableSortOrder.ASC,
       depth: 0, followReferences,
     };
 
@@ -299,7 +303,7 @@ class InspectorTable<
       }
 
       // Set the initial state for a fresh search.
-      this.setState(newState, () => {
+      this.setState({ ...this.state, ...newState }, () => {
         if (forceUpdate) {
           this.forceUpdateBaseTable();
         }
@@ -308,27 +312,29 @@ class InspectorTable<
   }
 
   public componentDidMount() {
-    const { data } = this.props;
+    const { data, fillExpanded } = this.props;
     const { expanded } = this.state;
     if (data) {
       const updatedTableRows = this.props.toTableRows!({ data, id: "" }, this.props, this.toTableRowOptions);
-      fillExpanded(expanded, updatedTableRows, this.props,
-        this.toTableRowOptions);
+      if (fillExpanded) {
+        fillExpanded(expanded,
+          updatedTableRows, this.props, this.toTableRowOptions);
+      }
       this.setState({ tableRows: updatedTableRows });
     }
   }
 
-  public componentDidUpdate(prevProps, prevState) {
-    const { data, checkoutInProgress, followReferences } = this. ;
+  public componentDidUpdate(prevProps: ITableProps, prevState: IInspectorTableState) {
+    const { data, checkoutInProgress, followReferences } = this.props;
     const { currentResult, expanded, tableRows, searchExpression, sortBy } = this.state;
     let { foundMatches, childToParentMap } = this.state;
     this.toTableRowOptions.followReferences = followReferences;
-    const newState = {} as Pick<ITableState, "currentResult" | "expanded" | "foundMatches" | "matchesMap" |
+    const newState = {} as Pick<IInspectorTableState, "currentResult" | "expanded" | "foundMatches" | "matchesMap" |
       "searchAbortHandler" | "searchDone" | "searchInProgress" | "searchState" | "tableRows" | "childToParentMap">;
     let forceUpdateRequired = false;
 
     // Cancel all search activity and clear the search field when checking out a new repo.
-    if (checkoutInProgress && searchExpression.length > 0) {
+    if (checkoutInProgress && searchExpression && searchExpression.length > 0) {
       this.handleOnClear();
     }
 
@@ -339,10 +345,13 @@ class InspectorTable<
       if (data) {
         const updatedTableRows = this.props.toTableRows!({ data, id: "" }, this.props,
           this.toTableRowOptions);
-        fillExpanded(expanded, updatedTableRows, this.props, this.toTableRowOptions);
+        this.props.fillExpanded(expanded, updatedTableRows, this.props, this.toTableRowOptions);
         // We need to update the table rows directly, because they might be used in the search call below.
         // Treating table rows as a mutable state property is fine, since it is purely derived from props anyway, and
         // we also update it directly in other places already.
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         this.state.tableRows = updatedTableRows;
         // We still need to add it to the new state to trigger a re-render of the table.
         newState.tableRows = updatedTableRows;
@@ -437,8 +446,8 @@ class InspectorTable<
       // const property = data.getProperty();
       // const workspace = property.getRoot().getWorkspace();
       // if (workspace) {
-        expandedKeys = Object.keys(expanded);
-        emptyDescription = InspectorMessages.EMPTY_WORKSPACE;
+      expandedKeys = Object.keys(expanded);
+      emptyDescription = InspectorMessages.EMPTY_WORKSPACE;
       // } else {
       //   emptyDescription = InspectorMessages.NO_WORKSPACE;
       // }
@@ -643,7 +652,7 @@ class InspectorTable<
   };
 
   private readonly continueSearchOnDemand = () => {
-    const newState: Pick<ITableState, "searchAbortHandler" | "searchInProgress" | "searchState"> = {
+    const newState: Pick<IInspectorTableState, "searchAbortHandler" | "searchInProgress" | "searchState"> = {
       searchInProgress: true,
     };
     const { searchExpression } = this.state;
@@ -697,7 +706,7 @@ class InspectorTable<
   };
 
   // @TODO: Add tests.
-  private traverseTree(item: T, func: (item: T) => any) {
+  private traverseTree(item: IRowData, func: (item: IRowData) => any) {
     if (item) {
       func(item);
       const tableRows = item.children;
@@ -710,17 +719,16 @@ class InspectorTable<
   }
 
   // @TODO: Add tests.
-  private readonly handleExpandAll = (props) => {
-    if (props.data.getProperty) {
-      const workspace = props.data.getProperty().getRoot().getWorkspace();
-      const output = expandAll(workspace);
+  private readonly handleExpandAll = ({ data }) => {
+    if (data) {
+      const output = expandAll(data);
 
       const tableRows = this.state.tableRows;
       tableRows.forEach((item) => {
         this.traverseTree(item, (item) => {
           if (item.children && !item.isReference) {
             if (item.children[0].context === "d") {
-              fillExpanded({ [item.id]: true }, [item], this.props, this.toTableRowOptions);
+              this.props.fillExpanded({ [item.id]: true }, [item], this.props, this.toTableRowOptions);
             }
           }
         });
@@ -732,14 +740,14 @@ class InspectorTable<
     }
   };
 
-  private readonly handleInitiateCreate(rowData: T) {
+  private handleInitiateCreate(rowData: T) {
     this.setState({ showFormRowID: rowData.id });
     this.forceUpdateBaseTable();
   }
 
   private async handleCreateData(rowData: T, name: string, type: string, context: string) {
     if (this.dataCreation) {
-      this.props.dataCreationHandler!(rowData, name, type, context);
+      await this.props.dataCreationHandler!(rowData, name, type, context);
       this.setState({ showFormRowID: "0" });
       this.forceUpdateBaseTable();
     }
@@ -750,7 +758,7 @@ class InspectorTable<
     this.forceUpdateBaseTable();
   };
 
-  private readonly renderCreationRow = (rowData: IInspectorRow) => {
+  private readonly renderCreationRow = (rowData: T) => {
     const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
     const result = dataCreationOptionGenerationHandler!(rowData, true);
 
@@ -761,23 +769,23 @@ class InspectorTable<
       />
     );
 
-    const addDataForm = (options) => (
-      <div className={classes.dataForm}>
-        <NewDataForm
-          onCancelCreate={this.handleCancelCreate}
-          onDataCreate={this.handleCreateDatarowData)}
-          options={options}
-          rowData={rowData}
-        />
-      </div>
-    );
+    // const addDataForm = (options) => (
+    //   <div className={classes.dataForm}>
+    //     <NewDataForm
+    //       onCancelCreate={this.handleCancelCreate}
+    //       onDataCreate={this.handleCreateData}
+    //       options={options}
+    //       rowData={rowData}
+    //     />
+    //   </div>
+    // );
 
     return (
       <div className={classes.dataFormContainer}>
         {
           this.state.showFormRowID === rowData.id ?
             generateForm.call(this, rowData) &&
-            addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
+            this.props.addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
             addDataRow
         }
       </div>
@@ -814,7 +822,7 @@ class InspectorTable<
 
   private readonly updateSearchState = (foundMatches: IInspectorSearchMatch[], matchesMap: IInspectorSearchMatchMap,
     done: boolean, childToParentMap: { [key: string]: string; }) => {
-    const newState = {} as Pick<IStableState, "currentResult" | "foundMatches" | "matchesMap" |
+    const newState = {} as Pick<IInspectorTableState, "currentResult" | "foundMatches" | "matchesMap" |
       "searchInProgress" | "searchAbortHandler" | "searchExpression" | "childToParentMap" | "searchDone" |
       "searchState">;
 

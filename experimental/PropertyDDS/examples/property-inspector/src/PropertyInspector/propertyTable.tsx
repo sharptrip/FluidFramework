@@ -8,6 +8,7 @@ import {
     IInspectorTableProps,
     InspectorTable,
     nameCellRenderer,
+    fillExpanded,
 } from "@fluid-experimental/property-inspector-table";
 
 export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameOnly: boolean): IDataCreationOptions => {
@@ -18,13 +19,14 @@ export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameO
     return { name: "property", options: templates };
 };
 
-export const propertyTableProps: Partial<IInspectorTableProps> = {
+export const propertyTableProps: Partial<IInspectorTableProps<IInspectorRow>> = {
     columns: ["name", "value", "type"],
     expandColumnKey: "name",
     width: 1000,
     height: 600,
     dataCreationHandler: handlePropertyDataCreation,
     dataCreationOptionGenerationHandler: handleDataCreationOptionGeneration,
+    fillExpanded,
     columnsRenderers: {
         name: nameCellRenderer,
     },
