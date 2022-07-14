@@ -30,7 +30,7 @@ export interface INewDataRowProps {
   /**
    * Callback that is invoked if the row is clicked.
    */
-  onClick: () => void;
+  onClick: ({ rowData }: any) => void;
 }
 
 class NewDataRow extends React.Component<INewDataRowProps & WithStyles<typeof styles>> {

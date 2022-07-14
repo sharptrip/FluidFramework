@@ -98,12 +98,14 @@ const customData = {
     test2: 12,
     test3: true,
     ttt: false,
+    newProp: 100,
     test4: {
         test5: "hello booboo",
     },
     test6: [1, 2, "daba dee"],
     // Maps are not supported
     mapTest: new Map([["a", "b"], ["valA", "valB"]]),
+    // Sets are not supported
     setTest: new Set([1, 2, 3]),
     nested: {
         test9: {
@@ -135,6 +137,7 @@ export const InspectorApp = (props: any) => {
                                             data={customData}
                                         />
                                         <PropertyTable
+                                            readOnly={true}
                                             width={width / 2}
                                             height={height}
                                             {...props}
