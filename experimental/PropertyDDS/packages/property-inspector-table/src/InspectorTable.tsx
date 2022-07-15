@@ -26,16 +26,13 @@ import {
   IColumns, IDataGetterParameter, IInspectorSearchCallback,
   IInspectorSearchMatch, IInspectorSearchMatchMap, IInspectorTableProps,
   IInspectorTableState,
-  IRowData,
-  IToTableRowsOptions,
+  IToTableRowsOptions, IInspectorSearchControls,
 } from "./InspectorTableTypes";
-import {
-  expandAll, fillExpanded, getReferenceValue, handleReferencePropertyEdit,
-  IInspectorSearchControls, search, showNextResult, toTableRows,
-} from "./utils";
+import { search, showNextResult } from "./utils";
+import { getReferenceValue, handleReferencePropertyEdit } from "./propertyInspectorUtils";
 import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
-// import { NewDataForm } from "./NewDataForm";
 import { NewDataRow } from "./NewDataRow";
+import { IRowData, SearchResult } from "./";
 
 // // @TODO Figure out why SortOrder is not resolved as value after updating the table version
 enum TableSortOrder {
@@ -216,7 +213,6 @@ class InspectorTable<
     rowHeight: 32,
     rowIconRenderer: getDefaultInspectorTableIcons,
     editReferenceHandler: handleReferencePropertyEdit,
-    toTableRows,
     fillExpanded: () => {},
   };
 
@@ -301,6 +297,10 @@ class InspectorTable<
         newState.searchInProgress = true;
         newState.searchDone = false;
       }
+
+      this.handleCreateData = this.handleCreateData.bind(this);
+      this.handleCreateData = this.handleCreateData.bind(this);
+      this.handleInitiateCreate = this.handleInitiateCreate.bind(this);
 
       // Set the initial state for a fresh search.
       this.setState({ ...this.state, ...newState }, () => {
@@ -605,14 +605,31 @@ class InspectorTable<
         title: currentId[0].toUpperCase() + currentId.slice(1), // Capitalize title
         width,
       };
-      newColumn.cellRenderer = this.props.columnsRenderers ? this.props.columnsRenderers[currentId] : undefined;
+      if (this.props.columnsRenderers !== undefined && this.props.columnsRenderers[currentId] !== undefined) {
+        newColumn.cellRenderer = (args: any) => {
+         const {
+            foundMatches,
+            currentResult,
+            matchesMap,
+          } = this.state;
+
+          const searchResult: SearchResult = {
+            foundMatches,
+            currentResult,
+            matchesMap,
+          };
+
+          return this.props.columnsRenderers![currentId]({ ...args, tableProps: this.props,
+            searchResult, renderCreationRow: this.renderCreationRow });
+        };
+      }
       columns.push(newColumn);
     }
     return columns;
   };
 
   // @TODO turn it private when refactoring editing workflow
-  public async handleCreateData(rowData: T, name: string, type: string, context: string) {
+  private async handleCreateData(rowData: T, name: string, type: string, context: string) {
     if (this.dataCreation) {
       await this.props.dataCreationHandler!(rowData, name, type, context);
       this.setState({ showFormRowID: "0" });
@@ -620,39 +637,34 @@ class InspectorTable<
     }
   }
 
-  public readonly handleCancelCreate = () => {
+  private readonly handleCancelCreate = () => {
     this.setState({ showFormRowID: "0" });
     this.forceUpdateBaseTable();
   };
 
-  public readonly renderCreationRow = (rowData: T) => {
+  private readonly renderCreationRow = (rowData: T) => {
     const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
     const result = dataCreationOptionGenerationHandler!(rowData, true);
 
     const addDataRow = (
       <NewDataRow
         dataType={result.name}
-        onClick={this.handleInitiateCreate.bind(rowData)}
+        onClick={this.handleInitiateCreate.bind(this, { rowData })}
       />
     );
-
-    // const addDataForm = (options) => (
-    //   <div className={classes.dataForm}>
-    //     <NewDataForm
-    //       onCancelCreate={this.handleCancelCreate}
-    //       onDataCreate={this.handleCreateData}
-    //       options={options}
-    //       rowData={rowData}
-    //     />
-    //   </div>
-    // );
 
     return (
       <div className={classes.dataFormContainer}>
         {
           this.state.showFormRowID === rowData.id ?
             generateForm.call(this, rowData) &&
-            this.props.addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
+            this.props.addDataForm({
+              handleCancelCreate: this.handleCancelCreate,
+              handleCreateData: this.handleCreateData.bind(this),
+              options: this.props.dataCreationOptionGenerationHandler!(rowData, false).options,
+              rowData,
+              styleClass: classes.dataForm,
+            }) :
             addDataRow
         }
       </div>
@@ -717,14 +729,14 @@ class InspectorTable<
     callback: IInspectorSearchCallback,
     keepMatches = true,
   ): IInspectorSearchControls | undefined => {
-    const { data } = this.props;
+    const { data, fillExpanded } = this.props;
     const { searchState, tableRows } = this.state;
     const currentWorkspace = data;
     if (currentWorkspace) {
       const searchControls = search(searchExpression, tableRows, this.props.dataGetter,
         this.columns, callback, this.props,
         this.toTableRowOptions,
-        keepMatches ? searchState : undefined);
+        keepMatches ? searchState : undefined, undefined, undefined, undefined, fillExpanded);
       return searchControls;
     } else {
       return undefined;
@@ -769,7 +781,7 @@ class InspectorTable<
   // @TODO: Add tests.
   private readonly handleExpandAll = ({ data }) => {
     if (data) {
-      const output = expandAll(data);
+      const output = this.props.expandAll(data);
 
       const tableRows = this.state.tableRows;
       tableRows.forEach((item) => {
@@ -788,7 +800,7 @@ class InspectorTable<
     }
   };
 
-  private handleInitiateCreate(rowData: T) {
+  private handleInitiateCreate({ rowData }: { rowData: T; }) {
     this.setState({ showFormRowID: rowData.id });
     this.forceUpdateBaseTable();
   }
@@ -808,7 +820,7 @@ class InspectorTable<
     if (newExpandedFlag && !idInExpanded) {
       newExpanded[rowData.id] = true;
       if (rowData.children && rowData.children![0].id === "d") {
-        fillExpanded(newExpanded, this.state.tableRows, this.props, this.toTableRowOptions);
+       this.props.fillExpanded(newExpanded, this.state.tableRows, this.props, this.toTableRowOptions);
       }
     } else if (!newExpandedFlag && idInExpanded) {
       delete newExpanded[rowData.id];
@@ -848,7 +860,7 @@ class InspectorTable<
   };
 
   private readonly forceUpdateBaseTable = () => {
-    (this.table.current as any).table.bodyRef.recomputeGridSize();
+    // (this.table.current as any).table.bodyRef.recomputeGridSize();
   };
 }
 

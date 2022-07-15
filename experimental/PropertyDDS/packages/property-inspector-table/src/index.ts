@@ -5,6 +5,7 @@
 
 export * from "./InspectorTable";
 export * from "./PropertyDataCreationHandlers";
+export * from "./propertyInspectorUtils";
 export * from "./icons";
 export * from "./ModalManager";
 export * from "./ModalRoot";

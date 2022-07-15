@@ -8,7 +8,37 @@ import { BaseProperty } from "@fluid-experimental/property-properties";
 
 import { BaseTableProps, SortOrder } from "react-base-table";
 import { IRepoExpiryGetter, IRepoExpirySetter } from "./CommonTypes";
-import { IInspectorSearchState } from "./utils";
+
+export interface ISearchLevelState {
+  data?: IInspectorRow[];
+  index: number;
+}
+
+export interface IInspectorSearchState {
+  abort?: boolean;
+  newMatchFound?: boolean;
+  updateScheduled?: number;
+  chunkSize?: number;
+  expression?: string;
+  foundMatches: IInspectorSearchMatch[];
+  levels?: ISearchLevelState[];
+  matchesMap: IInspectorSearchMatchMap;
+  scheduled?: number;
+  childToParentMap: { [key: string]: string; };
+}
+
+export interface IInspectorSearchControls {
+  abortHandler: IInspectorSearchAbortHandler;
+  state: IInspectorSearchState;
+}
+export interface IRowData<T = never> {
+	data?: T;
+	id: string;
+	children?: IRowData<T>[];
+	// TODO revisit those types which required for propertyDDS
+	isReference?: boolean;
+	context?: string;
+  }
 
 export type IToTableRowsProps = Pick<IInspectorTableProps,
   "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
@@ -236,13 +266,4 @@ export interface IInspectorTableState<T = any> {
     order: SortOrder;
   };
   tableRows: T[];
-}
-
-export interface IRowData<T = never> {
-  data?: T;
-  id: string;
-  children?: IRowData<T>[];
-  // TODO revisit those types which required for propertyDDS
-  isReference?: boolean;
-  context?: string;
 }

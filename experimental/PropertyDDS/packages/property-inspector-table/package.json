@@ -10,8 +10,9 @@
   },
   "license": "MIT",
   "author": "Microsoft and contributors",
-  "main": "index.js",
-  "types": "dist/types/index.d.ts",
+  "main": "dist/index.js",
+  "module": "lib/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist/lib",
     "dist/types",

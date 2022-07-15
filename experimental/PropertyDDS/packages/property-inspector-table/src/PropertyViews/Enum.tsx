@@ -10,7 +10,7 @@ import * as React from "react";
 import { IEditableValueCellProps } from "../EditableValueCell";
 import { IInspectorRow } from "../InspectorTableTypes";
 import { Utils } from "../typeUtils";
-import { getPropertyValue } from "../utils";
+import { getPropertyValue } from "../propertyInspectorUtils";
 
 type ValType = string | number | boolean;
 

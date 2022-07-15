@@ -22,10 +22,10 @@ import { SharedPropertyTree } from "@fluid-experimental/property-dds";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 import { Box } from "@material-ui/core";
+import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { JsonTable } from "./jsonInspector/jsonTable";
-import { PropertyTable } from "./propertyInspector/propertyTable";
-import ReactJson from 'react-json-view'
+import { JsonTable } from "./jsonInspector/JsonTable";
+import { PropertyTable } from "./PropertyInspector/PropertyTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -117,7 +117,7 @@ const customData = {
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
-    const [ data, setData] = useState(customData);
+    const [data, setData] = useState(customData);
     // const chipClasses = useChipStyles();
 
     return (
@@ -131,7 +131,7 @@ export const InspectorApp = (props: any) => {
                                 {
                                     ({ width, height }) =>
                                     <Box sx={{ display: "flex" }}>
-                                        <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src)}/>
+                                        <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src as any)}/>
                                         <JsonTable
                                             readOnly={true}
                                             width={width / 2}
@@ -140,7 +140,7 @@ export const InspectorApp = (props: any) => {
                                             data={data}
                                         />
                                         <PropertyTable
-                                            readOnly={true}
+                                            // readOnly={true}
                                             width={width / 2}
                                             height={height}
                                             {...props}
