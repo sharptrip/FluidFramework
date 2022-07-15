@@ -11,8 +11,8 @@ import {
 import { Box, Chip, Switch, TextField, FormLabel } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 
-import { TreeType, TreeNavigationResult } from "@fluid-internal/tree";
-import { JsonType, JsonCursor } from "../jsonCursor";
+import { TreeType, TreeNavigationResult, JsonCursor, jsonObject,
+    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonNull } from "@fluid-internal/tree";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -55,17 +55,17 @@ const useStyles = makeStyles({
 
 const mapJsonTypesToStrings = (type: TreeType) => {
     switch (type) {
-        case JsonType.Array:
+        case jsonArray.name:
             return "Array";
-        case JsonType.String:
+        case jsonString.name:
             return "String";
-        case JsonType.Boolean:
+        case jsonBoolean.name:
             return "Boolean";
-        case JsonType.Number:
+        case jsonNumber.name:
             return "Number";
-        case JsonType.Null:
+        case jsonNull.name:
             return "Null";
-        case JsonType.Object:
+        case jsonObject.name:
             return "Object";
         default:
             return "Unknown Type";
@@ -87,7 +87,7 @@ function toTableRows({ data, id }: Partial<ITableRow>, props: IToTableRowsProps,
                     value: jsonCursor.value || data[key],
                     type: mapJsonTypesToStrings(jsonCursor.type) as string,
                     children:
-                        jsonCursor.type === JsonType.Object || jsonCursor.type === JsonType.Array
+                        jsonCursor.type === jsonObject.name || jsonCursor.type === jsonArray.name
                             ? toTableRows({ data: data[key] }, props)
                             : [],
                 } as any);

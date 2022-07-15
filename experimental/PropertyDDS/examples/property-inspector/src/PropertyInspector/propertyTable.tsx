@@ -19,7 +19,7 @@ export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameO
     return { name: "property", options: templates };
 };
 
-export const propertyTableProps: Partial<IInspectorTableProps<IInspectorRow>> = {
+export const propertyTableProps: Partial<IInspectorTableProps> = {
     columns: ["name", "value", "type"],
     expandColumnKey: "name",
     width: 1000,
