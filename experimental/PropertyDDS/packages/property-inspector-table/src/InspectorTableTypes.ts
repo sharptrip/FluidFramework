@@ -13,15 +13,6 @@ import { IInspectorSearchState } from "./utils";
 export type IToTableRowsProps = Pick<IInspectorTableProps,
   "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
 
-export interface IRowData<T = any, C = IRowData<any, any>> {
-    data?: T;
-    id: string;
-    children?: C[];
-    // TODO revisit those types which required for propertyDDS
-    isReference?: boolean;
-    context?: string;
-  }
-
 export interface IToTableRowsOptions {
   depth: number;
   addDummy: boolean;
@@ -49,9 +40,10 @@ export interface IColumns {
 /**
  * The interface for an entry of the visualization data array.
  */
-export interface IInspectorRow extends IRowData<BaseProxifiedProperty, IInspectorRow>{
+export interface IInspectorRow extends IRowData<BaseProxifiedProperty>{
   context: string;
   isConstant: boolean;
+  children?: IInspectorRow[];
   isReference: boolean;
   name: string;
   typeid: string;
@@ -244,4 +236,13 @@ export interface IInspectorTableState<T = any> {
     order: SortOrder;
   };
   tableRows: T[];
+}
+
+export interface IRowData<T = never> {
+  data?: T;
+  id: string;
+  children?: IRowData<T>[];
+  // TODO revisit those types which required for propertyDDS
+  isReference?: boolean;
+  context?: string;
 }

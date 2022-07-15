@@ -611,7 +611,55 @@ class InspectorTable<
     return columns;
   };
 
-  private readonly handleInitialEditReference = (rowData: T) => {
+  // @TODO turn it private when refactoring editing workflow
+  public async handleCreateData(rowData: T, name: string, type: string, context: string) {
+    if (this.dataCreation) {
+      await this.props.dataCreationHandler!(rowData, name, type, context);
+      this.setState({ showFormRowID: "0" });
+      this.forceUpdateBaseTable();
+    }
+  }
+
+  public readonly handleCancelCreate = () => {
+    this.setState({ showFormRowID: "0" });
+    this.forceUpdateBaseTable();
+  };
+
+  public readonly renderCreationRow = (rowData: T) => {
+    const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
+    const result = dataCreationOptionGenerationHandler!(rowData, true);
+
+    const addDataRow = (
+      <NewDataRow
+        dataType={result.name}
+        onClick={this.handleInitiateCreate.bind(rowData)}
+      />
+    );
+
+    // const addDataForm = (options) => (
+    //   <div className={classes.dataForm}>
+    //     <NewDataForm
+    //       onCancelCreate={this.handleCancelCreate}
+    //       onDataCreate={this.handleCreateData}
+    //       options={options}
+    //       rowData={rowData}
+    //     />
+    //   </div>
+    // );
+
+    return (
+      <div className={classes.dataFormContainer}>
+        {
+          this.state.showFormRowID === rowData.id ?
+            generateForm.call(this, rowData) &&
+            this.props.addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
+            addDataRow
+        }
+      </div>
+    );
+  };
+
+  public readonly handleInitialEditReference = (rowData: T) => {
     this.setState({ editReferenceRowData: rowData });
   };
 
@@ -744,53 +792,6 @@ class InspectorTable<
     this.setState({ showFormRowID: rowData.id });
     this.forceUpdateBaseTable();
   }
-
-  private async handleCreateData(rowData: T, name: string, type: string, context: string) {
-    if (this.dataCreation) {
-      await this.props.dataCreationHandler!(rowData, name, type, context);
-      this.setState({ showFormRowID: "0" });
-      this.forceUpdateBaseTable();
-    }
-  }
-
-  private readonly handleCancelCreate = () => {
-    this.setState({ showFormRowID: "0" });
-    this.forceUpdateBaseTable();
-  };
-
-  private readonly renderCreationRow = (rowData: T) => {
-    const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
-    const result = dataCreationOptionGenerationHandler!(rowData, true);
-
-    const addDataRow = (
-      <NewDataRow
-        dataType={result.name}
-        onClick={this.handleInitiateCreate.bind(rowData)}
-      />
-    );
-
-    // const addDataForm = (options) => (
-    //   <div className={classes.dataForm}>
-    //     <NewDataForm
-    //       onCancelCreate={this.handleCancelCreate}
-    //       onDataCreate={this.handleCreateData}
-    //       options={options}
-    //       rowData={rowData}
-    //     />
-    //   </div>
-    // );
-
-    return (
-      <div className={classes.dataFormContainer}>
-        {
-          this.state.showFormRowID === rowData.id ?
-            generateForm.call(this, rowData) &&
-            this.props.addDataForm(this.props.dataCreationOptionGenerationHandler!(rowData, false).options) :
-            addDataRow
-        }
-      </div>
-    );
-  };
 
   private readonly handleCollapseAll = () => {
     this.setState({ expanded: {} });
