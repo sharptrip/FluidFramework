@@ -6,13 +6,13 @@ import {
     IToTableRowsOptions,
     IToTableRowsProps,
     typeidToIconMap,
-    ITableRow,
+    IRowData,
 } from "@fluid-experimental/property-inspector-table";
 import { Box, Chip, Switch, TextField, FormLabel } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 
-import { TreeType, TreeNavigationResult } from "@fluid-internal/tree";
-import { JsonType, JsonCursor } from "../jsonCursor";
+import { TreeType, TreeNavigationResult, JsonCursor, jsonObject,
+    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonNull } from "@fluid-internal/tree";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -53,28 +53,28 @@ const useStyles = makeStyles({
     },
 }, { name: "JsonTable" });
 
-const mapJsonTypesToStrings = (type: TreeType) => {
-    switch (type) {
-        case JsonType.Array:
-            return "Array";
-        case JsonType.String:
-            return "String";
-        case JsonType.Boolean:
-            return "Boolean";
-        case JsonType.Number:
-            return "Number";
-        case JsonType.Null:
-            return "Null";
-        case JsonType.Object:
-            return "Object";
-        default:
-            return "Unknown Type";
-    }
-};
+// const mapJsonTypesToStrings = (type: TreeType) => {
+//     switch (type) {
+//         case jsonArray.name:
+//             return "Array";
+//         case jsonString.name:
+//             return "String";
+//         case jsonBoolean.name:
+//             return "Boolean";
+//         case jsonNumber.name:
+//             return "Number";
+//         case jsonNull.name:
+//             return "Null";
+//         case jsonObject.name:
+//             return "Object";
+//         default:
+//             return "Unknown Type";
+//     }
+// };
 
-function toTableRows({ data, id }: Partial<ITableRow>, props: IToTableRowsProps,
-    _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string): ITableRow[] {
-    const res: ITableRow[] = [];
+function toTableRows({ data, id }: Partial<IRowData<any>>, props: IToTableRowsProps,
+    _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string): IRowData[] {
+    const res: IRowData[] = [];
     const jsonCursor = new JsonCursor(data);
     for (const key of jsonCursor.keys) {
         const len = jsonCursor.length(key);
@@ -84,11 +84,11 @@ function toTableRows({ data, id }: Partial<ITableRow>, props: IToTableRowsProps,
                 res.push({
                     id: key as string,
                     name: key as string,
-                    value: jsonCursor.value || data[key],
-                    type: mapJsonTypesToStrings(jsonCursor.type) as string,
+                    value: data[key as string],
+                    type: jsonCursor.type as string,
                     children:
-                        jsonCursor.type === JsonType.Object || jsonCursor.type === JsonType.Array
-                            ? toTableRows({ data: data[key] }, props)
+                        jsonCursor.type === jsonObject.name || jsonCursor.type === jsonArray.name
+                            ? toTableRows({ data: data[key as string] }, props)
                             : [],
                 } as any);
             }
@@ -137,7 +137,7 @@ export const JsonTable = (props: IJsonTableProps) => {
                 value: ({ rowData, readOnly }) => {
                     const { type, value } = rowData;
                     switch (type) {
-                        case "Boolean":
+                        case jsonBoolean.name:
                             return <Switch
                                 color="primary"
                                 checked={value as boolean}
@@ -145,13 +145,13 @@ export const JsonTable = (props: IJsonTableProps) => {
                                 disabled={readOnly}
                             />;
 
-                        case "String":
+                        case jsonString.name:
                             return <TextField value={value}
                                 disabled={readOnly} type="string" />;
-                        case "Number":
+                        case jsonNumber.name:
                             return <TextField value={value}
                                 disabled={readOnly} type="number" />;
-                        case "Array":
+                        case jsonArray.name:
                             return <FormLabel> {`[${value.length}]`}</FormLabel>;
                         default:
                             return <div> </div>;

@@ -8,7 +8,7 @@ import TextField, { TextFieldProps } from "@material-ui/core/TextField";
 import * as React from "react";
 import { IEditableValueCellProps } from "../EditableValueCell";
 import { IInspectorRow } from "../InspectorTableTypes";
-import { getPropertyValue } from "../utils";
+import { getPropertyValue } from "../propertyInspectorUtils";
 
 type NumberProps = (IEditableValueCellProps & {
   onSubmit: (val: number, props: IEditableValueCellProps) => void;
