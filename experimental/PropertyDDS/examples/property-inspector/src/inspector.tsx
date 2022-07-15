@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import ReactDOM from "react-dom";
 
 import _ from "lodash";
@@ -25,6 +25,7 @@ import { Box } from "@material-ui/core";
 import { theme } from "./theme";
 import { JsonTable } from "./jsonInspector/jsonTable";
 import { PropertyTable } from "./propertyInspector/propertyTable";
+import ReactJson from 'react-json-view'
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -116,6 +117,7 @@ const customData = {
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
+    const [ data, setData] = useState(customData);
     // const chipClasses = useChipStyles();
 
     return (
@@ -129,12 +131,13 @@ export const InspectorApp = (props: any) => {
                                 {
                                     ({ width, height }) =>
                                     <Box sx={{ display: "flex" }}>
+                                        <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src)}/>
                                         <JsonTable
                                             readOnly={true}
                                             width={width / 2}
                                             height={height}
                                             {...props}
-                                            data={customData}
+                                            data={data}
                                         />
                                         <PropertyTable
                                             readOnly={true}
