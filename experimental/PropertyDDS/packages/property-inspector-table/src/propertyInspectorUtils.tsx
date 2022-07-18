@@ -8,7 +8,6 @@ import {
   ReferenceArrayProperty,
   ReferenceMapProperty,
   ReferenceProperty,
-  Workspace,
 } from "@fluid-experimental/property-properties";
 import { BaseProxifiedProperty, PropertyProxy } from "@fluid-experimental/property-proxy";
 import Tooltip from "@material-ui/core/Tooltip";
