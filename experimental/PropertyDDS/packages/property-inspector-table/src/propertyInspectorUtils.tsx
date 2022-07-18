@@ -421,9 +421,9 @@ export const sanitizePath = (inPath: string, sanitizer: ISanitizer[]) => {
   return outPath;
 };
 
-export const expandAll = (workspace: Workspace) => {
+export const expandAll = (property: BaseProxifiedProperty) => {
   const expanded: IExpandedMap = {};
-  const root = (workspace as any).root;
+  const root = property.getProperty().getRoot();
 
   forEachProperty(root, (property) => {
     if (!isPrimitive(property.getFullTypeid())) {

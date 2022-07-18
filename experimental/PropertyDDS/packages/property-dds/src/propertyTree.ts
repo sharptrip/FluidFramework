@@ -235,7 +235,7 @@ export class SharedPropertyTree extends SharedObject {
 
 	/**
 	 * This method encodes the given message to the transfer form
-	 * @param change - The message to be encoded.
+	 * @param change - The message to be encoded.rop
  	 */
 	private encodeMessage(change: IPropertyTreeMessage): IPropertyTreeMessage {
 		return this.propertyTreeConfig.encDec.messageEncoder.encode(change);
