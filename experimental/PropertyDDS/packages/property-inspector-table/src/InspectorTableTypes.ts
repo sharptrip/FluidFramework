@@ -9,7 +9,7 @@ import { BaseProperty } from "@fluid-experimental/property-properties";
 import { BaseTableProps, SortOrder } from "react-base-table";
 import { IRepoExpiryGetter, IRepoExpirySetter } from "./CommonTypes";
 
-export interface ISearchLevelState {
+interface ISearchLevelState {
   data?: IInspectorRow[];
   index: number;
 }

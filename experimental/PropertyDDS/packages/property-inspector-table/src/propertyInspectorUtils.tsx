@@ -8,7 +8,6 @@ import {
   ReferenceArrayProperty,
   ReferenceMapProperty,
   ReferenceProperty,
-  Workspace,
 } from "@fluid-experimental/property-properties";
 import { BaseProxifiedProperty, PropertyProxy } from "@fluid-experimental/property-proxy";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -91,6 +90,7 @@ const isExpandable = (data: any, context: string, typeid: string, dataCreation: 
     data && ((context !== "single" && (data.size > 0 || data.length > 0)) ||
       (!isPrimitive(typeid) && Object.keys(data).length > 0));
 };
+
 const addAdditionalRow = (subRows, id, parentProperty) => {
   const undefinedRowData = {
     context: undefined,
@@ -590,6 +590,7 @@ export const generateForm = (rowData: IInspectorRow, handleCreateData: any) => {
   return true;
 };
 
+// @TODO: Revisit method arguments
 export function nameCellRenderer({ rowData, cellData, columnIndex, tableProps,
   searchResult, renderCreationRow }: ColumnRendererType) {
   const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes } = tableProps;
@@ -611,6 +612,7 @@ export function nameCellRenderer({ rowData, cellData, columnIndex, tableProps,
   }
 }
 
+// @TODO: Revisit method arguments
 export function typeCellRenderer({ rowData, tableProps }: { rowData: IInspectorRow; tableProps: any; }) {
   const { checkoutInProgress, width } = tableProps;
   if (checkoutInProgress) {
@@ -653,7 +655,7 @@ const getRandomWidth = (width: number) => {
 const getCellSkeleton = (width: number) => ThemedSkeleton(<Skeleton width={getRandomWidth(width)} />);
 const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
   classes: any, searchResults: SearchResult) => {
-  const { foundMatches, matchesMap, currentResult } = searchResults;
+  const { foundMatches = [], matchesMap = {}, currentResult } = searchResults;
   const highlightedResult: IInspectorSearchMatch = (
     currentResult !== -1 && currentResult !== undefined && foundMatches.length! > 0
       ? foundMatches[currentResult] : { indexOfColumn: -1, rowId: "" });
@@ -662,6 +664,7 @@ const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
       classes.match : "");
 };
 
+// @TODO: Revisit method arguments
 export function valueCellRenderer(
   { rowData, cellData, columnIndex, tableProps, searchResult,
   }: ColumnRendererType) {

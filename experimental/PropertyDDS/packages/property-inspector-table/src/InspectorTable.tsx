@@ -10,7 +10,7 @@ import Skeleton from "react-loading-skeleton";
 
 import classNames from "classnames";
 import debounce from "lodash.debounce";
-import * as React from "react";
+import React, { createRef } from "react";
 import BaseTable, { SortOrder } from "react-base-table";
 import { ModalConsumer } from "./ModalManager";
 // eslint-disable-next-line import/no-unassigned-import
@@ -32,7 +32,6 @@ import { getReferenceValue, handleReferencePropertyEdit } from "./propertyInspec
 import { ThemedSkeleton as themedSkeleton } from "./ThemedSkeleton";
 import { NewDataRow } from "./NewDataRow";
 import { IRowData, SearchResult } from "./";
-import { createRef } from "react";
 
 // // @TODO Figure out why SortOrder is not resolved as value after updating the table version
 enum TableSortOrder {
@@ -627,7 +626,7 @@ class InspectorTable<
     if (this.dataCreation) {
       await this.props.dataCreationHandler!(rowData, name, type, context);
       this.setState({ showFormRowID: "0" });
-      // this.forceUpdateBaseTable();
+      this.forceUpdateBaseTable();
     }
   }
 
@@ -854,9 +853,10 @@ class InspectorTable<
   };
 
   private readonly forceUpdateBaseTable = () => {
-    this.table.current.resetRowHeightCache();
     this.table.current.forceUpdateTable();
-  };
+    // @TODO find a cleaner way to trigger re-render when columns should rerendered
+    this.table.current.columnManager.resetCache();
+   };
 }
 
 const StyledInspectorTable = withStyles(styles, { name: "InspectorTable" })(InspectorTable as any);

@@ -129,9 +129,9 @@ export const InspectorApp = (props: any) => {
                         <div className={classes.tableContainer}>
                             <AutoSizer>
                                 {
-                                    ({ width, height }) => 
+                                    ({ width, height }) =>
                                     <Box sx={{ display: "flex" }}>
-                                        <Box sx={{ display: "flex", width: width/2 }}>
+                                        <Box sx={{ display: "flex", width: width / 2 }}>
                                             <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src as any)}/>
                                             <JsonTable
                                                 readOnly={true}
