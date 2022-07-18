@@ -129,16 +129,18 @@ export const InspectorApp = (props: any) => {
                         <div className={classes.tableContainer}>
                             <AutoSizer>
                                 {
-                                    ({ width, height }) =>
+                                    ({ width, height }) => 
                                     <Box sx={{ display: "flex" }}>
-                                        <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src as any)}/>
-                                        <JsonTable
-                                            readOnly={true}
-                                            width={width / 2}
-                                            height={height}
-                                            {...props}
-                                            data={data}
-                                        />
+                                        <Box sx={{ display: "flex", width: width/2 }}>
+                                            <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src as any)}/>
+                                            <JsonTable
+                                                readOnly={true}
+                                                width={width / 3}
+                                                height={height}
+                                                {...props}
+                                                data={data}
+                                            />
+                                        </Box>
                                         <PropertyTable
                                             // readOnly={true}
                                             width={width / 2}
@@ -147,12 +149,12 @@ export const InspectorApp = (props: any) => {
                                         />
                                     </Box>
                                 }
-                            </AutoSizer>
-                        </div>
+                         </AutoSizer>
                     </div>
                 </div>
-            </ModalManager>
-        </MuiThemeProvider>);
+            </div>
+        </ModalManager>
+        </MuiThemeProvider >);
 };
 
 export function renderApp(propertyTree: SharedPropertyTree, element: HTMLElement) {

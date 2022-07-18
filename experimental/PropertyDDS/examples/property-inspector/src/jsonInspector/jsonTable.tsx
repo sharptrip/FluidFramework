@@ -11,8 +11,8 @@ import {
 import { Box, Chip, Switch, TextField, FormLabel } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 
-import { TreeType, TreeNavigationResult, JsonCursor, jsonObject,
-    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonNull } from "@fluid-internal/tree";
+import { TreeNavigationResult, JsonCursor, jsonObject,
+    jsonArray, jsonString, jsonBoolean, jsonNumber } from "@fluid-internal/tree";
 
 const useStyles = makeStyles({
     boolColor: {
