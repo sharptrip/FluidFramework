@@ -15,7 +15,7 @@ import {
     generateForm,
     addDataForm,
     expandAll,
-    getDefaultInspectorTableIcons
+    getDefaultInspectorTableIcons,
 } from "@fluid-experimental/property-inspector-table";
 
 export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameOnly: boolean): IDataCreationOptions => {
