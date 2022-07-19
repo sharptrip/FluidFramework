@@ -38,7 +38,7 @@ export interface IRowData<T = never> {
 	// TODO revisit those types which required for propertyDDS
 	isReference?: boolean;
 	context?: string;
-  }
+}
 
 export type IToTableRowsProps = Pick<IInspectorTableProps,
   "dataCreationHandler" | "dataCreationOptionGenerationHandler" | "childGetter" | "nameGetter" | "readOnly">;
