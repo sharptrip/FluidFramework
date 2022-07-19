@@ -21,7 +21,7 @@ import { DataBinder } from "@fluid-experimental/property-binder";
 import { SharedPropertyTree } from "@fluid-experimental/property-dds";
 import AutoSizer from "react-virtualized-auto-sizer";
 
-import { Box } from "@material-ui/core";
+import { Box, Tabs, Tab } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
 import { JsonTable } from "./jsonInspector/jsonTable";
@@ -92,6 +92,25 @@ const useStyles = makeStyles({
         display: "flex",
         width: "100%",
     },
+    editor: {
+        container: {
+            width: "100%",
+        },
+        body: {
+            width: undefined,
+            display: "flex",
+        },
+        outerBox: {
+            width: "100%",
+        },
+        contentBox: {
+            width: undefined,
+            flex: 1,
+        },
+        warningBox: {
+            width: "100%",
+        },
+    },
 }, { name: "InspectorApp" });
 
 const customData: any = {
@@ -115,10 +134,35 @@ const customData: any = {
     },
 };
 
+interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+    const { children, value, index, ...other } = props;
+
+    return (
+      <div
+        role="tabpanel"
+        hidden={value !== index}
+        id={`simple-tabpanel-${index}`}
+        aria-labelledby={`simple-tab-${index}`}
+        {...other}
+      >
+        {value === index && (children)}
+      </div>
+    );
+}
+
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
     const [data, setData] = useState(customData);
+    const [value, setValue] = useState(0);
     // const chipClasses = useChipStyles();
+
+    const onJsonEdit = ({ updated_src }) => setData(updated_src);
 
     return (
         <MuiThemeProvider theme={theme}>
@@ -127,31 +171,42 @@ export const InspectorApp = (props: any) => {
                 <div className={classes.root}>
                     <div className={classes.horizontalContainer}>
                         <div className={classes.tableContainer}>
+                        <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                            <Tabs value={value} onChange={(event, newValue) => setValue(newValue)}>
+                                <Tab label="PropertyDDS" id="tab-propertyDDS"/>
+                                <Tab label="JSON Cursor" id="tab-jsonCursor"/>
+                                <Tab label="Forest Cursor" id="tab-forestCursor"/>
+                            </Tabs>
                             <AutoSizer>
-                                {
-                                    ({ width, height }) =>
-                                        <Box sx={{ display: "flex" }}>
-                                            <Box sx={{ display: "flex", width: width / 2 }}>
-                                                <ReactJson src={data} onEdit={
-                                                    ({ updated_src }) => setData(updated_src)
-                                                }/>
+                            {
+                                ({ width, height }) =>
+                                    <Box sx={{ display: "flex" }}>
+                                        <TabPanel value={value} index={0}>
+                                            <PropertyTable
+                                                // readOnly={true}
+                                                width={width}
+                                                height={height}
+                                                {...props}
+                                            />
+                                        </TabPanel>
+                                        <TabPanel value={value} index={1}>
+                                            <Box sx={{ display: "flex", flexDirection: "row" }}>
+                                                <Box width={width / 2} className={classes.editor}>
+                                                    <ReactJson src={data} onEdit={onJsonEdit}/>
+                                                </Box>
                                                 <JsonTable
-                                                    // readOnly={true}
-                                                    width={width / 4}
+                                                    readOnly={false}
+                                                    width={width / 2}
                                                     height={height}
                                                     {...props}
                                                     data={data}
                                                 />
                                             </Box>
-                                            <PropertyTable
-                                                // readOnly={true}
-                                                width={width / 2}
-                                                height={height}
-                                                {...props}
-                                            />
-                                        </Box>
-                                }
-                         </AutoSizer>
+                                        </TabPanel>
+                                    </Box>
+                            }
+                            </AutoSizer>
+                        </Box>
                     </div>
                 </div>
             </div>
