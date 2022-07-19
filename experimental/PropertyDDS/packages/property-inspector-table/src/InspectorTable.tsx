@@ -236,10 +236,11 @@ class InspectorTable<
   }
 
   private readonly dataCreation: boolean;
-  private columns: any;
+  private readonly columns: any;
   private readonly debouncedSearchChange: (searchExpression: string) => void;
   private readonly table;
   private toTableRowOptions: IToTableRowsOptions;
+  public state: IInspectorTableState;
 
   public constructor(props: Readonly<IInspectorTableProps<T>>) {
     super(props as any);
@@ -298,8 +299,7 @@ class InspectorTable<
       }
 
       this.handleCreateData = this.handleCreateData.bind(this);
-      this.handleCreateData = this.handleCreateData.bind(this);
-      this.handleInitiateCreate = this.handleInitiateCreate.bind(this);
+      this.handleCancelCreate = this.handleCancelCreate.bind(this);
 
       // Set the initial state for a fresh search.
       this.setState({ ...this.state, ...newState }, () => {
@@ -459,7 +459,6 @@ class InspectorTable<
     const components = this.props.checkoutInProgress ? { ExpandIcon: skeletonExpandIcon } : {};
     const fakeRows = Array.from(Array(getRandomRowsNum()), (x, i) => ({ id: i.toString() }));
     const rowsData = this.props.checkoutInProgress ? fakeRows : rows;
-    this.columns = this.generateColumns(width);
     const getHeader = ({ cells, headerIndex }) => {
       if (headerIndex === 1) {
         return cells;
@@ -542,6 +541,14 @@ class InspectorTable<
       }
     };
 
+    const rowEventHandlers = {
+      onClick: (({ rowKey }) => {
+        if (rowKey.endsWith("/Add") && this.state.showFormRowID === "0") {
+          this.setState({ showFormRowID: rowKey });
+        }
+      }).bind(this),
+    };
+
     return (
       <div className={classes.root}>
         <BaseTable<T>
@@ -566,6 +573,7 @@ class InspectorTable<
           footerRenderer={this.footerRenderer}
           emptyRenderer={getEmptyPanel(!!expired)}
           components={components}
+          rowEventHandlers={rowEventHandlers}
         />
         {
           editReferenceRowData &&
@@ -600,7 +608,7 @@ class InspectorTable<
       };
       if (this.props.columnsRenderers !== undefined && this.props.columnsRenderers[currentId] !== undefined) {
         newColumn.cellRenderer = (args: any) => {
-         const {
+          const {
             foundMatches,
             currentResult,
             matchesMap,
@@ -626,33 +634,31 @@ class InspectorTable<
     if (this.dataCreation) {
       await this.props.dataCreationHandler!(rowData, name, type, context);
       this.setState({ showFormRowID: "0" });
-      this.forceUpdateBaseTable();
     }
   }
 
-  private readonly handleCancelCreate = () => {
+  private handleCancelCreate() {
     this.setState({ showFormRowID: "0" });
-    // this.forceUpdateBaseTable();
-  };
+  }
 
   private readonly renderCreationRow = (rowData: T) => {
     const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
     const result = dataCreationOptionGenerationHandler!(rowData, true);
+    const { showFormRowID } = this.state;
 
     const addDataRow = (
       <NewDataRow
         dataType={result.name}
-        onClick={this.handleInitiateCreate.bind(this, { rowData })}
       />
     );
 
     return (
       <div className={classes.dataFormContainer}>
         {
-          this.state.showFormRowID === rowData.id ?
-            generateForm.call(this, rowData) &&
+          showFormRowID !== "0" && rowData.id.endsWith("/Add") && showFormRowID === rowData.id ?
+            generateForm.call(this, rowData, this.handleCreateData.bind(this)) &&
             this.props.addDataForm({
-              handleCancelCreate: this.handleCancelCreate,
+              handleCancelCreate: this.handleCancelCreate.bind(this),
               handleCreateData: this.handleCreateData.bind(this),
               options: this.props.dataCreationOptionGenerationHandler!(rowData, false).options,
               rowData,
@@ -688,7 +694,6 @@ class InspectorTable<
       currentResult: undefined, foundMatches: [], matchesMap: {}, searchAbortHandler: undefined,
       searchDone: false, searchExpression: "", searchInProgress: false, searchState: undefined,
     });
-    this.forceUpdateBaseTable();
   };
 
   private readonly handleCurrentResultChange = (newResult: number) => {
@@ -793,11 +798,6 @@ class InspectorTable<
     }
   };
 
-  private handleInitiateCreate({ rowData }: { rowData: T; }) {
-    this.setState({ showFormRowID: rowData.id });
-    this.forceUpdateBaseTable();
-  }
-
   private readonly handleCollapseAll = () => {
     this.setState({ expanded: {} });
   };
@@ -853,9 +853,11 @@ class InspectorTable<
   };
 
   private readonly forceUpdateBaseTable = () => {
-    this.table.current.forceUpdateTable();
-    // @TODO find a cleaner way to trigger re-render when columns should rerendered
-    this.table.current.columnManager.resetCache();
+    // @TODO maybe like this? BUT when this is needed, at all? (HINT: definetely not for search)
+    // (this.table.current as any).table.bodyRef.forceUpdate();
+    // // @TODO find a cleaner way to trigger re-render when columns should rerendered
+    // // this.table.current.forceUpdateTable();
+    // // this.table.current.columnManager.resetCache();
    };
 }
 
