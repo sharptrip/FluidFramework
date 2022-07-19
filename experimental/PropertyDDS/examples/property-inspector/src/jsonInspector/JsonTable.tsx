@@ -8,12 +8,13 @@ import {
     typeidToIconMap,
     IRowData,
 } from "@fluid-experimental/property-inspector-table";
+import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Chip, Switch, TextField, FormLabel, Button } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 
 import {
-    TreeNavigationResult, JsonCursor, jsonObject,
-    jsonArray, jsonString, jsonBoolean, jsonNumber, TreeType,
+    TreeNavigationResult, JsonCursor, TreeType, EmptyKey, ITreeCursor, FieldKey,
+    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject
 } from "@fluid-internal/tree";
 
 const useStyles = makeStyles({
@@ -56,67 +57,60 @@ const useStyles = makeStyles({
 }, { name: "JsonTable" });
 
 interface IJsonRowData extends IRowData<any> {
-    isAddProperty?: boolean;
     name?: string;
     value?: number | string | [] | boolean | Record<string, unknown>;
     type?: TreeType;
 }
 
-// const mapJsonTypesToStrings = (type: TreeType) => {
-//     switch (type) {
-//         case jsonArray.name:
-//             return "Array";
-//         case jsonString.name:
-//             return "String";
-//         case jsonBoolean.name:
-//             return "Boolean";
-//         case jsonNumber.name:
-//             return "Number";
-//         case jsonNull.name:
-//             return "Null";
-//         case jsonObject.name:
-//             return "Object";
-//         default:
-//             return "Unknown Type";
-//     }
-// };
+const cursorToRowData = (
+    cursor: ITreeCursor, parentKey: FieldKey, key: FieldKey, idx: number, isReadOnly: boolean,
+): IJsonRowData => {
+    const type = cursor.type;
+    const value = type === jsonArray.name ? `[${cursor.length(EmptyKey)}]` : cursor.value;
+    const name = key as string || String(idx);
+    const id = `${parentKey}/${name}`;
+    const children: IJsonRowData[] = getDataFromCursor(cursor, [], isReadOnly, id as FieldKey);
+    const rowData: IJsonRowData = { id, name, value, type, children };
+    return rowData;
+};
 
-function toTableRows({ data, id = "root" }: Partial<IJsonRowData>, props: IToTableRowsProps,
-    _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string): IJsonRowData[] {
-    const res: IJsonRowData[] = [];
-    const jsonCursor = new JsonCursor(data);
-    for (const key of jsonCursor.keys) {
-        const len = jsonCursor.length(key);
+const getDataFromCursor = (
+    cursor: ITreeCursor, rows: IJsonRowData[], isReadOnly: boolean = true, parentKey: FieldKey = EmptyKey,
+): IJsonRowData[] => {
+    if (cursor.type === jsonArray.name) {
+        const len = cursor.length(EmptyKey);
         for (let idx = 0; idx < len; idx++) {
-            const result = jsonCursor.down(key, idx);
+            const result = cursor.down(EmptyKey, idx);
             if (result === TreeNavigationResult.Ok) {
-                const idOrKey = `${len > 1 ? idx : key as string}`;
-                res.push({
-                    id: idOrKey,
-                    name: idOrKey,
-                    value: jsonCursor.value || data[key as string],
-                    type: jsonCursor.type,
-                    children:
-                        jsonCursor.type === jsonObject.name || jsonCursor.type === jsonArray.name
-                            ? toTableRows({
-                                data: data[key as string],
-                                id: idOrKey,
-                            }, props)
-                            : [],
-                });
+                rows.push(cursorToRowData(cursor, parentKey, EmptyKey, idx, isReadOnly));
             }
-            jsonCursor.up();
+            cursor.up();
+        }
+    } else {
+        for (const key of cursor.keys) {
+            const result = cursor.down(key, 0);
+            if (result === TreeNavigationResult.Ok) {
+                rows.push(cursorToRowData(cursor, parentKey, key, 0, isReadOnly));
+            }
+            cursor.up();
         }
     }
-    if (!props.readOnly) {
-        res.push({
-            id: `${id} / Add`,
-            isAddProperty: true,
-        });
+    if (!isReadOnly && (cursor.type === jsonArray.name || cursor.type === jsonObject.name)) {
+        const newRow: IJsonRowData = {
+            id: `${parentKey}/Add`,
+            isNewDataRow: true,
+        };
+        rows.push(newRow);
     }
+    return rows;
+};
 
-    return res;
-}
+const toTableRows = ({ data, id = "root" }: Partial<IJsonRowData>, props: IToTableRowsProps,
+    _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string,
+): IJsonRowData[] => {
+    const jsonCursor = new JsonCursor(data);
+    return getDataFromCursor(jsonCursor, [], props.readOnly);
+};
 
 export type IJsonTableProps = IInspectorTableProps;
 
@@ -131,24 +125,38 @@ const jsonTableProps: Partial<IJsonTableProps> = {
         },
     }),
     dataCreationHandler: async () => { },
-    addDataForm: () => {
-        return (<Box sx={{ display: "flex", flexDirection: "column", height: "160px" }}>
-            <Box sx={{ display: "flex", height: "75px" }}>
-                <TextField label="name"></TextField>
-                <TextField label="value"></TextField>
-            </Box>
-            <Box sx={{ display: "flex", height: "75px" }}>
-                <Button>Cancel</Button>
-                <Button>Create</Button>
-            </Box>
-        </Box>);
+    addDataForm: ({ styleClass }) => {
+        return (
+            <AutoSizer defaultHeight={200} defaultWidth={200}>
+                {({ width, height }) => (
+                    <div style={{
+                        height: `${height - 20}px`,
+                        width: `${width - 20}px`,
+                    }}>
+                        <Box
+                            className={styleClass}
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                            }}>
+                            <Box sx={{ display: "flex", height: "75px" }}>
+                                <TextField label="name"></TextField>
+                                <TextField label="value"></TextField>
+                            </Box>
+                            <Box sx={{ display: "flex", height: "75px" }}>
+                                <Button>Cancel</Button>
+                                <Button>Create</Button>
+                            </Box>
+                        </Box>
+                    </div>)
+                }
+            </AutoSizer >);
     },
-    generateForm: (rowData, handleCreateData) => {
+    generateForm: () => {
         return true;
     },
     // TODO: // Fix types
     rowIconRenderer: (rowData: any) => {
-        console.log(rowData.type);
         switch (rowData.type) {
             case "String":
             case "Array":
@@ -170,14 +178,14 @@ export const JsonTable = (props: IJsonTableProps) => {
             {
                 name: ({ rowData, cellData, renderCreationRow, tableProps: { readOnly } }) => {
                     return (
-                        rowData.isAddProperty && !readOnly
+                        rowData.isNewDataRow && !readOnly
                             ? renderCreationRow(rowData)
                             : cellData
                     ) as React.ReactNode;
                 },
                 type: ({ rowData }) => {
-                    if (!rowData.data) {
-                        return <></>;
+                    if (rowData.isNewDataRow) {
+                        return <div></div>;
                     }
                     return <Box className={classes.typesBox}>
                         <Chip
@@ -190,6 +198,7 @@ export const JsonTable = (props: IJsonTableProps) => {
                     switch (type) {
                         case jsonBoolean.name:
                             return <Switch
+                                size="small"
                                 color="primary"
                                 checked={value as boolean}
                                 value={rowData.name}
@@ -203,9 +212,9 @@ export const JsonTable = (props: IJsonTableProps) => {
                             return <TextField value={value}
                                 disabled={!!readOnly} type="number" />;
                         case jsonArray.name:
-                            return <FormLabel> {`[${value.length}]`}</FormLabel>;
+                            return <FormLabel> {value}</FormLabel>;
                         default:
-                            return <div> </div>;
+                            return <div></div>;
                     }
                 },
             }
