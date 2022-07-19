@@ -16,7 +16,6 @@ import { ModalConsumer } from "./ModalManager";
 // eslint-disable-next-line import/no-unassigned-import
 import "react-base-table/styles.css";
 import { InspectorMessages, minRows } from "./constants";
-import { EditReferencePath } from "./EditReferencePath";
 import { computeIconSize, Empty } from "./Empty";
 import { ExpiryModal } from "./ExpiryModal";
 import { InspectorTableFooter } from "./InspectorTableFooter";
@@ -55,8 +54,6 @@ enum TableSortOrder {
  */
 const defaultSort = { key: "name", order: TableSortOrder.ASC } as { key: React.Key; order: SortOrder; };
 
-const footerHeight = 32;
-
 const styles = (theme: Theme) => createStyles({
   currentMatch: {
     backgroundColor: "rgba(250,162,27,0.5)",
@@ -78,13 +75,6 @@ const styles = (theme: Theme) => createStyles({
     marginBottom: theme.spacing(1),
     maxWidth: "600px",
     zIndex: 200,
-  },
-  editReferenceContainer: {
-    bottom: footerHeight,
-    display: "flex",
-    justifyContent: "center",
-    position: "absolute",
-    width: "100%",
   },
   evenRow: {
     backgroundColor: "#FFFFFF",
@@ -211,7 +201,7 @@ class InspectorTable<
     nameGetter: defaultInspectorTableNameGetter,
     rowHeight: 32,
     editReferenceHandler: handleReferencePropertyEdit,
-    fillExpanded: () => {},
+    fillExpanded: () => { },
   };
 
   public static getDerivedStateFromProps<T>(
@@ -300,6 +290,8 @@ class InspectorTable<
 
       this.handleCreateData = this.handleCreateData.bind(this);
       this.handleCancelCreate = this.handleCancelCreate.bind(this);
+      this.handleInitialEditReference = this.handleInitialEditReference.bind(this);
+      this.handleCancelEditReference = this.handleCancelEditReference.bind(this);
 
       // Set the initial state for a fresh search.
       this.setState({ ...this.state, ...newState }, () => {
@@ -576,16 +568,15 @@ class InspectorTable<
           rowEventHandlers={rowEventHandlers}
         />
         {
-          editReferenceRowData &&
+          editReferenceRowData && this.props.editReferenceView &&
           <div style={{ position: "relative", width }}>
             <div className={classes.editReferenceContainer}>
-              <EditReferencePath
-                className={classes.editReference}
-                name={editReferenceRowData.name}
-                path={getReferenceValue(editReferenceRowData)}
-                onCancel={this.handleCancelEditReference}
-                onEdit={this.handleEditReference}
-              />
+              {this.props.editReferenceView({
+                getReferenceValue,
+                onCancel: this.handleCancelEditReference,
+                onSubmit: this.handleEditReference,
+                editReferenceRowData,
+              })}
             </div>
           </div>
         }
@@ -620,8 +611,14 @@ class InspectorTable<
             matchesMap,
           };
 
-          return this.props.columnsRenderers![currentId]({ ...args, tableProps: this.props,
-            searchResult, renderCreationRow: this.renderCreationRow });
+          return this.props.columnsRenderers![currentId]({
+            ...args, tableProps: this.props,
+            referenceHandler: {
+              initialReferenceEdit: this.handleInitialEditReference,
+              cancelReferenceEdit: this.handleCancelEditReference,
+            },
+            searchResult, renderCreationRow: this.renderCreationRow,
+          });
         };
       }
       columns.push(newColumn);
@@ -670,11 +667,11 @@ class InspectorTable<
     );
   };
 
-  public readonly handleInitialEditReference = (rowData: T) => {
+  private handleInitialEditReference = (rowData: T) => {
     this.setState({ editReferenceRowData: rowData });
   };
 
-  private readonly handleCancelEditReference = () => {
+  private handleCancelEditReference = () => {
     this.setState({ editReferenceRowData: null });
   };
 
@@ -813,7 +810,7 @@ class InspectorTable<
     if (newExpandedFlag && !idInExpanded) {
       newExpanded[rowData.id] = true;
       if (rowData.children && rowData.children![0].id === "d") {
-       this.props.fillExpanded(newExpanded, this.state.tableRows, this.props, this.toTableRowOptions);
+        this.props.fillExpanded(newExpanded, this.state.tableRows, this.props, this.toTableRowOptions);
       }
     } else if (!newExpandedFlag && idInExpanded) {
       delete newExpanded[rowData.id];
