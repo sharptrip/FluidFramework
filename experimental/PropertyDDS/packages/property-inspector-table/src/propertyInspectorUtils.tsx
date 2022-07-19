@@ -657,10 +657,10 @@ const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
   classes: any, searchResults: SearchResult) => {
   const { foundMatches = [], matchesMap = {}, currentResult } = searchResults;
   const highlightedResult: IInspectorSearchMatch = (
-    currentResult !== -1 && currentResult !== undefined && foundMatches.length! > 0
-      ? foundMatches[currentResult] : { indexOfColumn: -1, rowId: "" });
+    currentResult !== -1 && currentResult !== undefined && foundMatches!.length! > 0
+      ? foundMatches![currentResult] : { indexOfColumn: -1, rowId: "" });
   return highlightedResult.rowId === rowData.id && highlightedResult.indexOfColumn === columnIndex ?
-    classes.currentMatch : (matchesMap[rowData.id] && matchesMap[rowData.id][columnIndex] ?
+    classes.currentMatch : (matchesMap![rowData.id] && matchesMap![rowData.id][columnIndex] ?
       classes.match : "");
 };
 

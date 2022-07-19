@@ -24,8 +24,8 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { JsonTable } from "./jsonInspector/JsonTable";
-import { PropertyTable } from "./PropertyInspector/PropertyTable";
+import { JsonTable } from "./jsonInspector/jsonTable";
+import { PropertyTable } from "./propertyInspector/propertyTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -94,7 +94,7 @@ const useStyles = makeStyles({
     },
 }, { name: "InspectorApp" });
 
-const customData = {
+const customData: any = {
     test1: "dodo",
     test2: 12,
     test3: true,
@@ -103,7 +103,7 @@ const customData = {
     test4: {
         test5: "hello booboo",
     },
-    test6: [1, 2, "daba dee"],
+    test6: [1, 2, "daba dee", ["a", "b", 3, 4, { foo: { bar: "buz" } }]],
     // Maps are not supported
     mapTest: new Map([["a", "b"], ["valA", "valB"]]),
     // Sets are not supported
@@ -129,25 +129,27 @@ export const InspectorApp = (props: any) => {
                         <div className={classes.tableContainer}>
                             <AutoSizer>
                                 {
-                                    ({ width, height }) => 
-                                    <Box sx={{ display: "flex" }}>
-                                        <Box sx={{ display: "flex", width: width/2 }}>
-                                            <ReactJson src={data} onEdit={(edit) => setData(edit.updated_src as any)}/>
-                                            <JsonTable
-                                                readOnly={true}
-                                                width={width / 3}
+                                    ({ width, height }) =>
+                                        <Box sx={{ display: "flex" }}>
+                                            <Box sx={{ display: "flex", width: width / 2 }}>
+                                                <ReactJson src={data} onEdit={
+                                                    ({ updated_src }) => setData(updated_src)
+                                                }/>
+                                                <JsonTable
+                                                    // readOnly={true}
+                                                    width={width / 4}
+                                                    height={height}
+                                                    {...props}
+                                                    data={data}
+                                                />
+                                            </Box>
+                                            <PropertyTable
+                                                // readOnly={true}
+                                                width={width / 2}
                                                 height={height}
                                                 {...props}
-                                                data={data}
                                             />
                                         </Box>
-                                        <PropertyTable
-                                            // readOnly={true}
-                                            width={width / 2}
-                                            height={height}
-                                            {...props}
-                                        />
-                                    </Box>
                                 }
                          </AutoSizer>
                     </div>
