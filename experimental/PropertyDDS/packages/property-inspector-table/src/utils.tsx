@@ -29,6 +29,10 @@ export interface ColumnRendererType {
   tableProps: IInspectorTableProps;
   searchResult: SearchResult;
   renderCreationRow: any;
+  referenceHandler: {
+    initialReferenceEdit: any;
+    cancelReferenceEdit: any;
+  };
 }
 
 interface IShowNextResultResult {

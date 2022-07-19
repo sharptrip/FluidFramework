@@ -16,6 +16,7 @@ import {
     addDataForm,
     expandAll,
     getDefaultInspectorTableIcons,
+    EditReferenceView,
 } from "@fluid-experimental/property-inspector-table";
 
 export const handleDataCreationOptionGeneration = (rowData: IInspectorRow, nameOnly: boolean): IDataCreationOptions => {
@@ -39,6 +40,9 @@ export const propertyTableProps: Partial<IInspectorTableProps> = {
     generateForm,
     rowIconRenderer: getDefaultInspectorTableIcons,
     addDataForm,
+    editReferenceView: (props) => {
+        return <EditReferenceView { ...props } />;
+    },
     columnsRenderers: {
         name: nameCellRenderer,
         value: valueCellRenderer,

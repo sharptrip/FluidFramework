@@ -49,7 +49,7 @@ export interface ICellProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export interface INameCellProps {
-  editReferenceHandler: () => void;
+  editReferenceHandler: any;
   readOnly: boolean;
 }
 

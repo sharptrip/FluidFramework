@@ -14,6 +14,7 @@ import Tooltip from "@material-ui/core/Tooltip";
 import memoize from "memoize-one";
 import React from "react";
 import Skeleton from "react-loading-skeleton";
+import { createStyles, withStyles } from "@material-ui/core";
 import { EditableValueCell } from "./EditableValueCell";
 import { TypeColumn } from "./TypeColumn";
 import { InspectorMessages, minRowWidth, rowWidthInterval } from "./constants";
@@ -28,6 +29,7 @@ import { Utils } from "./typeUtils";
 import { ThemedSkeleton } from "./ThemedSkeleton";
 import { ColumnRendererType, SearchResult } from "./utils";
 import { NewDataForm } from "./NewDataForm";
+import { EditReferencePath } from "./EditReferencePath";
 
 const { isEnumProperty, isEnumArrayProperty, isInt64Property, isReferenceProperty,
   isUint64Property, isCollectionProperty, isReferenceArrayProperty, isReferenceCollectionTypeid,
@@ -62,6 +64,28 @@ export const getReferenceValue = (rowData: IInspectorRow) => {
 
   return path;
 };
+
+const styles = () => createStyles({
+  editReferenceContainer: {
+    bottom: 32,
+    display: "flex",
+    justifyContent: "center",
+    position: "absolute",
+    width: "100%",
+  },
+});
+
+function editReferenceView({ getReferenceValue, onCancel, onSubmit, editReferenceRowData, classes }) {
+  return <EditReferencePath
+    className={classes.editReference}
+    name={editReferenceRowData.name}
+    path={getReferenceValue(editReferenceRowData)}
+    onCancel={onCancel}
+    onEdit={onSubmit} />;
+}
+
+export const EditReferenceView = withStyles(styles)(editReferenceView);
+
 const getShortId = (parentPath: string, childId: string | undefined = undefined): string => {
   const sanitizer = [
     { searchFor: /[.[]/g, replaceWith: idSeparator },
@@ -592,8 +616,9 @@ export const generateForm = (rowData: IInspectorRow, handleCreateData: any) => {
 
 // @TODO: Revisit method arguments
 export function nameCellRenderer({ rowData, cellData, columnIndex, tableProps,
-  searchResult, renderCreationRow }: ColumnRendererType) {
-  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes } = tableProps;
+  searchResult, renderCreationRow, referenceHandler }: ColumnRendererType) {
+  const { checkoutInProgress, rowIconRenderer, width,
+    dataGetter, readOnly, classes } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   }
@@ -604,7 +629,9 @@ export function nameCellRenderer({ rowData, cellData, columnIndex, tableProps,
       <NameCell
         iconRenderer={rowIconRenderer!}
         rowData={rowData}
-        editReferenceHandler={() => (rowData)}
+        editReferenceHandler={ () => {
+          referenceHandler!.initialReferenceEdit(rowData);
+        }}
         className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
         readOnly={!!readOnly} />
     );
