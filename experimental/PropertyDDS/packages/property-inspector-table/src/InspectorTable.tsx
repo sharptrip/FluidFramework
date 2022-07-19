@@ -538,7 +538,7 @@ class InspectorTable<
         if (rowKey.endsWith("/Add") && this.state.showFormRowID === "0") {
           this.setState({ showFormRowID: rowKey });
         }
-      }).bind(this),
+      }),
     };
 
     return (
@@ -855,7 +855,7 @@ class InspectorTable<
     // // @TODO find a cleaner way to trigger re-render when columns should rerendered
     // // this.table.current.forceUpdateTable();
     // // this.table.current.columnManager.resetCache();
-   };
+  };
 }
 
 const StyledInspectorTable = withStyles(styles, { name: "InspectorTable" })(InspectorTable as any);
