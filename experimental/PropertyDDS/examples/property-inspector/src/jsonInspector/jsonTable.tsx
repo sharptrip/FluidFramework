@@ -54,7 +54,6 @@ const useStyles = makeStyles({
 }, { name: "JsonTable" });
 
 interface IJsonRowData extends IRowData<any> {
-    isAddProperty?: boolean;
     name?: string;
     value?: number | string | [] | boolean | Record<string, unknown>;
     type?: TreeType;
@@ -94,10 +93,11 @@ const getDataFromCursor = (
         }
     }
     if (!isReadOnly && (cursor.type === jsonArray.name || cursor.type === jsonObject.name)) {
-        rows.push({
+        const newRow: IJsonRowData = {
             id: `${parentKey}/Add`,
-            isAddProperty: true,
-        });
+            isNewDataRow: true,
+        };
+        rows.push(newRow);
     }
     return rows;
 };
@@ -134,12 +134,11 @@ const jsonTableProps: Partial<IJsonTableProps> = {
             </Box>
         </Box>);
     },
-    generateForm: (rowData, handleCreateData) => {
+    generateForm: () => {
         return true;
     },
     // TODO: // Fix types
     rowIconRenderer: (rowData: any) => {
-        console.log(rowData.type);
         switch (rowData.type) {
             case "String":
             case "Array":
@@ -161,13 +160,13 @@ export const JsonTable = (props: IJsonTableProps) => {
             {
                 name: ({ rowData, cellData, renderCreationRow, tableProps: { readOnly } }) => {
                     return (
-                        rowData.isAddProperty && !readOnly
+                        rowData.isNewDataRow && !readOnly
                             ? renderCreationRow(rowData)
                             : cellData
                     ) as React.ReactNode;
                 },
                 type: ({ rowData }) => {
-                    if (rowData.isAddProperty) {
+                    if (rowData.isNewDataRow) {
                         return <div></div>;
                     }
                     return <Box className={classes.typesBox}>

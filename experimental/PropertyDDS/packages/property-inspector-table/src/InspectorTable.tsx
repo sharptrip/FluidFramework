@@ -273,11 +273,6 @@ class InspectorTable<
         this.state.searchAbortHandler();
       }
 
-      let forceUpdate = false;
-      if (this.state.foundMatches.length > 0) {
-        forceUpdate = true;
-      }
-
       if (searchExpression.length > 0) {
         // Trigger a new search process.
         const searchControls = this.startSearch(searchExpression, this.updateSearchState, false);
@@ -288,17 +283,8 @@ class InspectorTable<
         newState.searchDone = false;
       }
 
-      this.handleCreateData = this.handleCreateData.bind(this);
-      this.handleCancelCreate = this.handleCancelCreate.bind(this);
-      this.handleInitialEditReference = this.handleInitialEditReference.bind(this);
-      this.handleCancelEditReference = this.handleCancelEditReference.bind(this);
-
       // Set the initial state for a fresh search.
-      this.setState({ ...this.state, ...newState }, () => {
-        if (forceUpdate) {
-          this.forceUpdateBaseTable();
-        }
-      });
+      this.setState({ ...this.state, ...newState });
     }, 250);
   }
 
@@ -322,7 +308,6 @@ class InspectorTable<
     this.toTableRowOptions.followReferences = followReferences;
     const newState = {} as Pick<IInspectorTableState, "currentResult" | "expanded" | "foundMatches" | "matchesMap" |
       "searchAbortHandler" | "searchDone" | "searchInProgress" | "searchState" | "tableRows" | "childToParentMap">;
-    let forceUpdateRequired = false;
 
     // Cancel all search activity and clear the search field when checking out a new repo.
     if (checkoutInProgress && searchExpression && searchExpression.length > 0) {
@@ -367,7 +352,6 @@ class InspectorTable<
 
         foundMatches = [];
         childToParentMap = {};
-        forceUpdateRequired = true;
       }
     }
 
@@ -380,16 +364,12 @@ class InspectorTable<
       // need to update expanded according to the new currentResult
       toExpand = showNextResult(tableRows, expanded, foundMatches, currentResult!, childToParentMap);
       newState.expanded = toExpand.expandedRows;
-      forceUpdateRequired = true;
       scrollingRequired = true;
     }
 
     // Update the state if necessary, and also scroll and/or force update the base table when required.
     if (Object.keys(newState).length > 0) {
       this.setState(newState, () => {
-        if (forceUpdateRequired) {
-          this.forceUpdateBaseTable();
-        }
         if (scrollingRequired) {
           (this.table.current as any).scrollToRow(toExpand.rowIdx);
         }
@@ -534,11 +514,11 @@ class InspectorTable<
     };
 
     const rowEventHandlers = {
-      onClick: (({ rowKey }) => {
-        if (rowKey.endsWith("/Add") && this.state.showFormRowID === "0") {
+      onClick: ({ rowKey, rowData }) => {
+        if (rowData.isNewDataRow && this.state.showFormRowID === "0") {
           this.setState({ showFormRowID: rowKey });
         }
-      }),
+      },
     };
 
     return (
@@ -627,51 +607,49 @@ class InspectorTable<
   };
 
   // @TODO turn it private when refactoring editing workflow
-  private async handleCreateData(rowData: T, name: string, type: string, context: string) {
+  private readonly handleCreateData = async (rowData: T, name: string, type: string, context: string) => {
     if (this.dataCreation) {
       await this.props.dataCreationHandler!(rowData, name, type, context);
       this.setState({ showFormRowID: "0" });
     }
-  }
+  };
 
-  private handleCancelCreate() {
+  private readonly handleCancelCreate = () => {
     this.setState({ showFormRowID: "0" });
-  }
+  };
 
   private readonly renderCreationRow = (rowData: T) => {
     const { dataCreationOptionGenerationHandler, generateForm, classes } = this.props;
     const result = dataCreationOptionGenerationHandler!(rowData, true);
     const { showFormRowID } = this.state;
 
-    const addDataRow = (
-      <NewDataRow
-        dataType={result.name}
-      />
-    );
-
     return (
       <div className={classes.dataFormContainer}>
         {
-          showFormRowID !== "0" && rowData.id.endsWith("/Add") && showFormRowID === rowData.id ?
-            generateForm.call(this, rowData, this.handleCreateData.bind(this)) &&
+          showFormRowID !== "0" && rowData.isNewDataRow && showFormRowID === rowData.id ?
+            generateForm.call(this, rowData, this.handleCreateData) &&
             this.props.addDataForm({
-              handleCancelCreate: this.handleCancelCreate.bind(this),
-              handleCreateData: this.handleCreateData.bind(this),
+              handleCancelCreate: this.handleCancelCreate,
+              handleCreateData: this.handleCreateData,
               options: this.props.dataCreationOptionGenerationHandler!(rowData, false).options,
               rowData,
               styleClass: classes.dataForm,
             }) :
-            addDataRow
+            (rowData.isNewDataRow = true) && (
+              <NewDataRow
+                dataType={result.name}
+              />
+            )
         }
       </div>
     );
   };
 
-  private handleInitialEditReference = (rowData: T) => {
+  private readonly handleInitialEditReference = (rowData: T) => {
     this.setState({ editReferenceRowData: rowData });
   };
 
-  private handleCancelEditReference = () => {
+  private readonly handleCancelEditReference = () => {
     this.setState({ editReferenceRowData: null });
   };
 
@@ -761,7 +739,7 @@ class InspectorTable<
   };
 
   // @TODO: Add tests.
-  private traverseTree(item: IRowData, func: (item: IRowData) => any) {
+  private readonly traverseTree = (item: IRowData, func: (item: IRowData) => any) => {
     if (item) {
       func(item);
       const tableRows = item.children;
@@ -771,7 +749,7 @@ class InspectorTable<
         });
       }
     }
-  }
+  };
 
   // @TODO: Add tests.
   private readonly handleExpandAll = ({ data }) => {
@@ -847,14 +825,6 @@ class InspectorTable<
       newState.searchState = undefined;
     }
     this.setState(newState);
-  };
-
-  private readonly forceUpdateBaseTable = () => {
-    // @TODO maybe like this? BUT when this is needed, at all? (HINT: definetely not for search)
-    // (this.table.current as any).table.bodyRef.forceUpdate();
-    // // @TODO find a cleaner way to trigger re-render when columns should rerendered
-    // // this.table.current.forceUpdateTable();
-    // // this.table.current.columnManager.resetCache();
   };
 }
 

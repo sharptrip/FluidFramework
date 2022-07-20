@@ -617,8 +617,7 @@ export const generateForm = (rowData: IInspectorRow, handleCreateData: any) => {
 // @TODO: Revisit method arguments
 export function nameCellRenderer({ rowData, cellData, columnIndex, tableProps,
   searchResult, renderCreationRow, referenceHandler }: ColumnRendererType) {
-  const { checkoutInProgress, rowIconRenderer, width,
-    dataGetter, readOnly, classes } = tableProps;
+  const { checkoutInProgress, rowIconRenderer, width, dataGetter, readOnly, classes } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   }
