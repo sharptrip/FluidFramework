@@ -24,7 +24,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Tabs, Tab } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { JsonTable } from "./jsonInspector/JsonTable";
+import { JsonTable } from "./jsonInspector/jsonTable";
 import { PropertyTable } from "./propertyInspector/PropertyTable";
 
 const useStyles = makeStyles({
@@ -224,12 +224,13 @@ export function renderApp(propertyTree: SharedPropertyTree, element: HTMLElement
 
     dataBinder.attachTo(propertyTree);
 
+    // Create an ES6 proxy for the DDS, this enables JS object interface for interacting with the DDS.
+    const proxifiedDDS = PropertyProxy.proxify(propertyTree.root);
+
     // Listening to any change the root path of the PropertyDDS, and rendering the latest state of the
     // inspector tree-table.
     dataBinder.registerOnPath("/", ["insert", "remove", "modify"], _.debounce(() => {
-        // Create an ES6 proxy for the DDS, this enables JS object interface for interacting with the DDS.
         // Note: This is what currently inspector table expect for "data" prop.
-        const proxifiedDDS = PropertyProxy.proxify(propertyTree.root);
         ReactDOM.render(<InspectorApp data={proxifiedDDS} />, element);
     }, 20));
 }

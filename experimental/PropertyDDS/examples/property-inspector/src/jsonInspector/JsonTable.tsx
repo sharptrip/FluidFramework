@@ -12,10 +12,11 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Chip, Switch, TextField, FormLabel, Button } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 
-import {
-    TreeNavigationResult, JsonCursor, TreeType, EmptyKey, ITreeCursor, FieldKey,
-    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject
-} from "@fluid-internal/tree";
+import { TreeNavigationResult, JsonCursor, TreeType, EmptyKey, ITreeCursor, FieldKey,
+    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject,
+    ObjectForest } from "@fluid-internal/tree";
+import { PropertyFactory } from "@fluid-experimental/property-properties";
+import { convertPSetSchema } from "../schemaConverter";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -55,6 +56,46 @@ const useStyles = makeStyles({
         width: "100%",
     },
 }, { name: "JsonTable" });
+
+
+PropertyFactory.register({
+    typeid: "Test:GeodesicLocation-1.0.0",
+    properties: [
+        { id: "lat", typeid: "Float64"},
+        { id: "lon", typeid: "Float64"}
+    ]
+});
+
+PropertyFactory.register({
+    typeid: "Test:CartesianLocation-1.0.0",
+    properties: [
+        { id: "coords", typeid: "Float64", context: "array"}
+    ]
+});
+
+PropertyFactory.register({
+    typeid: "Test:Address-1.0.0",
+    inherits: ["Test:GeodesicLocation-1.0.0", "Test:CartesianLocation-1.0.0"],
+    properties: [
+        { id: "street", typeid: "String"},
+        { id: "city", typeid: "String"},
+        { id: "zip", typeid: "String"},
+        { id: "country", typeid: "String"}
+    ]
+});
+
+PropertyFactory.register({
+    typeid: "Test:Person-1.0.0",
+    inherits: ["NodeProperty"],
+    properties: [
+        { id: "name", typeid: "String"},
+        { id: "age", typeid: "Int32"},
+        { id: "salary", typeid: "Float64"},
+        { id: "address", typeid: "Test:Address-1.0.0"},
+        { id: "friends", typeid: "String", context: "map"},
+    ]
+});
+
 
 interface IJsonRowData extends IRowData<any> {
     name?: string;
@@ -169,7 +210,21 @@ const jsonTableProps: Partial<IJsonTableProps> = {
     height: 600,
 };
 
-export const JsonTable = (props: IJsonTableProps) => {
+
+export const getForest = (data: any = undefined) => {
+    const forest = new ObjectForest();
+    convertPSetSchema("Test:Person-1.0.0", forest.schema);
+    if (data) {
+        const cursor = new JsonCursor(data);
+        const newRange = forest.add([cursor]);
+        const dst = { index: 0, range: forest.rootField };
+        forest.attachRangeOfChildren(dst, newRange);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return forest;
+};
+
+export const ForestTable = (props: IForestTableProps) => {
     const classes = useStyles();
 
     return <InspectorTable
