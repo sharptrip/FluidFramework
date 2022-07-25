@@ -24,8 +24,8 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Tabs, Tab } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { JsonTable } from "./jsonInspector/jsonTable";
-import { PropertyTable } from "./propertyInspector/PropertyTable";
+import { JsonTable } from "./jsonInspector/JsonTable";
+import { PropertyTable } from "./propertyInspector/propertyTable";
 
 const useStyles = makeStyles({
     activeGraph: {

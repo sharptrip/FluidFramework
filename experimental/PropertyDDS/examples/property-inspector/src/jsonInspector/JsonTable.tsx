@@ -14,7 +14,7 @@ import { makeStyles } from "@material-ui/core/styles";
 
 import { TreeNavigationResult, JsonCursor, TreeType, EmptyKey, ITreeCursor, FieldKey,
     jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject,
-    ObjectForest } from "@fluid-internal/tree";
+    buildForest } from "@fluid-internal/tree";
 import { PropertyFactory } from "@fluid-experimental/property-properties";
 import { convertPSetSchema } from "../schemaConverter";
 
@@ -210,9 +210,8 @@ const jsonTableProps: Partial<IJsonTableProps> = {
     height: 600,
 };
 
-
 export const getForest = (data: any = undefined) => {
-    const forest = new ObjectForest();
+    const forest = buildForest();
     convertPSetSchema("Test:Person-1.0.0", forest.schema);
     if (data) {
         const cursor = new JsonCursor(data);
