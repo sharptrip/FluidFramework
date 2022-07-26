@@ -24,8 +24,8 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Tabs, Tab } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { JsonTable } from "./jsonInspector/JsonTable";
-import { PropertyTable } from "./propertyInspector/propertyTable";
+import { PropertyTable } from "./propertyInspector/PropertyTable";
+import { getForest, JsonTable } from "./jsonInspector/jsonTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -158,8 +158,9 @@ function TabPanel(props: TabPanelProps) {
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
-    const [data, setData] = useState(customData);
-    const [value, setValue] = useState(0);
+    const [data, setData] = useState(getForest());
+    const [value, setValue] = useState(1);
+
     // const chipClasses = useChipStyles();
 
     const onJsonEdit = ({ updated_src }) => setData(updated_src);
@@ -191,7 +192,7 @@ export const InspectorApp = (props: any) => {
                                         </TabPanel>
                                         <TabPanel value={value} index={1}>
                                             <Box sx={{ display: "flex", flexDirection: "row" }}>
-                                                <Box width={width / 2} className={classes.editor}>
+                                                <Box width={width / 3} className={classes.editor}>
                                                     <ReactJson
                                                         src={data}
                                                         onEdit={onJsonEdit}

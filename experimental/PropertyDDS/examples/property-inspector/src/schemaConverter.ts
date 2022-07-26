@@ -2,8 +2,7 @@ import { PropertyFactory, PropertyTemplate } from "@fluid-experimental/property-
 import { TypeIdHelper } from "@fluid-experimental/property-changeset";
 import { emptyField, FieldKind, FieldSchema, LocalFieldKey,
          neverTree, StoredSchemaRepository, TreeSchema,
-         TreeSchemaIdentifier, ValueSchema } from "@fluid-internal/tree";
-import { emptySet, emptyMap } from "@fluid-internal/tree/dist/schema";
+         TreeSchemaIdentifier, ValueSchema, emptySet, emptyMap } from "@fluid-internal/tree";
 
 const booleanTypes = new Set(["Bool"]);
 const numberTypes = new Set([

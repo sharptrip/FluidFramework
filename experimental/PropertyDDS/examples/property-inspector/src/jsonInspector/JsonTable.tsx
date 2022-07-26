@@ -12,11 +12,14 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Chip, Switch, TextField, FormLabel, Button } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 
-import { TreeNavigationResult, JsonCursor, TreeType, EmptyKey, ITreeCursor, FieldKey,
+import {
+    TreeNavigationResult, JsonCursor, TreeType, EmptyKey, ITreeCursor, FieldKey,
     jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject,
-    buildForest } from "@fluid-internal/tree";
+    ObjectForest, TextCursor, brand,
+} from "@fluid-internal/tree";
 import { PropertyFactory } from "@fluid-experimental/property-properties";
 import { convertPSetSchema } from "../schemaConverter";
+import { getForestProxy } from "../forestProxy";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -57,46 +60,43 @@ const useStyles = makeStyles({
     },
 }, { name: "JsonTable" });
 
-
 PropertyFactory.register({
     typeid: "Test:GeodesicLocation-1.0.0",
     properties: [
-        { id: "lat", typeid: "Float64"},
-        { id: "lon", typeid: "Float64"}
-    ]
+        { id: "lat", typeid: "Float64" },
+        { id: "lon", typeid: "Float64" },
+    ],
 });
 
 PropertyFactory.register({
     typeid: "Test:CartesianLocation-1.0.0",
     properties: [
-        { id: "coords", typeid: "Float64", context: "array"}
-    ]
+        { id: "coords", typeid: "Float64", context: "array" },
+    ],
 });
 
 PropertyFactory.register({
     typeid: "Test:Address-1.0.0",
     inherits: ["Test:GeodesicLocation-1.0.0", "Test:CartesianLocation-1.0.0"],
     properties: [
-        { id: "street", typeid: "String"},
-        { id: "city", typeid: "String"},
-        { id: "zip", typeid: "String"},
-        { id: "country", typeid: "String"}
-    ]
+        { id: "street", typeid: "String" },
+        { id: "city", typeid: "String" },
+        { id: "zip", typeid: "String" },
+        { id: "country", typeid: "String" },
+    ],
 });
 
 PropertyFactory.register({
     typeid: "Test:Person-1.0.0",
     inherits: ["NodeProperty"],
     properties: [
-        { id: "name", typeid: "String"},
-        { id: "age", typeid: "Int32"},
-        { id: "salary", typeid: "Float64"},
-        { id: "address", typeid: "Test:Address-1.0.0"},
-        { id: "friends", typeid: "String", context: "map"},
-    ]
+        { id: "name", typeid: "String" },
+        { id: "age", typeid: "Int32" },
+        { id: "salary", typeid: "Float64" },
+        { id: "address", typeid: "Test:Address-1.0.0" },
+        { id: "friends", typeid: "String", context: "map" },
+    ],
 });
-
-
 interface IJsonRowData extends IRowData<any> {
     name?: string;
     value?: number | string | [] | boolean | Record<string, unknown>;
@@ -146,12 +146,23 @@ const getDataFromCursor = (
     return rows;
 };
 
-const toTableRows = ({ data, id = "root" }: Partial<IJsonRowData>, props: IToTableRowsProps,
+export const toTableRows = ({ data: forest }: Partial<IJsonRowData>, props: IToTableRowsProps,
     _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string,
 ): IJsonRowData[] => {
-    const jsonCursor = new JsonCursor(data);
-    return getDataFromCursor(jsonCursor, [], props.readOnly);
+    const reader = forest.allocateCursor();
+    const result = (forest as ObjectForest).tryGet(reader.buildAnchor(), reader);
+    if (result === TreeNavigationResult.Ok) {
+        return getDataFromCursor(reader, [], props.readOnly);
+    }
+    return [];
 };
+
+// const toTableRows = ({ data, id = "root" }: Partial<IJsonRowData>, props: IToTableRowsProps,
+//     _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string,
+// ): IJsonRowData[] => {
+//     const jsonCursor = new JsonCursor(data);
+//     return getDataFromCursor(jsonCursor, [], props.readOnly);
+// };
 
 export type IJsonTableProps = IInspectorTableProps;
 
@@ -210,11 +221,25 @@ const jsonTableProps: Partial<IJsonTableProps> = {
     height: 600,
 };
 
-export const getForest = (data: any = undefined) => {
-    const forest = buildForest();
+export const getForest = (data: any = {}) => {
+    const forest = new ObjectForest();
     convertPSetSchema("Test:Person-1.0.0", forest.schema);
     if (data) {
-        const cursor = new JsonCursor(data);
+        // Not sure how best to create data from Schema
+        const cursor = new TextCursor({
+            type: brand("Test:Person-1.0.0"),
+            fields: {
+                name: [{ value: "Adam", type: brand("String") }],
+                address: [{
+                    fields: {
+                        street: [{ value: "treeStreet", type: brand("String") }],
+                    },
+                    type: brand("Test:Address-1.0.0"),
+                 }],
+            },
+        });
+        const proxy = getForestProxy(cursor);
+        window.proxy = proxy;
         const newRange = forest.add([cursor]);
         const dst = { index: 0, range: forest.rootField };
         forest.attachRangeOfChildren(dst, newRange);
@@ -223,9 +248,8 @@ export const getForest = (data: any = undefined) => {
     return forest;
 };
 
-export const ForestTable = (props: IForestTableProps) => {
+export const JsonTable = (props: IJsonTableProps) => {
     const classes = useStyles();
-
     return <InspectorTable
         {...jsonTableProps}
         columnsRenderers={

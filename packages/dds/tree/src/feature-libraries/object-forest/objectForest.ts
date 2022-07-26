@@ -24,7 +24,7 @@ import { jsonableTreeFromCursor } from "../treeTextCursor";
 
 export class ObjectForest extends SimpleDependee implements IEditableForest {
     private readonly dependent = new SimpleObservingDependent(() => this.invalidateDependents());
-
+    private nextRange = 0;
     public readonly schema: StoredSchemaRepository = new StoredSchemaRepository();
     public root(range: DetachedField): ForestAnchor { return new RootAnchor(range); }
     public readonly rootField: DetachedField = this.newRange();
@@ -67,7 +67,6 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
         return root;
     }
 
-    private nextRange = 0;
     public newRange(): DetachedField {
         const range = brand<DetachedField>(String(this.nextRange));
         this.nextRange += 1;
@@ -129,7 +128,9 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
         assert(deleted, "deleted range must exist in forest");
     }
     allocateCursor(): Cursor {
-        return new Cursor(this);
+        const cursor = new Cursor(this);
+        cursor.set(this.rootField, 0);
+        return cursor;
     }
 
     private beforeChange(): void {
