@@ -23,6 +23,7 @@ import { theme } from "./theme";
 import { PropertyTable } from "./propertyInspector/propertyTable";
 import { loadPropertyDDS } from "./propertyInspector/propertyData";
 import { JsonTable } from "./jsonInspector/jsonTable";
+import { ForestTable, getForest } from "./forestInspector/forestTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -156,9 +157,13 @@ function TabPanel(props: TabPanelProps) {
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
     const [json, setJson] = useState(customData);
+    const [forest, setForest] = useState(getForest(customData));
     const [tabIndex, setTabIndex] = useState(0);
 
-    const onJsonEdit = ({ updated_src }) => setJson(updated_src);
+    const onJsonEdit = ({ updated_src }) => {
+        setJson(updated_src);
+        setForest(getForest(updated_src));
+    };
 
     return (
         <MuiThemeProvider theme={theme}>
@@ -196,13 +201,13 @@ export const InspectorApp = (props: any) => {
                                                     />
                                                 </TabPanel>
                                                 <TabPanel value={tabIndex} index={0}>
-                                                    {/* <ForestTable
+                                                    <ForestTable
                                                         readOnly={false}
                                                         width={width}
                                                         height={height}
                                                         {...props}
                                                         data={forest}
-                                                    /> */}
+                                                    />
                                                 </TabPanel>
                                             </Box>
                                     }

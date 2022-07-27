@@ -85,6 +85,50 @@ export interface Covariant<T> {
 }
 
 // @public
+export class Cursor implements ITreeSubscriptionCursor {
+    constructor(forest: ObjectForest);
+    // (undocumented)
+    buildAnchor(): ForestAnchor;
+    // (undocumented)
+    clear(): void;
+    // (undocumented)
+    down(key: FieldKey, index: number): TreeNavigationResult;
+    // (undocumented)
+    readonly forest: ObjectForest;
+    // (undocumented)
+    fork(observer?: ObservingDependent | undefined): ITreeSubscriptionCursor;
+    // (undocumented)
+    free(): void;
+    // (undocumented)
+    getField(key: FieldKey): readonly JsonableTree[];
+    // (undocumented)
+    getFields(): Readonly<FieldMap<JsonableTree>>;
+    // (undocumented)
+    getNode(): JsonableTree;
+    // (undocumented)
+    get keys(): Iterable<FieldKey>;
+    // (undocumented)
+    length(key: FieldKey): number;
+    // (undocumented)
+    observer?: ObservingDependent | undefined;
+    // (undocumented)
+    seek(offset: number): {
+        result: TreeNavigationResult;
+        moved: number;
+    };
+    // (undocumented)
+    set(root: DetachedField, index: number): void;
+    // (undocumented)
+    state: ITreeSubscriptionCursorState;
+    // (undocumented)
+    get type(): TreeType;
+    // (undocumented)
+    up(): TreeNavigationResult;
+    // (undocumented)
+    get value(): Value;
+}
+
+// @public
 export function cursorToJsonObject(reader: ITreeCursor): unknown;
 
 // @public
@@ -505,6 +549,46 @@ export const neverTree: TreeSchema;
 export interface NodeData {
     readonly type: TreeSchemaIdentifier;
     value?: TreeValue;
+}
+
+// @public (undocumented)
+export type ObjectField = JsonableTree[];
+
+// @public (undocumented)
+export class ObjectForest extends SimpleDependee implements IEditableForest {
+    constructor(anchors?: AnchorSet);
+    // (undocumented)
+    add(nodes: Iterable<ITreeCursor>): DetachedField;
+    // (undocumented)
+    allocateCursor(): Cursor;
+    // (undocumented)
+    readonly anchors: AnchorSet;
+    // (undocumented)
+    applyDelta(delta: Delta.Root): void;
+    // (undocumented)
+    attachRangeOfChildren(destination: TreeLocation, toAttach: DetachedField): void;
+    // (undocumented)
+    readonly currentCursors: Set<Cursor>;
+    // (undocumented)
+    delete(range: DetachedField): void;
+    // (undocumented)
+    detachRangeOfChildren(range: FieldLocation | DetachedField, startIndex: number, endIndex: number): DetachedField;
+    // (undocumented)
+    getRoot(item: DetachedField): ObjectField;
+    // (undocumented)
+    newRange(): DetachedField;
+    // (undocumented)
+    observeItem(item: ObjectField | JsonableTree, observer: ObservingDependent | undefined): void;
+    // (undocumented)
+    root(range: DetachedField): ForestAnchor;
+    // (undocumented)
+    readonly rootField: DetachedField;
+    // (undocumented)
+    readonly schema: StoredSchemaRepository;
+    // (undocumented)
+    setValue(nodeId: ForestLocation, value: Value): void;
+    // (undocumented)
+    tryGet(destination: ForestAnchor, cursorToMove: ITreeSubscriptionCursor, observer?: ObservingDependent | undefined): TreeNavigationResult;
 }
 
 // @public
