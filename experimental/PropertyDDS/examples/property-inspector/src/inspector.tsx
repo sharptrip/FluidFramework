@@ -24,7 +24,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { Box, Tabs, Tab } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { PropertyTable } from "./propertyInspector/PropertyTable";
+import { PropertyTable } from "./propertyInspector/propertyTable";
 import { getForest, JsonTable } from "./jsonInspector/jsonTable";
 
 const useStyles = makeStyles({
