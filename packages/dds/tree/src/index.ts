@@ -67,5 +67,4 @@ export {
     buildForest,
     TextCursor,
     jsonableTreeFromCursor,
-    ObjectForest,
 } from "./feature-libraries";

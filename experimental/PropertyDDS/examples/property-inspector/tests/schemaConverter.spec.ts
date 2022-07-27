@@ -13,4 +13,3 @@ describe("Schema Conversion", () => {
         // TODO: How do I best check whether the generated schema is correct?
     });
 });
-

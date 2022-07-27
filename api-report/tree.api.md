@@ -27,6 +27,9 @@ export class AnchorSet {
 export type Brand<ValueType, Name extends string> = ValueType & BrandedType<ValueType, Name>;
 
 // @public
+export function brand<T extends Brand<any, string>>(value: T extends BrandedType<infer ValueType, string> ? ValueType : never): T;
+
+// @public
 export abstract class BrandedType<ValueType, Name extends string> {
     protected readonly _type_brand: Name;
     // (undocumented)
@@ -144,6 +147,12 @@ export const emptyField: FieldSchema;
 
 // @public
 export const EmptyKey: FieldKey;
+
+// @public
+export const emptyMap: ReadonlyMap<never, never>;
+
+// @public
+export const emptySet: ReadonlySet<never>;
 
 // @public
 export type ExtractFromOpaque<TOpaque extends BrandedType<any, string>> = TOpaque extends BrandedType<infer ValueType, infer Name> ? isAny<ValueType> extends true ? unknown : Brand<ValueType, Name> : never;
