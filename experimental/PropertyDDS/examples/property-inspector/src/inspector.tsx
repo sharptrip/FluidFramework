@@ -15,17 +15,15 @@ import {
 import { makeStyles } from "@material-ui/styles";
 import { MuiThemeProvider } from "@material-ui/core/styles";
 
-import { PropertyProxy } from "@fluid-experimental/property-proxy";
-
-import { DataBinder } from "@fluid-experimental/property-binder";
-import { SharedPropertyTree } from "@fluid-experimental/property-dds";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 import { Box, Tabs, Tab } from "@material-ui/core";
 import ReactJson from "react-json-view";
 import { theme } from "./theme";
-import { PropertyTable } from "./propertyInspector/PropertyTable";
-import { getForest, JsonTable } from "./jsonInspector/jsonTable";
+import { PropertyTable } from "./propertyInspector/propertyTable";
+import { loadPropertyDDS } from "./propertyInspector/propertyData";
+import { JsonTable } from "./jsonInspector/jsonTable";
+import { ForestTable, getForest } from "./forestInspector/forestTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -158,12 +156,14 @@ function TabPanel(props: TabPanelProps) {
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
-    const [data, setData] = useState(getForest());
-    const [value, setValue] = useState(1);
+    const [json, setJson] = useState(customData);
+    const [forest, setForest] = useState(getForest(customData));
+    const [tabIndex, setTabIndex] = useState(0);
 
-    // const chipClasses = useChipStyles();
-
-    const onJsonEdit = ({ updated_src }) => setData(updated_src);
+    const onJsonEdit = ({ updated_src }) => {
+        setJson(updated_src);
+        setForest(getForest(updated_src));
+    };
 
     return (
         <MuiThemeProvider theme={theme}>
@@ -172,47 +172,51 @@ export const InspectorApp = (props: any) => {
                 <div className={classes.root}>
                     <div className={classes.horizontalContainer}>
                         <div className={classes.tableContainer}>
-                        <Box sx={{ display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
-                            <Tabs value={value} onChange={(event, newValue) => setValue(newValue)}>
-                                <Tab label="PropertyDDS" id="tab-propertyDDS"/>
-                                <Tab label="JSON" id="tab-jsonCursor"/>
-                                <Tab label="Forest" id="tab-forestCursor"/>
-                            </Tabs>
-                            <AutoSizer>
-                            {
-                                ({ width, height }) =>
-                                    <Box sx={{ display: "flex" }}>
-                                        <TabPanel value={value} index={0}>
-                                            <PropertyTable
-                                                // readOnly={true}
-                                                width={width}
-                                                height={height}
-                                                {...props}
-                                            />
-                                        </TabPanel>
-                                        <TabPanel value={value} index={1}>
-                                            <Box sx={{ display: "flex", flexDirection: "row" }}>
-                                                <Box width={width / 3} className={classes.editor}>
-                                                    <ReactJson
-                                                        src={data}
-                                                        onEdit={onJsonEdit}
-                                                        onAdd={onJsonEdit}
-                                                        onDelete={onJsonEdit}
-                                                        />
-                                                </Box>
-                                                <JsonTable
-                                                    readOnly={false}
-                                                    width={2 * width / 3}
-                                                    height={height}
-                                                    {...props}
-                                                    data={data}
-                                                />
+                        <Box sx={{ display: "flex", flexDirection: "row", width: "100%" }}>
+                                <Box sx={{ display: "flex", flexDirection: "column", width: "75%" }}>
+                                    <Tabs value={tabIndex} onChange={(event, newTabIndex) => setTabIndex(newTabIndex)}>
+                                        <Tab label="Forest Cursor" id="tab-forestCursor"/>
+                                        <Tab label="JSON Cursor" id="tab-jsonCursor"/>
+                                        <Tab label="PropertyDDS" id="tab-propertyDDS"/>
+                                    </Tabs>
+                                    <AutoSizer>
+                                    {
+                                        ({ width, height }) =>
+                                            <Box sx={{ display: "flex" }}>
+                                                <TabPanel value={tabIndex} index={2}>
+                                                    <PropertyTable
+                                                        // readOnly={true}
+                                                        width={width}
+                                                        height={height}
+                                                        {...props}
+                                                    />
+                                                </TabPanel>
+                                                <TabPanel value={tabIndex} index={1}>
+                                                    <JsonTable
+                                                        readOnly={false}
+                                                        width={width}
+                                                        height={height}
+                                                        {...props}
+                                                        data={json}
+                                                    />
+                                                </TabPanel>
+                                                <TabPanel value={tabIndex} index={0}>
+                                                    <ForestTable
+                                                        readOnly={false}
+                                                        width={width}
+                                                        height={height}
+                                                        {...props}
+                                                        data={forest}
+                                                    />
+                                                </TabPanel>
                                             </Box>
-                                        </TabPanel>
-                                    </Box>
-                            }
-                            </AutoSizer>
-                        </Box>
+                                    }
+                                    </AutoSizer>
+                                </Box>
+                                <Box className={classes.editor}>
+                                    <ReactJson src={json} onEdit={onJsonEdit}/>
+                                </Box>
+                            </Box>
                     </div>
                 </div>
             </div>
@@ -220,18 +224,11 @@ export const InspectorApp = (props: any) => {
         </MuiThemeProvider >);
 };
 
-export function renderApp(propertyTree: SharedPropertyTree, element: HTMLElement) {
-    const dataBinder = new DataBinder();
-
-    dataBinder.attachTo(propertyTree);
-
-    // Create an ES6 proxy for the DDS, this enables JS object interface for interacting with the DDS.
-    const proxifiedDDS = PropertyProxy.proxify(propertyTree.root);
-
-    // Listening to any change the root path of the PropertyDDS, and rendering the latest state of the
-    // inspector tree-table.
-    dataBinder.registerOnPath("/", ["insert", "remove", "modify"], _.debounce(() => {
-        // Note: This is what currently inspector table expect for "data" prop.
-        ReactDOM.render(<InspectorApp data={proxifiedDDS} />, element);
-    }, 20));
+export async function renderApp(element: HTMLElement, documentId: string, shouldCreateNew?: boolean, data?: any) {
+    const propertyDDS = data || await loadPropertyDDS({
+        documentId,
+        shouldCreateNew,
+        render: async (newData: any) => renderApp(element, documentId, false, newData),
+    });
+    ReactDOM.render(<InspectorApp data={propertyDDS} documentId={documentId}/>, element);
 }

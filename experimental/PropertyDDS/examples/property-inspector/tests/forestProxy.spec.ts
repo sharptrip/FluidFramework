@@ -1,10 +1,14 @@
+/*!
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
 import { JsonableTree, ObjectForest, TextCursor } from "@fluid-internal/tree";
 import { brand } from "@fluid-internal/tree/dist/util";
+import { registerSchemas } from "@fluid-experimental/schemas";
+import { PropertyFactory } from "@fluid-experimental/property-properties";
+
 import { getForestProxy } from "../src/forestProxy";
 import { convertPSetSchema } from "../src/schemaConverter";
-import { registerSchemas } from "./registerSchemas";
-
-registerSchemas();
 
 describe("Forest proxy", () => {
 	let forest: ObjectForest;
@@ -25,6 +29,8 @@ describe("Forest proxy", () => {
 			}],
 		},
 	};
+
+	beforeAll(() => registerSchemas(PropertyFactory));
 
 	beforeEach(() => {
 		forest = new ObjectForest();

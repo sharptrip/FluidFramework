@@ -1,4 +1,8 @@
-import { FieldKey, ITreeCursor as TextCursor, ObjectForest, TreeNavigationResult } from "@fluid-internal/tree";
+/*!
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
+import { FieldKey, ITreeCursor as TextCursor, Cursor, ObjectForest, TreeNavigationResult } from "@fluid-internal/tree";
 
 export const proxySymbol = Symbol("forest-proxy");
 
@@ -9,21 +13,25 @@ class NodeTarget {
 
 	public reset() {
 		// Clear cursor before allocating a new one.
-		this._cursor = this._forest.allocateCursor();
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+		this._cursor = this._forest.allocateCursor() as Cursor;
+		// workaround as internally cursors are always allocated to the first root
+		this._cursor.set(this._forest.rootField, this._idx);
 	}
 
 	public getType() {
 		return this.cursor.type;
 	}
 	constructor(
-		private _cursor: TextCursor,
+		private _cursor: Cursor,
 		private readonly _forest: ObjectForest,
+		private readonly _idx: number,
 	) {
 
 	}
 }
 
-export const getForestProxy = (cursor: TextCursor, forest: ObjectForest) => {
+export const getForestProxy = (cursor: TextCursor, forest: ObjectForest, idx: number = 0) => {
 	const handler: ProxyHandler<NodeTarget> = {
 		get: (target: NodeTarget, key: string): any => {
 			const result = target.cursor.down(key as FieldKey, 0);
@@ -64,10 +72,10 @@ export const getForestProxy = (cursor: TextCursor, forest: ObjectForest) => {
 			} else {
 				return undefined;
 			}
-		}
+		},
 	};
 
-	const currentTarget = new NodeTarget(cursor, forest);
+	const currentTarget = new NodeTarget(cursor as Cursor, forest, idx);
 
 	const proxy = new Proxy(currentTarget, handler);
 	Object.defineProperty(proxy, proxySymbol, {
