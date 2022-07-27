@@ -2,6 +2,8 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
+import { PropertyFactory } from "@fluid-experimental/property-properties";
+import { registerSchemas } from "@fluid-experimental/schemas";
 import { renderApp } from "./inspector";
 
 // In interacting with the service, we need to be explicit about whether we're creating a new document vs. loading
@@ -12,6 +14,11 @@ import { renderApp } from "./inspector";
 // ID to load from, so the URL for a document load will look something like http://localhost:8080/#1596520748752.
 // These policy choices are arbitrary for demo purposes, and can be changed however you'd like.
 async function start(): Promise<void> {
+    // Register all schemas.
+    // It's important to register schemas before loading an existing document
+    // in order to process the changeset.
+    registerSchemas(PropertyFactory);
+
     // when the document ID is not provided, create a new one.
     const shouldCreateNew = location.hash.length === 0;
     const documentId = !shouldCreateNew ? window.location.hash.substring(1) : "";

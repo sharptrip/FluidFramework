@@ -2,13 +2,10 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-
 import _ from "lodash";
 
 import { getDefaultObjectFromContainer } from "@fluidframework/aqueduct";
 import { getTinyliciousContainer } from "@fluid-experimental/get-container";
-import { PropertyFactory } from "@fluid-experimental/property-properties";
-import { registerSchemas } from "@fluid-experimental/schemas";
 
 import { PropertyProxy } from "@fluid-experimental/property-proxy";
 
@@ -18,11 +15,6 @@ import { IPropertyTree } from "../dataObject";
 import { PropertyTreeContainerRuntimeFactory as ContainerFactory } from "../containerCode";
 
 export const loadPropertyDDS = async (props: any) => {
-    // Register all schemas.
-    // It's important to register schemas before loading an existing document
-    // in order to process the changeset.
-    registerSchemas(PropertyFactory);
-
     const { documentId, shouldCreateNew, render } = props;
 
     // The getTinyliciousContainer helper function facilitates loading our container code into a Container and
