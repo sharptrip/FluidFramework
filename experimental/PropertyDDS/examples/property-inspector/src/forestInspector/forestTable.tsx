@@ -1,3 +1,7 @@
+/*!
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
 import * as React from "react";
 
 import { Box, Chip, Switch, TextField, FormLabel, Button } from "@material-ui/core";
@@ -14,9 +18,14 @@ import { TreeNavigationResult,
     JsonCursor,
     FieldKey,
     jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject,
-    Cursor, ObjectForest } from "@fluid-internal/tree";
+    Cursor, ObjectForest,
+	brand, TextCursor,
+} from "@fluid-internal/tree";
 
 import { IInspectorRowData, getDataFromCursor } from "../cursorData";
+
+import { convertPSetSchema } from "../schemaConverter";
+import { getForestProxy } from "../forestProxy";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -95,10 +104,28 @@ const toTableRows = ({ data: forest }: Partial<IInspectorRowData>, props: any,
 
 export const getForest = (data) => {
     const forest: ObjectForest = new ObjectForest();
+    convertPSetSchema("Test:Person-1.0.0", forest.schema);
     if (data) {
         const cursor = new JsonCursor(data);
         const cursor2 = new JsonCursor({ foo: " bar ", buz: { fiz: 1 } });
-        const newRange = forest.add([cursor, cursor2]);
+        // Not sure how best to create data from Schema
+        const textCursor = new TextCursor({
+            type: brand("Test:Person-1.0.0"),
+            fields: {
+                name: [{ value: "Adam", type: brand("String") }],
+                address: [{
+                    fields: {
+                        street: [{ value: "treeStreet", type: brand("String") }],
+                    },
+                    type: brand("Test:Address-1.0.0"),
+                 }],
+            },
+        });
+        const proxy = getForestProxy(textCursor, forest, 2);
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        window["__proxy"] = proxy;
+        const newRange = forest.add([cursor, cursor2, textCursor]);
+        // const newRange = forest.add([textCursor]);
         forest.attachRangeOfChildren({ index: 0, range: forest.rootField }, newRange);
     }
     return forest;
