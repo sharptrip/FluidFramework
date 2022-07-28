@@ -11,16 +11,12 @@ import {
     IInspectorTableProps,
     InspectorTable,
     IToTableRowsOptions,
+    IToTableRowsProps,
     typeidToIconMap,
 } from "@fluid-experimental/property-inspector-table";
+import AutoSizer from "react-virtualized-auto-sizer";
 
-import { TreeNavigationResult,
-    FieldKey,
-    jsonArray, jsonString, jsonBoolean, jsonNumber, jsonObject,
-    JsonCursor,
-    ObjectForest,
-    Cursor,
-} from "@fluid-internal/tree";
+import { jsonArray, jsonString, jsonBoolean, jsonNumber, JsonCursor } from "@fluid-internal/tree";
 
 import { IInspectorRowData, getDataFromCursor } from "../cursorData";
 
@@ -63,53 +59,17 @@ const useStyles = makeStyles({
     },
 }, { name: "JsonTable" });
 
-export type IForestTableProps = IInspectorTableProps;
-
-const toTableRows = ({ data: forest }: Partial<IInspectorRowData>, props: any,
+const toTableRows = ({ data }: Partial<IInspectorRowData>, props: IToTableRowsProps,
     _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string,
 ): IInspectorRowData[] => {
-    const rootId = props.documentId;
-    if (!forest) {
-        return [];
-    }
-    const reader: Cursor = forest.allocateCursor();
-    const result = forest.tryGet(forest.root(forest.rootField), reader);
-    const trees = forest.getRoot(forest.rootField);
-    if (result === TreeNavigationResult.Ok && trees?.length) {
-        const root: IInspectorRowData = {
-            id: rootId,
-            name: "/",
-            type: jsonObject.name,
-            children: [],
-        };
-        for (let idx = 0; idx < trees?.length; idx++) {
-            const treeId = `${rootId}/${String(idx)}`;
-            reader.set(forest.rootField, idx);
-            const tree: IInspectorRowData = {
-                id: treeId,
-                type: jsonObject.name,
-                name: `/${String(idx).padStart(3, "0")}`,
-                children: getDataFromCursor(reader, [], props.readOnly, treeId as FieldKey),
-            };
-            root.children?.push(tree);
-        }
-        return [root];
-    }
-    return [];
+    const jsonCursor = new JsonCursor(data);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return getDataFromCursor(jsonCursor, [], props.readOnly);
 };
 
-export const getForest = (data) => {
-    const forest: ObjectForest = new ObjectForest();
-    if (data) {
-        const cursor = new JsonCursor(data);
-        const cursor2 = new JsonCursor({ foo: " bar ", buz: { fiz: 1 } });
-        const newRange = forest.add([cursor, cursor2]);
-        forest.attachRangeOfChildren({ index: 0, range: forest.rootField }, newRange);
-    }
-    return forest;
-};
+export type IJsonTableProps = IInspectorTableProps;
 
-const forestTableProps: Partial<IForestTableProps> = {
+const jsonTableProps: Partial<IJsonTableProps> = {
     columns: ["name", "value", "type"],
     expandColumnKey: "name",
     toTableRows,
@@ -120,24 +80,38 @@ const forestTableProps: Partial<IForestTableProps> = {
         },
     }),
     dataCreationHandler: async () => { },
-    addDataForm: () => {
-        return (<Box sx={{ display: "flex", flexDirection: "column", height: "160px" }}>
-            <Box sx={{ display: "flex", height: "75px" }}>
-                <TextField label="name"></TextField>
-                <TextField label="value"></TextField>
-            </Box>
-            <Box sx={{ display: "flex", height: "75px" }}>
-                <Button>Cancel</Button>
-                <Button>Create</Button>
-            </Box>
-        </Box>);
+    addDataForm: ({ styleClass }) => {
+        return (
+            <AutoSizer defaultHeight={200} defaultWidth={200}>
+                {({ width, height }) => (
+                    <div style={{
+                        height: `${height - 20}px`,
+                        width: `${width - 20}px`,
+                    }}>
+                        <Box
+                            className={styleClass}
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                            }}>
+                            <Box sx={{ display: "flex", height: "75px" }}>
+                                <TextField label="name"></TextField>
+                                <TextField label="value"></TextField>
+                            </Box>
+                            <Box sx={{ display: "flex", height: "75px" }}>
+                                <Button>Cancel</Button>
+                                <Button>Create</Button>
+                            </Box>
+                        </Box>
+                    </div>)
+                }
+            </AutoSizer >);
     },
     generateForm: () => {
         return true;
     },
     // TODO: // Fix types
     rowIconRenderer: (rowData: any) => {
-        console.log(rowData.type);
         switch (rowData.type) {
             case "String":
             case "Array":
@@ -150,11 +124,10 @@ const forestTableProps: Partial<IForestTableProps> = {
     height: 600,
 };
 
-export const ForestTable = (props: IForestTableProps) => {
+export const JsonTable = (props: IJsonTableProps) => {
     const classes = useStyles();
-
     return <InspectorTable
-        {...forestTableProps}
+        {...jsonTableProps}
         columnsRenderers={
             {
                 name: ({ rowData, cellData, renderCreationRow, tableProps: { readOnly } }) => {

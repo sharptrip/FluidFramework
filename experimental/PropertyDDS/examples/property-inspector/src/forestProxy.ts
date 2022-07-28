@@ -2,82 +2,140 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-import { FieldKey, ITreeCursor as TextCursor, Cursor, ObjectForest, TreeNavigationResult } from "@fluid-internal/tree";
+import { FieldKey, ITreeCursor, TextCursor, ObjectForest,
+	TreeNavigationResult, JsonableTree, jsonableTreeFromCursor, brand,
+	LocalFieldKey, TreeSchemaIdentifier, StoredSchemaRepository } from "@fluid-internal/tree";
+import { assert } from "@fluidframework/common-utils";
 
 export const proxySymbol = Symbol("forest-proxy");
 
 class NodeTarget {
-	public get cursor(): TextCursor {
+	public get cursor(): ITreeCursor {
 		return this._cursor;
 	}
 
+	public get forest(): ObjectForest {
+		return this._forest;
+	}
+
 	public reset() {
-		// Clear cursor before allocating a new one.
-		// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-		this._cursor = this._forest.allocateCursor() as Cursor;
-		// workaround as internally cursors are always allocated to the first root
-		this._cursor.set(this._forest.rootField, this._idx);
+		this._forest.currentCursors.delete(this._cursor);
+		this._cursor = new TextCursor(this._data);
+		this._forest.currentCursors.add(this._cursor);
 	}
 
 	public getType() {
 		return this.cursor.type;
 	}
-	constructor(
-		private _cursor: Cursor,
-		private readonly _forest: ObjectForest,
-		private readonly _idx: number,
-	) {
 
+	public get data(): JsonableTree {
+		return jsonableTreeFromCursor(this._cursor);
+	}
+
+	public set data(d: JsonableTree) {
+		this._data = d;
+	}
+
+	private _cursor: ITreeCursor;
+
+	constructor(
+		private _data: JsonableTree | TextCursor,
+		private readonly _forest: ObjectForest,
+	) {
+		if (_data instanceof TextCursor) {
+			this._cursor = _data;
+		} else {
+			this._cursor = new TextCursor(this._data);
+			const newRange = this._forest.add([this._cursor]);
+			this._forest.attachRangeOfChildren({ index: 0, range: this._forest.rootField }, newRange);
+		}
 	}
 }
 
-export const getForestProxy = (cursor: TextCursor, forest: ObjectForest, idx: number = 0) => {
-	const handler: ProxyHandler<NodeTarget> = {
-		get: (target: NodeTarget, key: string): any => {
-			const result = target.cursor.down(key as FieldKey, 0);
-			if (result === TreeNavigationResult.NotFound) {
-				return Reflect.get(target, key);
-			}
-			const val = target.cursor.value;
-			if (!val) {
-				const currentCursor = target.cursor;
-				target.reset();
-				return getForestProxy(currentCursor, forest);
-			} else {
-				target.reset();
-				return val;
-			}
-		},
-		ownKeys(target: NodeTarget) {
-			return target.cursor.keys as string[];
-		},
-		/**
-		 * Trap for Object.getOwnPropertyDescriptor().
-		 * Returns a writeable and enumerable descriptor. Required for the ownKeys trap.
-		 * @param target - The Object that references a non-collection type
-		 * @param key - The name of the property.
-		 * @returns The Descriptor
-		 */
-		getOwnPropertyDescriptor(target: NodeTarget, key: string | symbol) {
-			// TODO: replace this condition with getFields(), currently it's not available on the interface
-			if ([...target.cursor.keys].indexOf(key as FieldKey) !== -1) {
-				return {
-					configurable: true,
-					enumerable: true,
-					value: target.cursor.value,
-					writable: true,
-				};
-			} else if (key === proxySymbol) {
-				return { configurable: true, enumerable: true, value: key, writable: false };
-			} else {
-				return undefined;
-			}
-		},
-	};
+const getFieldType = (schema: StoredSchemaRepository, type: TreeSchemaIdentifier, fieldKey: LocalFieldKey) => {
+	const field = schema?.treeSchema.get(type)?.localFields.get(fieldKey);
+	for (const fieldType of (field?.types || [])) {
+		return fieldType;
+	}
+};
 
-	const currentTarget = new NodeTarget(cursor as Cursor, forest, idx);
+const handler: ProxyHandler<NodeTarget> = {
+	get: (target: NodeTarget, key: string): any => {
+		const result = target.cursor.down(key as FieldKey, 0);
+		if (result === TreeNavigationResult.NotFound) {
+			return Reflect.get(target, key);
+		}
+		const val = target.cursor.value;
+		if (!val) {
+			const currentCursor = target.cursor;
+			target.reset();
+			return getForestProxy(currentCursor, target.forest);
+		} else {
+			target.reset();
+			return val;
+		}
+	},
+	set: (target: NodeTarget, key: string | symbol, value: any): boolean => {
+		const data = (target.cursor as TextCursor).getNode();
+		const type = target.cursor.type;
+		const fieldType = getFieldType(target.forest.schema, type, key as LocalFieldKey);
+		if (!data.fields) {
+			return false;
+		}
+		assert(!!fieldType, `Field <${key as string}> does not exist in type <${type}>`);
+		const result = target.cursor.down(key as FieldKey, 0);
+		if (result === TreeNavigationResult.NotFound) {
+			data.fields[key as any] = [
+				{ value, type: brand<typeof fieldType>(fieldType as string) },
+			];
+			target.data = data;
+		} else {
+			(target.cursor as TextCursor).getNode().value = value;
+		}
+		target.reset();
+		return true;
+	},
+	has: (target: NodeTarget, key: string | symbol): boolean => {
+		if (key === proxySymbol) {
+			return true;
+		}
+		const result = target.cursor.down(key as FieldKey, 0);
+		if (result === TreeNavigationResult.Ok) {
+			target.cursor.up();
+			return true;
+		}
+		return false;
+	},
+	ownKeys(target: NodeTarget) {
+		return target.cursor.keys as string[];
+	},
+	/**
+	 * Trap for Object.getOwnPropertyDescriptor().
+	 * Returns a writeable and enumerable descriptor. Required for the ownKeys trap.
+	 * @param target - The Object that references a non-collection type
+	 * @param key - The name of the property.
+	 * @returns The Descriptor
+	 */
+	getOwnPropertyDescriptor(target: NodeTarget, key: string | symbol) {
+		if (key === proxySymbol) {
+			return { configurable: true, enumerable: true, value: key, writable: false };
+		}
+		const result = target.cursor.down(key as FieldKey, 0);
+		if (result === TreeNavigationResult.Ok) {
+			target.cursor.up();
+			return {
+				configurable: true,
+				enumerable: true,
+				value: target.cursor.value,
+				writable: true,
+			};
+		}
+		return undefined;
+	},
+};
 
-	const proxy = new Proxy(currentTarget, handler);
+export const getForestProxy = (data: JsonableTree | ITreeCursor, forest: ObjectForest, idx: number = 0) => {
+	const proxy = new Proxy(new NodeTarget(data, forest), handler);
 	Object.defineProperty(proxy, proxySymbol, {
 		enumerable: false,
 		configurable: true,

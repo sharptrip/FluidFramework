@@ -34,7 +34,7 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     private readonly dependees: Map<ObjectField | JsonableTree, DisposingDependee> = new Map();
 
     // All cursors that are in the "Current" state. Must be empty when editing.
-    public readonly currentCursors: Set<Cursor> = new Set();
+    public readonly currentCursors: Set<ITreeCursor> = new Set();
 
     public constructor(public readonly anchors: AnchorSet = new AnchorSet()) {
         super("object-forest.ObjectForest");

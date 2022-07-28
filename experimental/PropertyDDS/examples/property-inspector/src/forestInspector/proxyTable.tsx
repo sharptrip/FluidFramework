@@ -1,3 +1,7 @@
+/*!
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
 import * as React from "react";
 
 import { Box, Chip, Switch, TextField, FormLabel, Button } from "@material-ui/core";
@@ -7,14 +11,19 @@ import {
     IInspectorTableProps,
     InspectorTable,
     IToTableRowsOptions,
-    IToTableRowsProps,
     typeidToIconMap,
 } from "@fluid-experimental/property-inspector-table";
-import AutoSizer from "react-virtualized-auto-sizer";
 
-import { jsonArray, jsonString, jsonBoolean, jsonNumber, JsonCursor } from "@fluid-internal/tree";
+import { TreeNavigationResult,
+    jsonArray, jsonString, jsonBoolean, jsonNumber,
+    ObjectForest,
+    ITreeCursor,
+} from "@fluid-internal/tree";
 
 import { IInspectorRowData, getDataFromCursor } from "../cursorData";
+
+import { convertPSetSchema } from "../schemaConverter";
+import { getForestProxy } from "../forestProxy";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -55,17 +64,36 @@ const useStyles = makeStyles({
     },
 }, { name: "JsonTable" });
 
-const toTableRows = ({ data }: Partial<IInspectorRowData>, props: IToTableRowsProps,
+export type IProxyTableProps = IInspectorTableProps;
+
+const toTableRows = ({ data: forest }: Partial<IInspectorRowData>, props: any,
     _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string,
 ): IInspectorRowData[] => {
-    const jsonCursor = new JsonCursor(data);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return getDataFromCursor(jsonCursor, [], props.readOnly);
+    const rootId = props.documentId;
+    if (!forest) {
+        return [];
+    }
+    const reader: ITreeCursor = forest.allocateCursor();
+    const result = forest.tryGet(forest.root(forest.rootField), reader);
+    const trees = forest.getRoot(forest.rootField);
+    if (result === TreeNavigationResult.Ok && trees?.length) {
+        return getDataFromCursor(reader, [], props.readOnly, rootId);
+    }
+    return [];
 };
 
-export type IJsonTableProps = IInspectorTableProps;
+export const getForest = (data) => {
+    const forest: ObjectForest = new ObjectForest();
+    convertPSetSchema("Test:Person-1.0.0", forest.schema);
+    if (data) {
+        // Not sure how best to create data from Schema
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        window["__proxy"] = getForestProxy(data, forest, 0);
+    }
+    return forest;
+};
 
-const jsonTableProps: Partial<IJsonTableProps> = {
+const forestTableProps: Partial<IProxyTableProps> = {
     columns: ["name", "value", "type"],
     expandColumnKey: "name",
     toTableRows,
@@ -76,38 +104,24 @@ const jsonTableProps: Partial<IJsonTableProps> = {
         },
     }),
     dataCreationHandler: async () => { },
-    addDataForm: ({ styleClass }) => {
-        return (
-            <AutoSizer defaultHeight={200} defaultWidth={200}>
-                {({ width, height }) => (
-                    <div style={{
-                        height: `${height - 20}px`,
-                        width: `${width - 20}px`,
-                    }}>
-                        <Box
-                            className={styleClass}
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                            }}>
-                            <Box sx={{ display: "flex", height: "75px" }}>
-                                <TextField label="name"></TextField>
-                                <TextField label="value"></TextField>
-                            </Box>
-                            <Box sx={{ display: "flex", height: "75px" }}>
-                                <Button>Cancel</Button>
-                                <Button>Create</Button>
-                            </Box>
-                        </Box>
-                    </div>)
-                }
-            </AutoSizer >);
+    addDataForm: () => {
+        return (<Box sx={{ display: "flex", flexDirection: "column", height: "160px" }}>
+            <Box sx={{ display: "flex", height: "75px" }}>
+                <TextField label="name"></TextField>
+                <TextField label="value"></TextField>
+            </Box>
+            <Box sx={{ display: "flex", height: "75px" }}>
+                <Button>Cancel</Button>
+                <Button>Create</Button>
+            </Box>
+        </Box>);
     },
     generateForm: () => {
         return true;
     },
     // TODO: // Fix types
     rowIconRenderer: (rowData: any) => {
+        console.log(rowData.type);
         switch (rowData.type) {
             case "String":
             case "Array":
@@ -120,10 +134,11 @@ const jsonTableProps: Partial<IJsonTableProps> = {
     height: 600,
 };
 
-export const JsonTable = (props: IJsonTableProps) => {
+export const ProxyTable = (props: IProxyTableProps) => {
     const classes = useStyles();
+
     return <InspectorTable
-        {...jsonTableProps}
+        {...forestTableProps}
         columnsRenderers={
             {
                 name: ({ rowData, cellData, renderCreationRow, tableProps: { readOnly } }) => {
@@ -156,6 +171,7 @@ export const JsonTable = (props: IJsonTableProps) => {
                             />;
 
                         case jsonString.name:
+                        case "String":
                             return <TextField value={value}
                                 disabled={!!readOnly} type="string" />;
                         case jsonNumber.name:

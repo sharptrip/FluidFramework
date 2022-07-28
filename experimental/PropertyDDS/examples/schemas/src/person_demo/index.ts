@@ -35,6 +35,7 @@ export default {
 			{ id: "salary", typeid: "Float64" },
 			{ id: "address", typeid: "Test:Address-1.0.0" },
 			{ id: "friends", typeid: "String", context: "map" },
+			{ id: "data", typeid: "String" },
 		],
 	},
 };

@@ -568,7 +568,7 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     // (undocumented)
     attachRangeOfChildren(destination: TreeLocation, toAttach: DetachedField): void;
     // (undocumented)
-    readonly currentCursors: Set<Cursor>;
+    readonly currentCursors: Set<ITreeCursor>;
     // (undocumented)
     delete(range: DetachedField): void;
     // (undocumented)
