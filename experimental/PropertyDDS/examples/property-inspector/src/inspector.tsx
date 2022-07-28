@@ -175,7 +175,7 @@ export const InspectorApp = (props: any) => {
     const classes = useStyles();
     const [json, setJson] = useState(customData);
     const [forest, setForest] = useState(getForest(customData));
-    const [forestProxy/* setForestProxy */] = useState(getForestProxy(customTypeData));
+    const forestProxy = getForestProxy(customTypeData, props.renderer);
     const [tabIndex, setTabIndex] = useState(0);
 
     const onJsonEdit = ({ updated_src }) => {
@@ -193,7 +193,7 @@ export const InspectorApp = (props: any) => {
                         <Box sx={{ display: "flex", flexDirection: "row", width: "100%" }}>
                                 <Box sx={{ display: "flex", flexDirection: "column", width: "75%" }}>
                                     <Tabs value={tabIndex} onChange={(event, newTabIndex) => setTabIndex(newTabIndex)}>
-                                        <Tab label="Custom Type (Forest Proxy)" id="tab-proxyForest"/>
+                                        <Tab label="Forest Proxy" id="tab-proxyForest"/>
                                         <Tab label="Forest Cursors" id="tab-forestCursor"/>
                                         <Tab label="JSON Cursor" id="tab-jsonCursor"/>
                                         <Tab label="PropertyDDS" id="tab-propertyDDS"/>
@@ -253,10 +253,11 @@ export const InspectorApp = (props: any) => {
 };
 
 export async function renderApp(element: HTMLElement, documentId: string, shouldCreateNew?: boolean, data?: any) {
+    const render = async (newData: any) => renderApp(element, documentId, false, newData);
     const propertyDDS = data || await loadPropertyDDS({
         documentId,
         shouldCreateNew,
-        render: async (newData: any) => renderApp(element, documentId, false, newData),
+        render,
     });
-    ReactDOM.render(<InspectorApp data={propertyDDS} documentId={documentId}/>, element);
+    ReactDOM.render(<InspectorApp data={propertyDDS} documentId={documentId} renderer={render}/>, element);
 }

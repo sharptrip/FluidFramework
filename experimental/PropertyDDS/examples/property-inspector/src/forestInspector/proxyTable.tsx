@@ -14,13 +14,9 @@ import {
     typeidToIconMap,
 } from "@fluid-experimental/property-inspector-table";
 
-import { TreeNavigationResult,
-    jsonArray, jsonString, jsonBoolean, jsonNumber,
-    ObjectForest,
-    ITreeCursor,
-} from "@fluid-internal/tree";
+import { jsonArray, jsonString, jsonBoolean, jsonNumber, ObjectForest } from "@fluid-internal/tree";
 
-import { IInspectorRowData, getDataFromCursor } from "../cursorData";
+import { IInspectorRowData } from "../cursorData";
 
 import { convertPSetSchema } from "../schemaConverter";
 import { getForestProxy } from "../forestProxy";
@@ -66,29 +62,42 @@ const useStyles = makeStyles({
 
 export type IProxyTableProps = IInspectorTableProps;
 
-const toTableRows = ({ data: forest }: Partial<IInspectorRowData>, props: any,
+const toTableRows = ({ data }: Partial<IInspectorRowData>, props: any,
     _options?: Partial<IToTableRowsOptions>, _pathPrefix?: string,
 ): IInspectorRowData[] => {
-    const rootId = props.documentId;
-    if (!forest) {
-        return [];
+    const { readOnly } = props;
+    const rows: IInspectorRowData[] = [];
+    for (const key of Object.keys(data)) {
+        const path = `${_pathPrefix}/${key}`;
+        if (data[key].value) {
+            const rowData: IInspectorRowData = { ...data[key], id: path, name: key, context: "single" };
+            rows.push(rowData);
+        } else {
+            const children = toTableRows({ data: data[key] }, props, _options, path);
+            const rowData: IInspectorRowData = {
+                id: path, name: key, children, type: data[key].getType(), context: "single" };
+            rows.push(rowData);
+        }
     }
-    const reader: ITreeCursor = forest.allocateCursor();
-    const result = forest.tryGet(forest.root(forest.rootField), reader);
-    const trees = forest.getRoot(forest.rootField);
-    if (result === TreeNavigationResult.Ok && trees?.length) {
-        return getDataFromCursor(reader, [], props.readOnly, rootId);
+    if (!readOnly) {
+        const newRow: IInspectorRowData = {
+            id: `${_pathPrefix}/Add`,
+            isNewDataRow: true,
+        };
+        rows.push(newRow);
     }
-    return [];
+    return rows;
 };
 
-export const getForest = (data) => {
+export const getForest = (data, render): any => {
     const forest: ObjectForest = new ObjectForest();
     convertPSetSchema("Test:Person-1.0.0", forest.schema);
     if (data) {
         // Not sure how best to create data from Schema
+        const proxy = getForestProxy(data, forest, render);
         // eslint-disable-next-line @typescript-eslint/dot-notation
-        window["__proxy"] = getForestProxy(data, forest, 0);
+        window["__proxy"] = proxy;
+        return proxy;
     }
     return forest;
 };
@@ -121,7 +130,6 @@ const forestTableProps: Partial<IProxyTableProps> = {
     },
     // TODO: // Fix types
     rowIconRenderer: (rowData: any) => {
-        console.log(rowData.type);
         switch (rowData.type) {
             case "String":
             case "Array":
@@ -180,7 +188,7 @@ export const ProxyTable = (props: IProxyTableProps) => {
                         case jsonArray.name:
                             return <FormLabel> {value}</FormLabel>;
                         default:
-                            return <div></div>;
+                            return <TextField value={value} disabled={!!readOnly} />;
                     }
                 },
             }

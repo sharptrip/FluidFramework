@@ -41,6 +41,7 @@ class NodeTarget {
 	constructor(
 		private _data: JsonableTree | TextCursor,
 		private readonly _forest: ObjectForest,
+		public readonly render: any,
 	) {
 		if (_data instanceof TextCursor) {
 			this._cursor = _data;
@@ -69,10 +70,11 @@ const handler: ProxyHandler<NodeTarget> = {
 		if (!val) {
 			const currentCursor = target.cursor;
 			target.reset();
-			return getForestProxy(currentCursor, target.forest);
+			return getForestProxy(currentCursor, target.forest, target.render);
 		} else {
-			target.reset();
-			return val;
+			const node = (target.cursor as TextCursor).getNode();
+			target.cursor.up();
+			return node;
 		}
 	},
 	set: (target: NodeTarget, key: string | symbol, value: any): boolean => {
@@ -93,6 +95,7 @@ const handler: ProxyHandler<NodeTarget> = {
 			(target.cursor as TextCursor).getNode().value = value;
 		}
 		target.reset();
+		target.render(target.data);
 		return true;
 	},
 	has: (target: NodeTarget, key: string | symbol): boolean => {
@@ -134,8 +137,8 @@ const handler: ProxyHandler<NodeTarget> = {
 	},
 };
 
-export const getForestProxy = (data: JsonableTree | ITreeCursor, forest: ObjectForest, idx: number = 0) => {
-	const proxy = new Proxy(new NodeTarget(data, forest), handler);
+export const getForestProxy = (data: JsonableTree | ITreeCursor, forest: ObjectForest, render?: any) => {
+	const proxy = new Proxy(new NodeTarget(data, forest, render), handler);
 	Object.defineProperty(proxy, proxySymbol, {
 		enumerable: false,
 		configurable: true,
