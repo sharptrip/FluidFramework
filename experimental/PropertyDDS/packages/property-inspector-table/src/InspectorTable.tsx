@@ -306,6 +306,7 @@ class InspectorTable<
     const { currentResult, expanded, tableRows, searchExpression, sortBy } = this.state;
     let { foundMatches, childToParentMap } = this.state;
     this.toTableRowOptions.followReferences = followReferences;
+    this.toTableRowOptions.ascending = sortBy.order === TableSortOrder.ASC;
     const newState = {} as Pick<IInspectorTableState, "currentResult" | "expanded" | "foundMatches" | "matchesMap" |
       "searchAbortHandler" | "searchDone" | "searchInProgress" | "searchState" | "tableRows" | "childToParentMap">;
 
