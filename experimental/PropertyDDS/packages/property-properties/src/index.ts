@@ -9,6 +9,7 @@ import { BaseProperty } from './properties/baseProperty';
 import { ContainerProperty } from './properties/containerProperty';
 import { MapProperty } from './properties/mapProperty';
 import { NodeProperty } from './properties/nodeProperty';
+import { NamedNodeProperty } from './properties/namedNodeProperty';
 import { ArrayProperty } from './properties/arrayProperty';
 import { SetProperty } from './properties/setProperty';
 import { StringProperty } from './properties/stringProperty';
@@ -31,6 +32,7 @@ export {
     BaseProperty,
     ContainerProperty,
     MapProperty,
+    NamedNodeProperty,
     NodeProperty,
     ArrayProperty,
     SetProperty,
