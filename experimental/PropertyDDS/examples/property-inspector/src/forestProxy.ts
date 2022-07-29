@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 /*!
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
@@ -6,10 +7,15 @@ import { FieldKey, ITreeCursor, TextCursor, ObjectForest, IEditableForest,
 	TreeNavigationResult, JsonableTree, jsonableTreeFromCursor, brand,
 	LocalFieldKey, TreeSchemaIdentifier, StoredSchemaRepository } from "@fluid-internal/tree";
 import { assert } from "@fluidframework/common-utils";
+import {
+	NamedNodeProperty,
+	PropertyFactory,
+	NodeProperty,
+} from "@fluid-experimental/property-properties";
 
 export const proxySymbol = Symbol("forest-proxy");
 
-class NodeTarget {
+class NodeTarget extends NamedNodeProperty {
 	public get cursor(): ITreeCursor {
 		return this._cursor;
 	}
@@ -28,6 +34,10 @@ class NodeTarget {
 		return this.cursor.type;
 	}
 
+	getTypeid() {
+		return this.type;
+	}
+
 	public get data(): JsonableTree {
 		return jsonableTreeFromCursor(this._cursor);
 	}
@@ -36,19 +46,38 @@ class NodeTarget {
 		this._data = d;
 	}
 
-	private _cursor: ITreeCursor;
+	isDynamic() { return true; }
+
+	// private _cursor: ITreeCursor;
+
+	getProperty() { return this; }
+
+	getIds() {
+		return this._cursor.keys as string[];
+	}
 
 	constructor(
-		private _data: JsonableTree | TextCursor,
+		private _cursor: TextCursor,
 		private readonly _forest: ObjectForest,
 		public readonly render: any,
+		_key: FieldKey,
+		private _data: JsonableTree = jsonableTreeFromCursor(_cursor),
 	) {
-		if (_data instanceof TextCursor) {
-			this._cursor = _data;
-		} else {
-			this._cursor = new TextCursor(this._data);
-			const newRange = this._forest.add([this._cursor]);
-			this._forest.attachRangeOfChildren({ index: 0, range: this._forest.rootField }, newRange);
+		super({ id: _key as string, typeid: _cursor.type });
+		for (const key of _cursor.keys) {
+			const result = _cursor.down(key, 0);
+			if (result === TreeNavigationResult.Ok) {
+				if (_cursor.value !== undefined) {
+					const newProperty = PropertyFactory.create(_cursor.type);
+					(this as NodeProperty).insert(key as string, newProperty);
+				} else {
+					const copy = _cursor;
+					this.reset();
+					const newProperty = proxifyForest(copy, _forest, render, key).getProperty();
+					(this as NodeProperty).insert(key as string, newProperty);
+				}
+				_cursor.up();
+			}
 		}
 	}
 }
@@ -62,19 +91,20 @@ const getFieldType = (schema: StoredSchemaRepository, type: TreeSchemaIdentifier
 
 const handler: ProxyHandler<NodeTarget> = {
 	get: (target: NodeTarget, key: string): any => {
+		key = key.endsWith("^") ? key.slice(0, -1) : key;
 		const result = target.cursor.down(key as FieldKey, 0);
 		if (result === TreeNavigationResult.NotFound) {
 			return Reflect.get(target, key);
 		}
-		const val = target.cursor.value;
-		if (!val) {
+		const value = target.cursor.value;
+		if (value === undefined) {
 			const currentCursor = target.cursor;
 			target.reset();
-			return proxifyForest(currentCursor, target.forest, target.render);
+			return proxifyForest(currentCursor, target.forest, target.render, key as FieldKey);
 		} else {
-			const node = (target.cursor as TextCursor).getNode();
+			// const node = (target.cursor as TextCursor).getNode();
 			target.cursor.up();
-			return node;
+			return value;
 		}
 	},
 	set: (target: NodeTarget, key: string | symbol, value: any): boolean => {
@@ -83,6 +113,10 @@ const handler: ProxyHandler<NodeTarget> = {
 		const fieldType = getFieldType(target.forest.schema, type, key as LocalFieldKey);
 		if (!data.fields) {
 			return false;
+		}
+		if (!fieldType && Reflect.has(target, key)) {
+			Reflect.set(target, key, value);
+			return true;
 		}
 		assert(!!fieldType, `Field <${key as string}> does not exist in type <${type}>`);
 		const result = target.cursor.down(key as FieldKey, 0);
@@ -137,8 +171,18 @@ const handler: ProxyHandler<NodeTarget> = {
 	},
 };
 
-export const proxifyForest = (data: JsonableTree | ITreeCursor, forest: IEditableForest, render?: any) => {
-	const proxy = new Proxy(new NodeTarget(data, forest as ObjectForest, render), handler);
+export const proxifyForest = (data: JsonableTree | ITreeCursor, forest: IEditableForest, render?: any,
+	key: FieldKey = "root" as FieldKey,
+	) => {
+	const _forest = forest as ObjectForest;
+	const _cursor = data instanceof TextCursor ? data : new TextCursor(data);
+	let _data;
+	if (_cursor !== data) {
+		const newRange = _forest.add([_cursor]);
+		_forest.attachRangeOfChildren({ index: 0, range: forest.rootField }, newRange);
+		_data = data;
+	}
+	const proxy = new Proxy(new NodeTarget(_cursor, _forest, render, key, _data), handler);
 	Object.defineProperty(proxy, proxySymbol, {
 		enumerable: false,
 		configurable: true,

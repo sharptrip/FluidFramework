@@ -26,8 +26,9 @@ import { theme } from "./theme";
 import { PropertyTable } from "./propertyInspector/propertyTable";
 import { loadPropertyDDS } from "./propertyInspector/propertyData";
 import { JsonTable } from "./jsonInspector/jsonTable";
-import { ForestTable, getForest } from "./forestInspector/forestTable";
+// import { ForestTable, getForest } from "./forestInspector/forestTable";
 import { ProxyTable, getForestProxy } from "./forestInspector/proxyTable";
+import { ProplikeTable } from "./forestInspector/proplikeTable";
 
 const useStyles = makeStyles({
     activeGraph: {
@@ -161,7 +162,9 @@ function TabPanel(props: TabPanelProps) {
 const customTypeData: JsonableTree = {
     type: brand("Test:Person-1.0.0"),
     fields: {
-        name: [{ value: "Adam", type: brand("String") }],
+        name: [
+            { value: "Adam", type: brand("String") },
+        ],
         address: [{
             fields: {
                 street: [{ value: "treeStreet", type: brand("String") }],
@@ -174,13 +177,13 @@ const customTypeData: JsonableTree = {
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
     const [json, setJson] = useState(customData);
-    const [forest, setForest] = useState(getForest(customData));
+    // const [forest, setForest] = useState(getForest(customData));
     const forestProxy = getForestProxy(customTypeData, props.renderer);
     const [tabIndex, setTabIndex] = useState(0);
 
     const onJsonEdit = ({ updated_src }) => {
         setJson(updated_src);
-        setForest(getForest(updated_src));
+        // setForest(getForest(updated_src));
     };
 
     return (
@@ -193,8 +196,8 @@ export const InspectorApp = (props: any) => {
                         <Box sx={{ display: "flex", flexDirection: "row", width: "100%" }}>
                                 <Box sx={{ display: "flex", flexDirection: "column", width: "75%" }}>
                                     <Tabs value={tabIndex} onChange={(event, newTabIndex) => setTabIndex(newTabIndex)}>
+                                        <Tab label="Proplike Proxy" id="tab-proplikeProxy"/>
                                         <Tab label="Forest Proxy" id="tab-proxyForest"/>
-                                        <Tab label="Forest Cursors" id="tab-forestCursor"/>
                                         <Tab label="JSON Cursor" id="tab-jsonCursor"/>
                                         <Tab label="PropertyDDS" id="tab-propertyDDS"/>
                                     </Tabs>
@@ -219,16 +222,16 @@ export const InspectorApp = (props: any) => {
                                                         data={json}
                                                     />
                                                 </TabPanel>
-                                                <TabPanel value={tabIndex} index={1}>
-                                                    <ForestTable
+                                                <TabPanel value={tabIndex} index={0}>
+                                                    <ProplikeTable
                                                         readOnly={false}
                                                         width={width}
                                                         height={height}
                                                         {...props}
-                                                        data={forest}
+                                                        data={forestProxy}
                                                     />
                                                 </TabPanel>
-                                                <TabPanel value={tabIndex} index={0}>
+                                                <TabPanel value={tabIndex} index={1}>
                                                     <ProxyTable
                                                         readOnly={false}
                                                         width={width}
