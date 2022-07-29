@@ -14,12 +14,12 @@ import {
     typeidToIconMap,
 } from "@fluid-experimental/property-inspector-table";
 
-import { jsonArray, jsonString, jsonBoolean, jsonNumber, ObjectForest } from "@fluid-internal/tree";
+import { jsonArray, jsonString, jsonBoolean, jsonNumber, buildForest, IEditableForest } from "@fluid-internal/tree";
 
 import { IInspectorRowData } from "../cursorData";
 
 import { convertPSetSchema } from "../schemaConverter";
-import { getForestProxy } from "../forestProxy";
+import { proxifyForest } from "../forestProxy";
 
 const useStyles = makeStyles({
     boolColor: {
@@ -69,13 +69,13 @@ const toTableRows = ({ data }: Partial<IInspectorRowData>, props: any,
     const rows: IInspectorRowData[] = [];
     for (const key of Object.keys(data)) {
         const path = `${_pathPrefix}/${key}`;
-        if (data[key].value) {
-            const rowData: IInspectorRowData = { ...data[key], id: path, name: key, context: "single" };
+        const { value, type } = data[key];
+        if (value !== undefined) {
+            const rowData: IInspectorRowData = { id: path, name: key, type, value };
             rows.push(rowData);
         } else {
             const children = toTableRows({ data: data[key] }, props, _options, path);
-            const rowData: IInspectorRowData = {
-                id: path, name: key, children, type: data[key].getType(), context: "single" };
+            const rowData: IInspectorRowData = { id: path, name: key, type, children };
             rows.push(rowData);
         }
     }
@@ -89,17 +89,14 @@ const toTableRows = ({ data }: Partial<IInspectorRowData>, props: any,
     return rows;
 };
 
-export const getForest = (data, render): any => {
-    const forest: ObjectForest = new ObjectForest();
+export const getForestProxy = (data, render): any => {
+    const forest: IEditableForest = buildForest();
     convertPSetSchema("Test:Person-1.0.0", forest.schema);
-    if (data) {
-        // Not sure how best to create data from Schema
-        const proxy = getForestProxy(data, forest, render);
-        // eslint-disable-next-line @typescript-eslint/dot-notation
-        window["__proxy"] = proxy;
-        return proxy;
-    }
-    return forest;
+    // Not sure how best to create data from Schema
+    const proxy = proxifyForest(data, forest, render);
+    // eslint-disable-next-line @typescript-eslint/dot-notation
+    window["__proxy"] = proxy;
+    return proxy;
 };
 
 const forestTableProps: Partial<IProxyTableProps> = {

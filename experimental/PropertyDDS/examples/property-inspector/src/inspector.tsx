@@ -27,7 +27,7 @@ import { PropertyTable } from "./propertyInspector/propertyTable";
 import { loadPropertyDDS } from "./propertyInspector/propertyData";
 import { JsonTable } from "./jsonInspector/jsonTable";
 import { ForestTable, getForest } from "./forestInspector/forestTable";
-import { ProxyTable, getForest as getForestProxy } from "./forestInspector/proxyTable";
+import { ProxyTable, getForestProxy } from "./forestInspector/proxyTable";
 
 const useStyles = makeStyles({
     activeGraph: {

@@ -2,7 +2,7 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-import { FieldKey, ITreeCursor, TextCursor, ObjectForest,
+import { FieldKey, ITreeCursor, TextCursor, ObjectForest, IEditableForest,
 	TreeNavigationResult, JsonableTree, jsonableTreeFromCursor, brand,
 	LocalFieldKey, TreeSchemaIdentifier, StoredSchemaRepository } from "@fluid-internal/tree";
 import { assert } from "@fluidframework/common-utils";
@@ -14,7 +14,7 @@ class NodeTarget {
 		return this._cursor;
 	}
 
-	public get forest(): ObjectForest {
+	public get forest(): IEditableForest {
 		return this._forest;
 	}
 
@@ -24,7 +24,7 @@ class NodeTarget {
 		this._forest.currentCursors.add(this._cursor);
 	}
 
-	public getType() {
+	public get type() {
 		return this.cursor.type;
 	}
 
@@ -70,7 +70,7 @@ const handler: ProxyHandler<NodeTarget> = {
 		if (!val) {
 			const currentCursor = target.cursor;
 			target.reset();
-			return getForestProxy(currentCursor, target.forest, target.render);
+			return proxifyForest(currentCursor, target.forest, target.render);
 		} else {
 			const node = (target.cursor as TextCursor).getNode();
 			target.cursor.up();
@@ -88,14 +88,14 @@ const handler: ProxyHandler<NodeTarget> = {
 		const result = target.cursor.down(key as FieldKey, 0);
 		if (result === TreeNavigationResult.NotFound) {
 			data.fields[key as any] = [
-				{ value, type: brand<typeof fieldType>(fieldType as string) },
+				{ value, type: brand(fieldType as string) },
 			];
 			target.data = data;
 		} else {
 			(target.cursor as TextCursor).getNode().value = value;
 		}
 		target.reset();
-		target.render(target.data);
+		target.render?.(target.data);
 		return true;
 	},
 	has: (target: NodeTarget, key: string | symbol): boolean => {
@@ -137,8 +137,8 @@ const handler: ProxyHandler<NodeTarget> = {
 	},
 };
 
-export const getForestProxy = (data: JsonableTree | ITreeCursor, forest: ObjectForest, render?: any) => {
-	const proxy = new Proxy(new NodeTarget(data, forest, render), handler);
+export const proxifyForest = (data: JsonableTree | ITreeCursor, forest: IEditableForest, render?: any) => {
+	const proxy = new Proxy(new NodeTarget(data, forest as ObjectForest, render), handler);
 	Object.defineProperty(proxy, proxySymbol, {
 		enumerable: false,
 		configurable: true,
