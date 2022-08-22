@@ -9,7 +9,7 @@ const webpack = require("webpack");
 module.exports = env => {
     const htmlTemplate = "./src/index.html";
     return {
-        devtool: "inline-source-map",
+        devtool: "eval-source-map",
         entry: "./src/app.tsx",
         mode: "development",
         devServer: {

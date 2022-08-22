@@ -23,6 +23,7 @@ export { ITreeCursor, TreeNavigationResult, IEditableForest,
     ITreeSubscriptionCursor,
     ITreeSubscriptionCursorState,
     SynchronousNavigationResult,
+    initializeForest,
 } from "./forest";
 
 export {
@@ -79,5 +80,6 @@ export {
     isNeverField,
     FullSchemaPolicy,
     proxifyForest,
+    TargetForest,
     defaultSchemaPolicy,
 } from "./feature-libraries";

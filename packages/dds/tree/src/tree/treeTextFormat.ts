@@ -4,7 +4,7 @@
  */
 
 import { TreeSchemaIdentifier } from "../schema-stored";
-import { FieldKey, TreeValue } from "./types";
+import { FieldKey, TreeValue, EmptyKey } from "./types";
 
 /**
  * This modules provides a simple human readable (and editable) tree format.
@@ -103,6 +103,14 @@ export function getGenericTreeField<T>(node: GenericTreeNode<T>, key: FieldKey, 
         // Handle missing fields:
         if (createIfMissing) {
             node.fields = children;
+        }
+    } else {
+        if (Object.keys(children).length === 1 && Array.isArray(children[EmptyKey as string])) {
+            const arrayed = [...children[EmptyKey as string]];
+            children = {};
+            for (let i = 0; i < arrayed.length; i++) {
+                children[String(i)] = [arrayed[i]];
+            }
         }
     }
 

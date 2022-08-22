@@ -5,9 +5,9 @@
 import { FieldKey, EmptyKey } from "../../tree";
 import { IEditableForest, TreeNavigationResult, ITreeSubscriptionCursor } from "../../forest";
 
-export const proxySymbol = Symbol("forest-proxy");
+const proxySymbol = Symbol.for("forest-proxy");
 
-class TargetForest {
+export class TargetForest {
 	public readonly cursor: ITreeSubscriptionCursor;
 	private readonly _children: Map<string, any>;
 
@@ -60,7 +60,7 @@ const handler: ProxyHandler<TargetForest> = {
 		}
 		const value = target.cursor.value === undefined
 			? target.getChildProxy(key)
-			: target.cursor.value;
+			: { value: target.cursor.value, type: target.cursor.type };
 		target.cursor.up();
 		return value;
 	},
@@ -79,6 +79,11 @@ const handler: ProxyHandler<TargetForest> = {
 		return false;
 	},
 	ownKeys(target: TargetForest) {
+		if (target.cursor.length(EmptyKey) && tryMoveDown(target.cursor, EmptyKey) === TreeNavigationResult.Ok) {
+			target.cursor.up();
+			const keys = target.cursor.keys as string[];
+			return keys;
+		}
 		return target.cursor.keys as string[];
 	},
 	getOwnPropertyDescriptor(target: TargetForest, key: string | symbol) {
@@ -89,7 +94,7 @@ const handler: ProxyHandler<TargetForest> = {
 		if (result === TreeNavigationResult.Ok) {
 			const value = target.cursor.value === undefined
 				? target.getChildProxy(key as string)
-				: target.cursor.value;
+				: { value: target.cursor.value, type: target.cursor.type };
 			const descriptor = {
 				configurable: true,
 				enumerable: true,
