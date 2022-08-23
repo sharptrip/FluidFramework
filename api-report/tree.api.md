@@ -263,6 +263,9 @@ export interface GenericTreeNode<TChild> extends NodeData {
 }
 
 // @public
+export function getEditableTree(forest: IEditableForest): IEditableTree;
+
+// @public
 export interface GlobalFieldKey extends Opaque<Brand<string, "tree.GlobalFieldKey">> {
 }
 
@@ -270,6 +273,12 @@ export interface GlobalFieldKey extends Opaque<Brand<string, "tree.GlobalFieldKe
 export interface IEditableForest extends IForestSubscription {
     readonly anchors: AnchorSet;
     applyDelta(delta: Delta.Root): void;
+}
+
+// @public (undocumented)
+export interface IEditableTree {
+    // (undocumented)
+    get type(): TreeSchemaIdentifier;
 }
 
 // @public
@@ -606,9 +615,6 @@ export type PlaceholderTree<TPlaceholder = never> = GenericTreeNode<PlaceholderT
 
 // @public
 type ProtoNode = JsonableTree;
-
-// @public
-export const proxifyForest: (forest: IEditableForest) => TargetForest;
 
 // @public
 export class Rebaser<TChangeRebaser extends ChangeRebaser<any>> {

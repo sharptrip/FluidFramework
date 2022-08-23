@@ -79,7 +79,7 @@ export {
     Multiplicity,
     isNeverField,
     FullSchemaPolicy,
-    proxifyForest,
-    TargetForest,
+    IEditableTree,
+    getEditableTree,
     defaultSchemaPolicy,
 } from "./feature-libraries";

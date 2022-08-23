@@ -5,9 +5,9 @@
 import { strict as assert } from "assert";
 import { StoredSchemaRepository } from "../../schema-stored";
 import { initializeForest } from "../../forest";
-import { JsonableTree, buildForest, proxifyForest, JsonCursor, jsonableTreeFromCursor, EmptyKey } from "../..";
+import { JsonableTree, buildForest, JsonCursor, jsonableTreeFromCursor, EmptyKey } from "../..";
 import { brand } from "../../util";
-import { defaultSchemaPolicy } from "../../feature-libraries";
+import { defaultSchemaPolicy, getEditableTree } from "../../feature-libraries";
 
 const person: JsonableTree = {
 	type: brand("Test:Person-1.0.0"),
@@ -42,7 +42,7 @@ const buildTestProxy = (data: JsonableTree): any => {
 	const forest = buildForest(schema);
 	initializeForest(forest, [data]);
 
-	const proxy = proxifyForest(forest);
+	const proxy = getEditableTree(forest);
 	return proxy;
 };
 
@@ -84,7 +84,6 @@ describe("forest-proxy", () => {
 		assert.deepEqual(proxy.friends, { Mat: "Mat" });
 		assert.deepEqual(Object.keys(proxy.address), ["street", "zip", "phones"]);
 		assert.equal(proxy.address.street, "treeStreet");
-		assert.equal(proxy.address.phones[1], 123456879);
 	});
 
 	it("read upwards", () => {
@@ -94,6 +93,20 @@ describe("forest-proxy", () => {
 		assert.equal(proxy.address.street, "treeStreet");
 		assert.deepEqual(Object.keys(proxy), ["name", "age", "salary", "friends", "address"]);
 		assert.equal(proxy.name, "Adam");
+	});
+
+	it("access array data", () => {
+		const proxy = buildTestProxy(person);
+		assert.equal(proxy.address.phones.length, 2);
+		assert.equal(proxy.address.phones[1], 123456879);
+		const expectedPhones = ["+49123456778", 123456879];
+		let i = 0;
+		for (const phone of proxy.address.phones) {
+			assert.equal(phone, expectedPhones[i++]);
+		}
+		assert.deepEqual(Object.keys(proxy.address.phones), ["0", "1"]);
+		const arrayKeys = Object.getOwnPropertyNames(proxy.address.phones);
+		assert.deepEqual(arrayKeys, ["0", "1", "length"]);
 	});
 
 	it("update property", () => {
