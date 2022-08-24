@@ -2,7 +2,7 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-import { StoredSchemaRepository, initializeForest, JsonableTree, buildForest, proxifyForest,
+import { StoredSchemaRepository, initializeForest, JsonableTree, buildForest, getEditableTree, IEditableTree,
 	EmptyKey,
 	brand, defaultSchemaPolicy, TreeSchemaIdentifier,
 	// JsonCursor, jsonableTreeFromCursor, ITreeCursor, SchemaData,
@@ -40,7 +40,7 @@ export const person: JsonableTree = {
 	},
 };
 
-export function buildProxy(data: JsonableTree, useSchema?: boolean): any {
+export function buildProxy(data: JsonableTree, useSchema?: boolean): IEditableTree {
 	const rootType: TreeSchemaIdentifier = brand("Test:Person-1.0.0");
 	const schema = new StoredSchemaRepository(defaultSchemaPolicy);
 	if (useSchema) {
@@ -58,7 +58,6 @@ export function buildProxy(data: JsonableTree, useSchema?: boolean): any {
 	// const _data = jsonableTreeFromCursor(jsonCursor);
 	// initializeForest(forest, [_data]);
 
-	const proxy = proxifyForest(forest);
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+	const proxy = getEditableTree(forest);
 	return proxy;
 }

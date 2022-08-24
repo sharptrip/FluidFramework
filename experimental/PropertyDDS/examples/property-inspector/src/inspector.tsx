@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import ReactDOM from "react-dom";
 
 import _ from "lodash";
+import { editableTreeProxySymbol } from "@fluid-internal/tree";
 import {
      IDataCreationOptions,
      IInspectorRow,
@@ -130,7 +131,7 @@ const getChildren = (data, pathPrefix?: string): IInspectorRow[] => {
                 parent: data,
             };
             rows.push(row);
-        } else if (Symbol.for("forest-proxy") in data[key] && Object.keys(data[key]).length) {
+        } else if (editableTreeProxySymbol in data[key] && Object.keys(data[key]).length) {
             const row: IInspectorRow = {
                 id: `${pathPrefix}/${key}`,
                 name: key,

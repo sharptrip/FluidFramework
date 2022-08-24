@@ -731,19 +731,6 @@ export class StoredSchemaRepository<TPolicy extends SchemaPolicy = SchemaPolicy>
 // @public
 export type SynchronousNavigationResult = TreeNavigationResult.Ok | TreeNavigationResult.NotFound;
 
-// @public (undocumented)
-export class TargetForest {
-    constructor(forest: IEditableForest, _cursor?: ITreeSubscriptionCursor);
-    // (undocumented)
-    readonly cursor: ITreeSubscriptionCursor;
-    // (undocumented)
-    readonly forest: IEditableForest;
-    // (undocumented)
-    getChildProxy(key: string): any;
-    // (undocumented)
-    get type(): TreeSchemaIdentifier;
-}
-
 // @public
 export class TextCursor implements ITreeCursor<SynchronousNavigationResult> {
     constructor(root: JsonableTree[], index: number, field?: DetachedField);
