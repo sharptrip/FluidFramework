@@ -4,7 +4,7 @@
  */
 
 import { TreeSchemaIdentifier } from "../schema-stored";
-import { FieldKey, TreeValue, EmptyKey } from "./types";
+import { FieldKey, TreeValue } from "./types";
 
 /**
  * This modules provides a simple human readable (and editable) tree format.
