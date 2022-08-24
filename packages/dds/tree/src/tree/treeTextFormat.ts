@@ -104,14 +104,6 @@ export function getGenericTreeField<T>(node: GenericTreeNode<T>, key: FieldKey, 
         if (createIfMissing) {
             node.fields = children;
         }
-    } else {
-        if (Object.keys(children).length === 1 && Array.isArray(children[EmptyKey as string])) {
-            const arrayed = [...children[EmptyKey as string]];
-            children = {};
-            for (let i = 0; i < arrayed.length; i++) {
-                children[String(i)] = [arrayed[i]];
-            }
-        }
     }
 
     return children;
