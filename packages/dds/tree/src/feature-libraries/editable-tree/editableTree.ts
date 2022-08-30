@@ -2,181 +2,233 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-// TODO (other than rework IEditableTree):
-// - revisit having array element as a node
-// - update docs
-import { FieldKey, EmptyKey, NodeData } from "../../tree";
+import { FieldKey, EmptyKey, TreeValue } from "../../tree";
 import {
 	IEditableForest, TreeNavigationResult, mapCursorField, ITreeSubscriptionCursor, ITreeCursor,
 } from "../../forest";
-// import { TreeSchemaIdentifier } from "../../schema-stored";
 import { brand } from "../../util";
+import { TreeSchemaIdentifier } from "../../schema-stored";
 
-export const editableTreeProxySymbol: unique symbol = Symbol("editable-tree-proxy");
-
-// const typeSymbol: unique symbol = Symbol("editable-tree:type");
-// const cursorSymbol: unique symbol = Symbol("editable-tree:cursor");
-// const nodeMapSymbol: unique symbol = Symbol("editable-tree:nodeMap");
-// const forestSymbol: unique symbol = Symbol("editable-tree:forest");
-// const getNode: unique symbol = Symbol("editable-tree:getChildNode");
+export const proxySymbol: unique symbol = Symbol("editable-tree proxy");
 
 /**
- * A tree with can be traversed and edited.
- * TODO: rework, support editing.
+ * A unique Symbol to get a method of {@link EditableTree} which returns a type of a node or its children.
+ *
+ * One can call `foo[getTypeSymbol]("bar")` to get a type of `bar` or
+ * without a field name i.e. `foo.bar[getTypeSymbol]()` for the same if `bar` is a non-primitive.
  */
-export interface IEditableTree {
-	[key: string]: undefined | IEditableTree | NodeData;
-	// readonly .cursor: ITreeSubscriptionCursor;
-	// readonly .nodeMap: Map<FieldKey, IEditableTree>;
-	// readonly .forest: IEditableForest;
-	// get [type](): TreeSchemaIdentifier;
-	// [getChildNode]: ((key: FieldKey) => IEditableTree | undefined);
+export const getTypeSymbol: unique symbol = Symbol("editable-tree getType");
+
+/**
+ * This is a basis type for {@link EditableTree}.
+ *
+ * New features like e.g. to get an iterator over node's fields should be defined here
+ * and for each and every new method its own symbol should be created correspondingly.
+ * This prevents accidental mixin with user-defined string keys.
+ */
+export interface IEditableTreeSignature<T> {
+	[key: string]: T extends number | string | boolean ? T : EditableTreeNode<T>;
+	[getTypeSymbol]: (key?: FieldKey) => TreeSchemaIdentifier;
 }
 
-const tryMoveDown = (cursor: ITreeSubscriptionCursor, key: FieldKey):
-	{ result: TreeNavigationResult; isArray: boolean; } => {
-	if (key !== EmptyKey && cursor.length(EmptyKey) && isNaN(Number(key))) {
-		return { result: TreeNavigationResult.NotFound, isArray: true };
-	}
-	let result = cursor.down(key, 0);
-	let isArray = false;
-	if (result === TreeNavigationResult.NotFound) {
-		// reading an array
-		result = cursor.down(EmptyKey, Number(key));
-	} else {
-		isArray = !!cursor.length(EmptyKey);
-	}
-	return { result, isArray };
-};
-
-const getDummyArray = (length: number): undefined[] => {
-	const dummy: undefined[] = [];
-	for (let i = 0; i < length; i++) {
-		dummy.push(undefined);
-	}
-	return dummy;
-};
-
-const getNode =
-	(forest: IEditableForest, cursor: ITreeSubscriptionCursor, key: FieldKey): NodeData | IEditableTree | undefined => {
-	if (cursor.value !== undefined) {
-		return { value: cursor.value, type: cursor.type };
-	}
-	return proxify(forest, cursor);
-};
-
-const cursorToValue =
-	(forest: IEditableForest) => (cursor: ITreeCursor): NodeData | IEditableTree | undefined => {
-	if (cursor.value !== undefined) {
-		const result: NodeData = { ...cursor };
-		return result;
-	}
-	const node = getNode(forest, cursor as ITreeSubscriptionCursor, EmptyKey);
-	return node;
+/**
+ * This converts a type T into an {@link EditableTree} node or a primitive.
+ */
+export type EditableTreeNode<T> = {
+	[P in keyof T]?: T[P] extends number | string | boolean ? T[P] : EditableTree<T[P]>;
 };
 
 /**
- * A Proxy handler provides a basic read/write access to the Forest by means of the cursors.
+ * A tree which can be traversed and edited.
+ * TODO: support editing.
  */
-const handler: (forest: IEditableForest, cursor: ITreeSubscriptionCursor) => ProxyHandler<IEditableTree>
-	= (forest: IEditableForest, cursor: ITreeSubscriptionCursor) => ({
-	get: (target: IEditableTree, key: string | symbol, receiver: IEditableTree): unknown => {
-		if (typeof key === "string") {
-			const { result, isArray } = tryMoveDown(cursor, brand(key));
+export type EditableTree<T> = IEditableTreeSignature<T> & EditableTreeNode<T>;
+
+class ProxyTarget {
+	public cursor: ITreeSubscriptionCursor;
+	constructor(
+		public forest: IEditableForest,
+		_cursor?: ITreeSubscriptionCursor,
+	) {
+		if (!_cursor) {
+			this.cursor = forest.allocateCursor();
+			forest.tryMoveCursorTo(forest.root(forest.rootField), this.cursor);
+		} else {
+			this.cursor = _cursor.fork();
+		}
+	}
+
+	public tryMoveDown = (key: FieldKey):
+		{ result: TreeNavigationResult; isArray: boolean; } => {
+		if (key !== EmptyKey && this.cursor.length(EmptyKey) && isNaN(Number(key))) {
+			return { result: TreeNavigationResult.NotFound, isArray: true };
+		}
+		let result = this.cursor.down(key, 0);
+		let isArray = false;
+		if (result === TreeNavigationResult.NotFound) {
+			// reading an array
+			result = this.cursor.down(EmptyKey, Number(key));
+		} else {
+			isArray = !!this.cursor.length(EmptyKey);
+		}
+		return { result, isArray };
+	};
+
+	public getDummyArray = (length: number): undefined[] => {
+		const dummy: undefined[] = [];
+		for (let i = 0; i < length; i++) {
+			dummy.push(undefined);
+		}
+		return dummy;
+	};
+
+	public getNodeData = <T>(cursor?: ITreeSubscriptionCursor): TreeValue | EditableTreeNode<T> | undefined => {
+		const _cursor = cursor ?? this.cursor;
+		if (_cursor.value !== undefined) {
+			const result: TreeValue = _cursor.value;
+			return result;
+		}
+		return proxify<T>(this.forest, _cursor);
+	};
+
+	public getArrayGreedy = <T>() => {
+		const getNodeData = this.getNodeData;
+		return mapCursorField(this.cursor, EmptyKey,
+			(cursor: ITreeCursor): TreeValue | EditableTreeNode<T> | undefined => {
+			return getNodeData(cursor as ITreeSubscriptionCursor);
+		});
+	};
+
+	[getTypeSymbol](key?: FieldKey): TreeSchemaIdentifier {
+		if (key) {
+			const { result } = this.tryMoveDown(key);
 			if (result === TreeNavigationResult.Ok) {
-				const node = getNode(forest, cursor, isArray ? EmptyKey : brand(key));
-				cursor.up();
+				const type = this.cursor.type;
+				this.cursor.up();
+				return type;
+			}
+			return brand("");
+		}
+		return this.cursor.type;
+	}
+}
+
+/**
+ * A Proxy handler together with a {@link ProxyTarget} implements a basic read/write access to the Forest
+ * by means of the cursors.
+ */
+const handler: ProxyHandler<ProxyTarget> = {
+	get: (target: ProxyTarget, key: string | symbol, receiver: ProxyTarget): unknown => {
+		if (typeof key === "string") {
+			const { result, isArray } = target.tryMoveDown(brand(key));
+			if (result === TreeNavigationResult.Ok) {
+				const node = target.getNodeData();
+				target.cursor.up();
 				return node;
 			} else if (isArray) {
 				switch (key) {
 					case "length":
-						return cursor.length(EmptyKey);
+						return target.cursor.length(EmptyKey);
 					default:
 						return [][key as keyof []];
 				}
 			}
 		}
 		if (key === Symbol.iterator) {
-			const data = mapCursorField(cursor, EmptyKey, cursorToValue(forest));
+			const data = target.getArrayGreedy();
 			return data[Symbol.iterator];
+		} else if (key === getTypeSymbol) {
+			return target[getTypeSymbol].bind(target);
 		}
-		return Reflect.get(target, key, receiver);
+		return undefined;
 	},
-	set: (target: IEditableTree, key: string | symbol, value: unknown, receiver: IEditableTree): boolean => {
+	set: (target: ProxyTarget, key: string, value: unknown, receiver: ProxyTarget): boolean => {
 		throw new Error("Not implemented.");
 	},
-	has: (target: IEditableTree, key: string | symbol): boolean => {
+	deleteProperty: (target: ProxyTarget, key: string): boolean => {
+		throw new Error("Not implemented.");
+	},
+	has: (target: ProxyTarget, key: string | symbol): boolean => {
 		if (typeof key === "symbol") {
 			switch (key) {
-				case editableTreeProxySymbol:
+				case proxySymbol:
+				case getTypeSymbol:
 				case Symbol.iterator:
 					return true;
 				default:
 					return false;
 			}
 		}
-		const { result } = tryMoveDown(cursor, brand(key));
+		const { result } = target.tryMoveDown(brand(key));
 		if (result === TreeNavigationResult.Ok) {
-			cursor.up();
+			target.cursor.up();
 			return true;
 		}
-		return Reflect.has(target, key);
+		return false;
 	},
-	ownKeys(target: IEditableTree) {
-		const length = cursor.length(EmptyKey);
+	ownKeys(target: ProxyTarget) {
+		const length = target.cursor.length(EmptyKey);
 		if (length) {
-			return Object.getOwnPropertyNames(getDummyArray(length));
+			return Object.getOwnPropertyNames(target.getDummyArray(length));
 		}
-		return [...(cursor.keys as string[]), ...Reflect.ownKeys(target)];
+		return target.cursor.keys as string[];
 	},
-	getOwnPropertyDescriptor(target: IEditableTree, key: string | symbol) {
+	getOwnPropertyDescriptor(target: ProxyTarget, key: string | symbol) {
 		if (typeof key === "symbol") {
-			if (key === editableTreeProxySymbol) {
+			if (key === proxySymbol) {
 				return { configurable: true, enumerable: true, value: key, writable: false };
+			} else if (key === getTypeSymbol) {
+				return { configurable: true, enumerable: true, value: target[getTypeSymbol], writable: false };
 			}
 		} else {
-			const { result, isArray } = tryMoveDown(cursor, brand(key));
+			const { result } = target.tryMoveDown(brand(key));
 			if (result === TreeNavigationResult.Ok) {
-				const node = getNode(forest, cursor, isArray ? EmptyKey : brand(key));
+				const node = target.getNodeData();
 				const descriptor = {
 					configurable: true,
 					enumerable: true,
 					value: node,
 					writable: true,
 				};
-				cursor.up();
+				target.cursor.up();
 				return descriptor;
 			}
 		}
-		return Reflect.getOwnPropertyDescriptor(target, key);
+		return undefined;
 	},
-});
+};
 
-function proxify(forest: IEditableForest, cursor?: ITreeSubscriptionCursor): IEditableTree {
+function proxify<T>(forest: IEditableForest, cursor?: ITreeSubscriptionCursor): EditableTree<T> {
 	// This unconditionally allocates a new cursor or forks the one if exists.
 	// Keep in mind that they must be cleared at some point (e.g. before writing to the forest).
 	// It does not modify the cursor.
-	const _cursor = cursor ? cursor.fork() : forest.allocateCursor();
-	if (!cursor) {
-		forest.tryMoveCursorTo(forest.root(forest.rootField), _cursor);
-	}
-	const newNode: IEditableTree = {};
-	const proxy = new Proxy(newNode, handler(forest, _cursor));
-	Object.defineProperty(proxy, editableTreeProxySymbol, {
+	const proxy: unknown = new Proxy(new ProxyTarget(forest, cursor), handler);
+	Object.defineProperty(proxy, proxySymbol, {
 		enumerable: false,
 		configurable: true,
 		writable: false,
-		value: editableTreeProxySymbol,
+		value: proxySymbol,
 	});
 
-	return proxy;
+	return proxy as EditableTree<T>;
 }
 
 /**
- * Proxify a Forest to showcase basic interaction scenarios.
- * This function forwards Forest to be proxified to minimize exported signature.
- * @returns {@link IEditableTree} a proxy wrapping the given {@link IEditableForest}.
+ * A simple API for a Forest to showcase basic interaction scenarios.
+ *
+ * This function returns an instance of a JS Proxy typed as an EditableTree.
+ * Use built-in JS functions to get more information about the data stored e.g.
+ * ```
+ * const data = getEditableTree(forest);
+ * for (const key of Object.keys(data)) { ... }
+ * // OR
+ * if ("foo" in data) { ... }
+ * ```
+ *
+ * Not (yet) supported: create properties, set values and delete properties.
+ *
+ * @returns {@link EditableTree} for the given {@link IEditableForest}.
  */
-export function getEditableTree(forest: IEditableForest): IEditableTree {
-	return proxify(forest);
+export function getEditableTree<T = unknown>(forest: IEditableForest): EditableTree<T> {
+	return proxify<T>(forest);
 }

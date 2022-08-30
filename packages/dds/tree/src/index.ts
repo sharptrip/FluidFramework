@@ -79,8 +79,11 @@ export {
     Multiplicity,
     isNeverField,
     FullSchemaPolicy,
-    IEditableTree,
+    IEditableTreeSignature,
+    EditableTreeNode,
+    EditableTree,
     getEditableTree,
-    editableTreeProxySymbol,
+    getTypeSymbol,
+    proxySymbol as editableTreeProxySymbol,
     defaultSchemaPolicy,
 } from "./feature-libraries";
