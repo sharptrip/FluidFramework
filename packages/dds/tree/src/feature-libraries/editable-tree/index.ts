@@ -3,4 +3,21 @@
  * Licensed under the MIT License.
  */
 
-export * from "./editableTree";
+export {
+    getEditableTree,
+    EditableTree,
+    EditableField,
+    EditableTreeOrPrimitive,
+    UnwrappedEditableTree,
+    UnwrappedEditableField,
+    type as typeSymbol,
+    value as valueSymbol,
+    getTypeName as getTypeNameSymbol,
+    proxySymbol,
+    EditableTreeContext,
+} from "./editableTree";
+export {
+    PrimitiveValue,
+    isPrimitiveValue,
+    isPrimitive,
+} from "./utilities";
