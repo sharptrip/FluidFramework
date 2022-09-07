@@ -210,7 +210,7 @@ async function buildTestPerson(): Promise<[EditableTreeContext, PersonType]> {
     return [context, proxy as PersonType];
 }
 
-describe("editable-tree", () => {
+describe.only("editable-tree", () => {
     it("update property", async () => {
         const [context, person] = await buildTestPerson();
         person.address.street = "bla";
@@ -220,6 +220,25 @@ describe("editable-tree", () => {
         const phonse = person.address.phones;
         phonse[1] = 123;
         assert.equal(person.address.phones[1], 123);
+        context.free();
+    });
+
+    it("add property", async () => {
+        const [context, person] = await buildTestPerson();
+        assert.equal("zip" in person.address, false);
+        assert.equal(person.address.zip, undefined);
+        person.address.zip = "99038";
+        assert.equal(person.address.zip, "99038");
+        assert.equal("zip" in person.address, true);
+        context.free();
+    });
+
+    it("delete property", async () => {
+        const [context, person] = await buildTestPerson();
+        person.address.zip = "99038";
+        delete person.address.zip;
+        assert.equal(person.address.zip, undefined);
+        assert.equal("zip" in person.address, false);
         context.free();
     });
 });

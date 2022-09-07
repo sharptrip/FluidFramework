@@ -18,6 +18,7 @@ import {
     getFieldKind, getFieldSchema, getPrimaryField, isPrimitive, isPrimitiveValue, PrimitiveValue,
     assertPreparedForEdit,
 } from "./utilities";
+import { singleTextCursor } from "../treeTextCursor";
 
 // Symbol for extracting target from editable-tree proxies.
 // Useful for debugging and testing, but not part of the public API.
@@ -321,6 +322,28 @@ export class ProxyTarget {
             return TransactionResult.Apply;
         }) === TransactionResult.Apply;
     }
+
+    public insertNode(key: string | number, _value: unknown): boolean {
+        assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
+        const fields = this.type!.localFields;
+        const types = fields.get(brand(key as string))!.types;
+        assert(types !== undefined, "Unknown type");
+        const nodeTypeName = [...types][0];
+        this.context.prepareForEdit();
+        assertPreparedForEdit(this);
+        const path = this.context.forest.anchors.locate(this.anchor);
+        assert(path !== undefined, "Cannot locate a path to set a value");
+        return this.context.tree.runTransaction((forest, editor) => {
+            // TODO json to JsonableTree
+            const cursor = singleTextCursor({ type: nodeTypeName, value: _value });
+            editor.insert({
+                parent: path,
+                parentField: brand(key as string),
+                parentIndex: 0,
+            }, cursor);
+            return TransactionResult.Apply;
+        }) === TransactionResult.Apply;
+    }
 }
 
 /**
@@ -356,7 +379,7 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             return target.setValue(key, _value);
         // insert node
         } else {
-            throw new Error("Not implemented.");
+            return target.insertNode(key, _value);
         }
 	},
 	deleteProperty: (target: ProxyTarget, key: string | symbol): boolean => {
