@@ -259,17 +259,17 @@ export class ProxyTarget {
         return keys;
     }
 
-    public has(key: string | number): boolean {
+    public has(key: string): boolean {
         const primary = this.getPrimaryArrayKey();
         if (primary !== undefined) {
-            if (this.cursor.down(primary, key as number) === TreeNavigationResult.Ok) {
+            if (this.cursor.down(primary, Number(key)) === TreeNavigationResult.Ok) {
                 this.cursor.up();
                 return true;
             }
             return false;
         }
         // Make fields present only if non-empty.
-        return this.cursor.length(brand(key as string)) !== 0;
+        return this.cursor.length(brand(key)) !== 0;
     }
 
     /**
@@ -323,11 +323,11 @@ export class ProxyTarget {
      * Sets value of a non-sequence field.
      * This is correct only if sequence fields are unwrapped into arrays.
      */
-    public setValue(key: string | number, _value: unknown): boolean {
+    public setValue(key: string, _value: unknown): boolean {
         assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
         const primary = this.getPrimaryArrayKey();
-        const index = key as number;
-        const k: FieldKey = primary === undefined ? brand(key as string) : primary;
+        const index = Number(key);
+        const k: FieldKey = primary === undefined ? brand(key) : primary;
         const childTargets = mapCursorField(this.cursor, k, (c) => new ProxyTarget(this.context, c));
         const target = primary === undefined ? childTargets[0] : childTargets[index];
         this.context.prepareForEdit();
@@ -340,24 +340,40 @@ export class ProxyTarget {
         }) === TransactionResult.Apply;
     }
 
-    public insertNode(key: string | number, _value: unknown): boolean {
+    public insertNode(key: string, _value: unknown): boolean {
         assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
         const fields = (this.getType() as TreeSchema).localFields;
-        const types = fields?.get(brand(key as string))?.types;
+        const types = fields?.get(brand(key))?.types;
         assert(types !== undefined, "Unknown type");
         const nodeTypeName = [...types][0];
         this.context.prepareForEdit();
         assertPreparedForEdit(this);
         const path = this.context.forest.anchors.locate(this.anchor);
         assert(path !== undefined, "Cannot locate a path to set a value");
+        // TODO: support proxy and JsonableTree
         return this.context.tree.runTransaction((forest, editor) => {
-            // TODO json to JsonableTree
             const cursor = singleTextCursor({ type: nodeTypeName, value: _value });
             editor.insert({
                 parent: path,
-                parentField: brand(key as string),
+                parentField: brand(key),
                 parentIndex: 0,
             }, cursor);
+            return TransactionResult.Apply;
+        }) === TransactionResult.Apply;
+    }
+
+    public deleteNode(key: string): boolean {
+        assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
+        this.context.prepareForEdit();
+        assertPreparedForEdit(this);
+        const path = this.context.forest.anchors.locate(this.anchor);
+        assert(path !== undefined, "Cannot locate a path to set a value");
+        return this.context.tree.runTransaction((forest, editor) => {
+            editor.delete({
+                parent: path,
+                parentField: brand(key),
+                parentIndex: 0,
+            }, 1);
             return TransactionResult.Apply;
         }) === TransactionResult.Apply;
     }
@@ -387,8 +403,7 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
         }
         return undefined;
     },
-    set: (target: ProxyTarget, key: string | symbol, _value: unknown, receiver: unknown): boolean => {
-        assert(typeof key !== "symbol", "not supported");
+    set: (target: ProxyTarget, key: string, _value: unknown, receiver: unknown): boolean => {
         // update value
         if (target.has(key)) {
             return target.setValue(key, _value);
@@ -397,8 +412,11 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             return target.insertNode(key, _value);
         }
     },
-    deleteProperty: (target: ProxyTarget, key: string | symbol): boolean => {
-        throw new Error("Not implemented.");
+    deleteProperty: (target: ProxyTarget, key: string): boolean => {
+        if (target.has(key)) {
+            return target.deleteNode(key);
+        }
+        return false;
     },
     // Include documented symbols (except value when value is undefined) and all non-empty fields.
     has: (target: ProxyTarget, key: string | symbol): boolean => {

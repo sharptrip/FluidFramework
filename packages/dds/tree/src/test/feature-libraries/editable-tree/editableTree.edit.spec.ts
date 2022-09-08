@@ -210,7 +210,7 @@ async function buildTestPerson(): Promise<[EditableTreeContext, PersonType]> {
     return [context, proxy as PersonType];
 }
 
-describe.only("editable-tree", () => {
+describe.only("editing with editable-tree", () => {
     it("update property", async () => {
         const [context, person] = await buildTestPerson();
         person.address.street = "bla";
