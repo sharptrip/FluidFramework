@@ -1,23 +1,26 @@
 /*!
-* Copyright (c) Microsoft Corporation and contributors. All rights reserved.
-* Licensed under the MIT License.
-*/
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
+
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable max-len */
 import { fail, strict as assert } from "assert";
-import { NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData, TreeSchemaIdentifier, rootFieldKey } from "../../schema-stored";
-import { IEditableForest, initializeForest } from "../../forest";
-import { JsonableTree, EmptyKey, Value } from "../../tree";
-import { brand, Brand, clone } from "../../util";
 import {
-    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, typeSymbol, UnwrappedEditableField,
-    proxySymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive,
-    isPrimitiveValue, isPrimitive, Multiplicity, getTypeNameSymbol, UnwrappedEditableTree,
-} from "../../feature-libraries";
+    NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData,
+    TreeSchemaIdentifier, rootFieldKey,
+} from "../../../schema-stored";
+import { IEditableForest, initializeForest } from "../../../forest";
+import { JsonableTree, EmptyKey, Value } from "../../../tree";
+import { brand, Brand, clone } from "../../../util";
+import {
+    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, getTypeSymbol, UnwrappedEditableField,
+    proxyTargetSymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive, isPrimitiveValue, Multiplicity,
+} from "../../../feature-libraries";
 
 // eslint-disable-next-line import/no-internal-modules
-import { getFieldKind, getFieldSchema, getPrimaryField } from "../../feature-libraries/editable-tree/utilities";
+import { getFieldKind, getFieldSchema, getPrimaryField } from "../../../feature-libraries/editable-tree/utilities";
 
 // TODO: Use typed schema (ex: typedTreeSchema), here, and derive the types below from them programmatically.
 
@@ -26,11 +29,13 @@ const stringSchema = namedTreeSchema({
     extraLocalFields: emptyField,
     value: ValueSchema.String,
 });
+
 const int32Schema = namedTreeSchema({
     name: brand("Int32"),
     extraLocalFields: emptyField,
     value: ValueSchema.Number,
 });
+
 const float32Schema = namedTreeSchema({
     name: brand("Float32"),
     extraLocalFields: emptyField,
@@ -70,6 +75,7 @@ const addressSchema = namedTreeSchema({
 const mapStringSchema = namedTreeSchema({
     name: brand("Map<String>"),
     extraLocalFields: fieldSchema(FieldKinds.value, [stringSchema.name]),
+    value: ValueSchema.Serializable,
 });
 
 const personSchema = namedTreeSchema({
@@ -206,9 +212,9 @@ function expectTreeEquals(inputField: UnwrappedEditableField, expected: Jsonable
         return;
     }
     // Confirm we have an EditableTree object.
-    assert(node[proxySymbol] !== undefined);
+    assert(node[proxyTargetSymbol] !== undefined);
     assert.equal(node[valueSymbol], expected.value);
-    const type = node[typeSymbol];
+    const type = node[getTypeSymbol]();
     assert.equal(type, expectedType);
     for (const key of Object.keys(node)) {
         const subNode: UnwrappedEditableField = node[key];
@@ -241,11 +247,11 @@ describe("editable-tree", () => {
         const proxy = buildTestPerson();
         assert.ok(proxy);
         assert.equal(Object.keys(proxy).length, 5);
-        assert.strictEqual(proxy[typeSymbol], personSchema);
-        assert.strictEqual(proxy.address[typeSymbol], addressSchema);
-        assert.strictEqual((proxy.address.phones[2] as ComplexPhoneType)[typeSymbol], complexPhoneSchema);
-        assert.strictEqual(proxy[getTypeNameSymbol]("name"), stringSchema.name);
-        assert.strictEqual(proxy.address[getTypeNameSymbol]("phones"), phonesSchema.name);
+        assert.equal(proxy[getTypeSymbol](), personSchema);
+        assert.equal(proxy.address[getTypeSymbol](), addressSchema);
+        assert.equal((proxy.address.phones[2] as ComplexPhoneType)[getTypeSymbol](), complexPhoneSchema);
+        assert.equal(proxy[getTypeSymbol]("name", true), stringSchema.name);
+        assert.equal(proxy.address[getTypeSymbol]("phones", true), phonesSchema.name);
     });
 
     it("traverse a complete tree", () => {
@@ -262,9 +268,8 @@ describe("editable-tree", () => {
         assert.equal("lazyCursor" in personProxy, false);
         assert.equal("context" in personProxy, false);
         // Check for expected symbols:
-        assert(proxySymbol in personProxy);
-        assert(typeSymbol in personProxy);
-        assert(getTypeNameSymbol in personProxy);
+        assert(proxyTargetSymbol in personProxy);
+        assert(getTypeSymbol in personProxy);
         // Check fields show up:
         assert("age" in personProxy);
         assert.equal(EmptyKey in personProxy, false);
@@ -284,12 +289,6 @@ describe("editable-tree", () => {
         const hasValue = buildTestProxy({ type: optionalChildSchema.name, value: 1 }) as object;
         // Value does show up when not empty:
         assert(valueSymbol in hasValue);
-    });
-
-    it("isPrimitive", () => {
-        assert(isPrimitive(int32Schema));
-        assert(isPrimitive(stringSchema));
-        assert(!isPrimitive(optionalChildSchema));
     });
 
     it("sequence roots are arrays", () => {
@@ -343,7 +342,7 @@ describe("editable-tree", () => {
         {
             const forest = setupForest(schemaData, []);
             const [context, field] = getEditableTree(forest);
-            assert.strictEqual(field, undefined);
+            assert.equal(field, undefined);
             context.free();
         }
         // With value
@@ -363,7 +362,7 @@ describe("editable-tree", () => {
         };
         const forest = setupForest(schemaData, [{ type: int32Schema.name, value: 1 }]);
         const [context, field] = getEditableTree(forest);
-        assert.strictEqual(field, 1);
+        assert.equal(field, 1);
         context.free();
     });
 
@@ -375,7 +374,7 @@ describe("editable-tree", () => {
         };
         const forest = setupForest(schemaData, [{ type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: 1 }] } }]);
         const [context, field] = getEditableTree(forest);
-        assert.strictEqual((field as EditableTree).child, 1);
+        assert.equal((field as EditableTree).child, 1);
         context.free();
     });
 
@@ -387,7 +386,7 @@ describe("editable-tree", () => {
         };
         const forest = setupForest(schemaData, [{ type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: undefined }] } }]);
         const [context, field] = getEditableTree(forest);
-        assert.throws(() => ((field as EditableTree).child), /Undefined values not allowed/);
+        assert.throws(() => ((field as EditableTree).child), /`undefined` values not allowed for primitive fields/);
         context.free();
     });
 

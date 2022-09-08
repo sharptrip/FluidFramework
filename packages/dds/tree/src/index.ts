@@ -47,14 +47,14 @@ export {
     brandOpaque,
     ValueFromBranded,
     NameFromBranded,
+    JsonCompatibleReadOnly,
+    JsonCompatible,
 } from "./util";
 
 export {
     ChangeEncoder,
     ChangeFamily,
     ProgressiveEditBuilder,
-    JsonCompatibleReadOnly,
-    JsonCompatible,
 } from "./change-family";
 
 export {
@@ -110,9 +110,9 @@ export {
     getEditableTree,
     isPrimitiveValue,
     isPrimitive,
-    typeSymbol,
-    getTypeNameSymbol,
-    proxySymbol,
+    getTypeSymbol,
+    valueSymbol,
+    proxyTargetSymbol,
     defaultSchemaPolicy,
     PrimitiveValue,
     SequenceEditBuilder,
