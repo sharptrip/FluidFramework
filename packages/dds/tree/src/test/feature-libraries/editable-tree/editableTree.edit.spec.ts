@@ -6,22 +6,22 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable max-len */
 import { fail, strict as assert } from "assert";
-import { NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData, TreeSchemaIdentifier, rootFieldKey } from "../../schema-stored";
-import { IEditableForest, initializeForest } from "../../forest";
-import { JsonableTree, EmptyKey, Value, detachedFieldAsKey } from "../../tree";
-import { brand, Brand, clone } from "../../util";
+import { NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData, TreeSchemaIdentifier, rootFieldKey } from "../../../schema-stored";
+import { IEditableForest, initializeForest } from "../../../forest";
+import { JsonableTree, EmptyKey, Value, detachedFieldAsKey } from "../../../tree";
+import { brand, Brand, clone } from "../../../util";
 import {
-    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, typeSymbol, UnwrappedEditableField,
-    proxySymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive, singleTextCursor,
-    isPrimitiveValue, isPrimitive, Multiplicity, getTypeNameSymbol, UnwrappedEditableTree, EditableTreeContext, ForestIndex,
-} from "../../feature-libraries";
+    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, getTypeSymbol, UnwrappedEditableField,
+    proxyTargetSymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive, singleTextCursor,
+    isPrimitiveValue, isPrimitive, Multiplicity, UnwrappedEditableTree, EditableTreeContext, ForestIndex,
+} from "../../../feature-libraries";
 
-import { TestTreeProvider } from "../utils";
-import { SharedTree } from "../../shared-tree";
-import { TransactionResult } from "../../checkout";
+import { TestTreeProvider } from "../../utils";
+import { SharedTree } from "../../../shared-tree";
+import { TransactionResult } from "../../../checkout";
 
 // eslint-disable-next-line import/no-internal-modules
-import { getFieldKind, getFieldSchema, getPrimaryField } from "../../feature-libraries/editable-tree/utilities";
+import { getFieldKind, getFieldSchema, getPrimaryField } from "../../../feature-libraries/editable-tree/utilities";
 
 // TODO: Use typed schema (ex: typedTreeSchema), here, and derive the types below from them programmatically.
 

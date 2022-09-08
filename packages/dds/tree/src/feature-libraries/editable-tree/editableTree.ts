@@ -14,13 +14,13 @@ import {
 import { FieldKind, Multiplicity } from "../modular-schema";
 import { ICheckout, TransactionResult } from "../../checkout";
 import { SequenceEditBuilder } from "../sequence-change-family";
+import { singleTextCursor } from "../treeTextCursor";
 import {
     AdaptingProxyHandler,
     adaptWithProxy,
     getFieldKind, getFieldSchema, getPrimaryField, isPrimitive, isPrimitiveValue, PrimitiveValue,
     assertPreparedForEdit,
 } from "./utilities";
-import { singleTextCursor } from "../treeTextCursor";
 
 /**
  * A symbol for extracting target from editable-tree proxies.
@@ -165,7 +165,7 @@ class ProxyContext implements EditableTreeContext {
 }
 
 export class ProxyTarget {
-	public readonly lazyCursor: ITreeSubscriptionCursor;
+    public readonly lazyCursor: ITreeSubscriptionCursor;
     private _anchor?: Anchor;
     public get anchor(): Anchor | undefined {
         return this._anchor;
@@ -198,19 +198,19 @@ export class ProxyTarget {
         this.context.withCursors.delete(this);
     }
 
-	  public get cursor(): ITreeSubscriptionCursor {
-		    if (this.lazyCursor.state === ITreeSubscriptionCursorState.Cleared) {
+    public get cursor(): ITreeSubscriptionCursor {
+        if (this.lazyCursor.state === ITreeSubscriptionCursorState.Cleared) {
             assert(this._anchor !== undefined, "EditableTree should have an anchor if it does not have a cursor");
-			      const result = this.context.forest.tryMoveCursorTo(this._anchor, this.lazyCursor);
-			      assert(result === TreeNavigationResult.Ok,
+            const result = this.context.forest.tryMoveCursorTo(this._anchor, this.lazyCursor);
+            assert(result === TreeNavigationResult.Ok,
                 "It is invalid to access an EditableTree node which no longer exists");
             this.context.withCursors.add(this);
             this.context.forest.anchors.forget(this._anchor);
             this.context.withAnchors.delete(this);
             this._anchor = undefined;
-		    }
-		    return this.lazyCursor;
-	  }
+        }
+        return this.lazyCursor;
+    }
 
     public getType(key?: string, nameOnly?: boolean): TreeSchemaIdentifier | TreeSchema | undefined {
         let typeName = this.cursor.type;
@@ -342,8 +342,8 @@ export class ProxyTarget {
 
     public insertNode(key: string | number, _value: unknown): boolean {
         assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
-        const fields = this.type!.localFields;
-        const types = fields.get(brand(key as string))!.types;
+        const fields = (this.getType() as TreeSchema).localFields;
+        const types = fields?.get(brand(key as string))?.types;
         assert(types !== undefined, "Unknown type");
         const nodeTypeName = [...types][0];
         this.context.prepareForEdit();
@@ -368,13 +368,13 @@ export class ProxyTarget {
  * by means of the cursors.
  */
 const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
-	get: (target: ProxyTarget, key: string | symbol , receiver: unknown): unknown => {
+    get: (target: ProxyTarget, key: string | symbol, receiver: unknown): unknown => {
         // const primary = target.getPrimaryArrayKey();
         // if (primary !== undefined) {
         //     const childTargets = mapCursorField(target.cursor, primary, (c) => new ProxyTarget(target.context, c));
         //     return childTargets.map(inProxyOrUnwrap);
         // }
-		if (typeof key === "string") {
+        if (typeof key === "string") {
             // All string keys are fields
             return target.proxifyField(key);
         }
@@ -385,9 +385,9 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
         } else if (key === proxyTargetSymbol) {
             return target;
         }
-		return undefined;
-	},
-	set: (target: ProxyTarget, key: string | symbol | number, _value: unknown, receiver: unknown): boolean => {
+        return undefined;
+    },
+    set: (target: ProxyTarget, key: string | symbol, _value: unknown, receiver: unknown): boolean => {
         assert(typeof key !== "symbol", "not supported");
         // update value
         if (target.has(key)) {
@@ -396,12 +396,12 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
         } else {
             return target.insertNode(key, _value);
         }
-	},
-	deleteProperty: (target: ProxyTarget, key: string | symbol): boolean => {
-		throw new Error("Not implemented.");
-	},
+    },
+    deleteProperty: (target: ProxyTarget, key: string | symbol): boolean => {
+        throw new Error("Not implemented.");
+    },
     // Include documented symbols (except value when value is undefined) and all non-empty fields.
-	has: (target: ProxyTarget, key: string | symbol | number): boolean => {
+    has: (target: ProxyTarget, key: string | symbol): boolean => {
         if (typeof key === "symbol") {
             switch (key) {
                 case proxyTargetSymbol:
@@ -515,8 +515,9 @@ function proxifyField(fieldKind: FieldKind, childTargets: ProxyTarget[]): Unwrap
  * Also returns an {@link EditableTreeContext} which is used manage the cursors and anchors within the EditableTrees:
  * This is necessary for supporting using this tree across edits to the forest, and not leaking memory.
  */
-export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<SequenceEditBuilder>): [EditableTreeContext, UnwrappedEditableField] {
-	  const context = new ProxyContext(forest, sharedTree);
+export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<SequenceEditBuilder>):
+    [EditableTreeContext, UnwrappedEditableField] {
+      const context = new ProxyContext(forest, sharedTree);
     const cursor = forest.allocateCursor();
     const destination = forest.root(forest.rootField);
     const cursorResult = forest.tryMoveCursorTo(destination, cursor);

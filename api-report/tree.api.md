@@ -329,7 +329,10 @@ export interface GenericTreeNode<TChild> extends NodeData {
 }
 
 // @public
-export function getEditableTree(tree: ICheckout<SequenceEditBuilder>): [EditableTreeContext, UnwrappedEditableField];
+export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<SequenceEditBuilder>): [
+EditableTreeContext,
+UnwrappedEditableField
+];
 
 // @public
 export const getTypeSymbol: unique symbol;

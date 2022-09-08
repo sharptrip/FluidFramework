@@ -490,21 +490,4 @@ describe("editable-tree", () => {
         });
         assert.deepEqual(act, expectedPhones);
     });
-
-    it("update property", () => {
-        const proxy = buildTestPerson();
-        assert.throws(() => (proxy.age = newAge), "Not implemented");
-    });
-
-    it("add property", () => {
-        const proxy = buildTestPerson();
-        assert.throws(() => (proxy.address!.zip = "999"), "Not implemented");
-    });
-
-    it("delete property", () => {
-        const proxy = buildTestProxy(emptyNode) as { child?: unknown; };
-        assert.throws(() => {
-            delete proxy.child;
-        }, "Not implemented");
-    });
 });
