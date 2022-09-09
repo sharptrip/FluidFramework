@@ -65,6 +65,11 @@ export {
 } from "./rebase";
 
 export {
+    ICheckout,
+    TransactionResult,
+} from "./checkout";
+
+export {
     cursorToJsonObject,
     JsonCursor,
     jsonTypeSchema,
@@ -77,6 +82,21 @@ export {
 } from "./checkout";
 
 export {
+    Transposed,
+    TreeForestPath,
+    TreeRootPath,
+    OpId,
+    Skip,
+    ChangesetTag,
+    Effects,
+    Tiebreak,
+    ProtoNode,
+    GapCount,
+    HasOpId,
+    NodeCount,
+} from "./changeset";
+
+export {
     buildForest,
     TextCursor,
     jsonableTreeFromCursor,
@@ -87,12 +107,14 @@ export {
     ModularChangeFamily,
     ModularEditBuilder,
     FieldChangeHandler,
+    FieldEditor,
     FieldChangeRebaser,
     FieldChangeEncoder,
     FieldChangeMap,
     FieldChangeset,
     FieldChange,
     ToDelta,
+    UpPathWithFieldKinds,
     NodeChangeComposer,
     NodeChangeInverter,
     NodeChangeRebaser,
@@ -116,7 +138,12 @@ export {
     defaultSchemaPolicy,
     PrimitiveValue,
     SequenceEditBuilder,
-    PlacePath,
     SequenceChangeset,
     NodePath,
+    PlacePath,
 } from "./feature-libraries";
+
+export {
+    ISharedTree,
+    SharedTreeFactory,
+} from "./shared-tree";

@@ -66,6 +66,11 @@ export interface EditableTree {
      */
     readonly [valueSymbol]: Value;
 
+    /**
+     * Stores the target for the proxy which implements reading and writing for this node.
+     * The details of this object are implementation details,
+     * but the presence of this symbol can be used to separate EditableTrees from other types.
+     */
     readonly [proxyTargetSymbol]: object;
 
     /**
@@ -205,9 +210,6 @@ export class ProxyTarget {
             assert(result === TreeNavigationResult.Ok,
                 "It is invalid to access an EditableTree node which no longer exists");
             this.context.withCursors.add(this);
-            this.context.forest.anchors.forget(this._anchor);
-            this.context.withAnchors.delete(this);
-            this._anchor = undefined;
         }
         return this.lazyCursor;
     }
@@ -535,7 +537,8 @@ function proxifyField(fieldKind: FieldKind, childTargets: ProxyTarget[]): Unwrap
  */
 export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<SequenceEditBuilder>):
     [EditableTreeContext, UnwrappedEditableField] {
-      const context = new ProxyContext(forest, sharedTree);
+    const context = new ProxyContext(forest, sharedTree);
+
     const cursor = forest.allocateCursor();
     const destination = forest.root(forest.rootField);
     const cursorResult = forest.tryMoveCursorTo(destination, cursor);
@@ -545,7 +548,6 @@ export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<
             targets.push(new ProxyTarget(context, cursor));
         } while (cursor.seek(1) === TreeNavigationResult.Ok);
     }
-    cursor.clear();
     cursor.free();
     forest.anchors.forget(destination);
     const rootSchema = forest.schema.lookupGlobalFieldSchema(rootFieldKey);
