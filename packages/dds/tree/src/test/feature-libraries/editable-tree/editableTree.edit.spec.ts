@@ -202,7 +202,7 @@ async function setupForest(schema: SchemaData, data: JsonableTree): Promise<ISha
 
 async function buildTestProxy(data: JsonableTree): Promise<[EditableTreeContext, UnwrappedEditableField]> {
     const tree = await setupForest(fullSchemaData, data);
-    return getEditableTree(tree.forest as IEditableForest, tree);
+    return getEditableTree(tree);
 }
 
 async function buildTestPerson(): Promise<[EditableTreeContext, PersonType]> {

@@ -547,13 +547,14 @@ function proxifyField(fieldKind: FieldKind, childTargets: ProxyTarget[]): Unwrap
  *
  * Not (yet) supported: create properties, set values and delete properties.
  *
- * @returns {@link EditableTree} for the given {@link IEditableForest}.
+ * @returns {@link EditableTree} for the given {@link IEditableForest} or {@link ISharedTree}.
  * Also returns an {@link EditableTreeContext} which is used manage the cursors and anchors within the EditableTrees:
  * This is necessary for supporting using this tree across edits to the forest, and not leaking memory.
  */
-export function getEditableTree(forest: IEditableForest, sharedTree?: ISharedTree):
+export function getEditableTree(tree: IEditableForest | ISharedTree):
     [EditableTreeContext, UnwrappedEditableField] {
-    const context = new ProxyContext(forest, sharedTree);
+    const forest = ("forest" in tree ? tree.forest : tree) as IEditableForest;
+    const context = new ProxyContext(forest, "forest" in tree ? tree : undefined);
 
     const cursor = forest.allocateCursor();
     const destination = forest.root(forest.rootField);

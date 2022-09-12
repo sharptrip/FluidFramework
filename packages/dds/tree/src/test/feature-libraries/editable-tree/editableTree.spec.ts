@@ -242,7 +242,7 @@ function expectTreeSequence(field: UnwrappedEditableField, expected: JsonableTre
     }
 }
 
-describe("editable-tree", () => {
+describe.only("editable-tree", () => {
     it("proxified forest", () => {
         const proxy = buildTestPerson();
         assert.ok(proxy);

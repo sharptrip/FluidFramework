@@ -359,7 +359,7 @@ export interface GenericTreeNode<TChild> extends NodeData {
 }
 
 // @public
-export function getEditableTree(forest: IEditableForest, sharedTree?: ISharedTree): [
+export function getEditableTree(tree: IEditableForest | ISharedTree): [
 EditableTreeContext,
 UnwrappedEditableField
 ];
