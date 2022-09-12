@@ -16,7 +16,7 @@ import {
     isPrimitiveValue, isPrimitive, Multiplicity, UnwrappedEditableTree, EditableTreeContext, ForestIndex,
 } from "../../../feature-libraries";
 
-import { TestTreeProvider } from "../../utils";
+import { ITestTreeProvider, TestTreeProvider } from "../../utils";
 import { ISharedTree } from "../../../shared-tree";
 import { TransactionResult } from "../../../checkout";
 
@@ -168,19 +168,20 @@ const personData: JsonableTree = {
     },
 };
 
-async function setupForest(schema: SchemaData, data: JsonableTree): Promise<ISharedTree> {
-    const provider = await TestTreeProvider.create(2);
-    assert(provider.trees[0].isAttached());
-    const tree = provider.trees[0];
-    const forest = tree.forest;
-    forest.schema.updateFieldSchema(rootFieldKey, schema.globalFieldSchema.get(rootFieldKey) ?? fail("oops"));
-    for (const [key, value] of schema.treeSchema) {
-        forest.schema.updateTreeSchema(key, value);
+let _provider: ITestTreeProvider;
+
+async function setupForest(schema: SchemaData, data: JsonableTree): Promise<readonly ISharedTree[]> {
+    const provider = await TestTreeProvider.create(3);
+    _provider = provider;
+    for (const tree of provider.trees) {
+        assert(tree.isAttached());
+        const forest = tree.forest;
+        forest.schema.updateFieldSchema(rootFieldKey, schema.globalFieldSchema.get(rootFieldKey) ?? fail("oops"));
+        for (const [key, value] of schema.treeSchema) {
+            forest.schema.updateTreeSchema(key, value);
+        }
     }
-    // const schemaRepo = new StoredSchemaRepository(defaultSchemaPolicy, schema);
-    // const forest2 = buildForest(schemaRepo);
-    // initializeForest(forest2, [data]);
-    tree.runTransaction((_forest, editor) => {
+    provider.trees[0].runTransaction((forest, editor) => {
         const writeCursor = singleTextCursor(data);
         editor.insert({
             parent: undefined,
@@ -190,19 +191,13 @@ async function setupForest(schema: SchemaData, data: JsonableTree): Promise<ISha
 
         return TransactionResult.Apply;
     });
-    assert(provider.trees[1].isAttached());
     await provider.ensureSynchronized();
-    const outTree = provider.trees[1];
-    outTree.forest.schema.updateFieldSchema(rootFieldKey, schema.globalFieldSchema.get(rootFieldKey) ?? fail("oops"));
-    for (const [key, value] of schema.treeSchema) {
-        outTree.forest.schema.updateTreeSchema(key, value);
-    }
-    return outTree;
+    return provider.trees.slice(1);
 }
 
 async function buildTestProxy(data: JsonableTree): Promise<[EditableTreeContext, UnwrappedEditableField]> {
-    const tree = await setupForest(fullSchemaData, data);
-    return getEditableTree(tree);
+    const trees = await setupForest(fullSchemaData, data);
+    return getEditableTree(trees[0]);
 }
 
 async function buildTestPerson(): Promise<[EditableTreeContext, PersonType]> {
@@ -212,17 +207,24 @@ async function buildTestPerson(): Promise<[EditableTreeContext, PersonType]> {
 
 describe.only("editing with editable-tree", () => {
     it("update property", async () => {
-        const [context, person] = await buildTestPerson();
-        person.address.street = "bla";
-        assert.equal(person.address.street, "bla");
-        person.age = newAge;
-        assert.strictEqual(person.age, newAge);
-        const phones = person.address.phones;
+        const trees = await setupForest(fullSchemaData, personData);
+        const [context, person] = getEditableTree(trees[0]);
+        const person1 = person as PersonType;
+        const [context2, person20] = getEditableTree(trees[1]);
+        const person2 = person20 as PersonType;
+        person1.address.street = "bla";
+        assert.equal(person1.address.street, "bla");
+        person1.age = newAge;
+        assert.strictEqual(person1.age, newAge);
+        const phones = person1.address.phones;
         phones[1] = 123;
-        assert.equal(person.address.phones[1], 123);
+        assert.equal(person1.address.phones[1], 123);
         assert.throws(() => {
             phones[2] = { number: "123", prefix: "456" } as any;
         });
+        context2.prepareForEdit();
+        await _provider.ensureSynchronized();
+        assert.deepEqual(person1, person2);
         context.free();
     });
 

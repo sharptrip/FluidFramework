@@ -20,7 +20,6 @@ import {
     AdaptingProxyHandler,
     adaptWithProxy,
     getFieldKind, getFieldSchema, getPrimaryField, isPrimitive, isPrimitiveValue, PrimitiveValue,
-    assertPreparedForEdit,
 } from "./utilities";
 
 /**
@@ -192,7 +191,19 @@ class ProxyContext implements EditableTreeContext {
     }
 }
 
-export class ProxyTarget {
+interface PreparedForEdit extends ProxyTarget {
+    anchor: Anchor;
+}
+
+function assertPreparedForEdit(target: ProxyTarget): asserts target is PreparedForEdit {
+    const cursorStates = ITreeSubscriptionCursorState;
+    if (target.lazyCursor.state !== cursorStates.Cleared) {
+        throw new Error("EditableTree's cursor must be cleared before editing.");
+    }
+    assert(target.anchor !== undefined, "EditableTree should have an anchor before editing.");
+}
+
+class ProxyTarget {
     public readonly lazyCursor: ITreeSubscriptionCursor;
     private _anchor?: Anchor;
     public get anchor(): Anchor | undefined {
@@ -202,6 +213,7 @@ export class ProxyTarget {
     constructor(
         public readonly context: ProxyContext,
         cursor: ITreeSubscriptionCursor,
+        public readonly primaryParent?: ProxyTarget,
     ) {
         this.lazyCursor = cursor.fork();
         context.withCursors.add(this);
@@ -264,16 +276,9 @@ export class ProxyTarget {
     public getKeys(): string[] {
         // For now this is an approximation:
         const keys: string[] = [];
-        const primary = this.getPrimaryArrayKey();
-        if (primary !== undefined) {
-            this.cursor.down(primary, 0);
-            for (const key of this.cursor.keys) {
-                if (this.cursor.length(brand(key as string)) > 0) {
-                    keys.push(key as string);
-                }
-            }
-            this.cursor.up();
-            return keys;
+        const length = this.getPrimaryArrayLength();
+        if (length !== undefined) {
+            return Object.getOwnPropertyNames(Array.from(Array(length)));
         }
         for (const key of this.cursor.keys) {
             // TODO: with new cursor API, field iteration will skip empty fields and this check can be removed.
@@ -285,9 +290,9 @@ export class ProxyTarget {
     }
 
     public has(key: string): boolean {
-        const primary = this.getPrimaryArrayKey();
-        if (primary !== undefined) {
-            if (this.cursor.down(primary, Number(key)) === TreeNavigationResult.Ok) {
+        const primaryKey = this.primaryKey;
+        if (primaryKey !== undefined) {
+            if (this.cursor.down(primaryKey, Number(key)) === TreeNavigationResult.Ok) {
                 this.cursor.up();
                 return true;
             }
@@ -300,7 +305,7 @@ export class ProxyTarget {
     /**
      * @returns the key, if any, of the primary array field.
      */
-    public getPrimaryArrayKey(): LocalFieldKey | undefined {
+    get primaryKey(): LocalFieldKey | undefined {
         const nodeType = this.getType() as TreeSchema;
         const primary = getPrimaryField(nodeType);
         if (primary === undefined) {
@@ -316,21 +321,20 @@ export class ProxyTarget {
     }
 
     public proxifyField(key: string | number): UnwrappedEditableField {
-        const primary = this.getPrimaryArrayKey();
-        if (primary !== undefined) {
-            if (this.cursor.down(primary, key as number) === TreeNavigationResult.Ok) {
-                const child = inProxyOrUnwrap(new ProxyTarget(this.context, this.cursor));
-                this.cursor.up();
-                return child;
-            }
-            // TODO assert
-            return undefined;
-        }
-        assert(typeof key === "string", "Only string keys are supported");
+        // const primary = this.primaryKey;
+        // if (primary !== undefined) {
+        //     if (this.cursor.down(primary, key as number) === TreeNavigationResult.Ok) {
+        //         const sequenceProxy = inProxyOrUnwrap(new ProxyTarget(this.context, this.cursor, this));
+        //         this.cursor.up();
+        //         return sequenceProxy;
+        //     }
+        //     // TODO assert
+        //     return undefined;
+        // }
         // Lookup the schema:
-        const fieldKind = this.lookupFieldKind(key);
+        const fieldKind = this.lookupFieldKind(key as string);
         // Make the childTargets:
-        const childTargets = mapCursorField(this.cursor, brand(key), (c) => new ProxyTarget(this.context, c));
+        const childTargets = mapCursorField(this.cursor, brand(key as string), (c) => new ProxyTarget(this.context, c));
         return proxifyField(fieldKind, childTargets);
     }
 
@@ -349,11 +353,11 @@ export class ProxyTarget {
      * This is correct only if sequence fields are unwrapped into arrays.
      */
     public setValue(key: string, _value: unknown): boolean {
-        const primary = this.getPrimaryArrayKey();
+        const primaryKey = this.primaryKey;
         const index = Number(key);
-        const k: FieldKey = primary === undefined ? brand(key) : primary;
-        const childTargets = mapCursorField(this.cursor, k, (c) => new ProxyTarget(this.context, c));
-        const target = primary === undefined ? childTargets[0] : childTargets[index];
+        const _key: FieldKey = primaryKey === undefined ? brand(key) : primaryKey;
+        const childTargets = mapCursorField(this.cursor, _key, (c) => new ProxyTarget(this.context, c));
+        const target = primaryKey === undefined ? childTargets[0] : childTargets[index];
         const type = target.getType() as TreeSchema;
         assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
         this.context.prepareForEdit();
@@ -395,7 +399,21 @@ export class ProxyTarget {
             parentIndex: 0,
         }, 1);
     }
+
+    public getPrimaryArrayLength(): number | undefined {
+        if (this.primaryKey !== undefined) {
+            return this.cursor.length(this.primaryKey);
+        }
+        return undefined;
+    }
 }
+
+const mockArray = (target: ProxyTarget): UnwrappedEditableTree[] => {
+    assert(target.primaryKey !== undefined, "no");
+    const arr = mapCursorField(target.cursor, brand(target.primaryKey),
+        (c) => inProxyOrUnwrap(new ProxyTarget(target.context, c, target)));
+    return arr;
+};
 
 /**
  * A Proxy handler together with a {@link ProxyTarget} implements a basic read/write access to the Forest
@@ -403,12 +421,18 @@ export class ProxyTarget {
  */
 const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
     get: (target: ProxyTarget, key: string | symbol, receiver: unknown): unknown => {
-        // const primary = target.getPrimaryArrayKey();
-        // if (primary !== undefined) {
-        //     const childTargets = mapCursorField(target.cursor, primary, (c) => new ProxyTarget(target.context, c));
-        //     return childTargets.map(inProxyOrUnwrap);
-        // }
         if (typeof key === "string") {
+            const length = target.getPrimaryArrayLength();
+            if (length !== undefined) {
+                if (key === "length") {
+                    return length;
+                }
+                const array = mockArray(target);
+                if (key in Array.prototype) {
+                    return Array.prototype[key as any].bind(array);
+                }
+                return array[Number(key)];
+            }
             // All string keys are fields
             return target.proxifyField(key);
         }
@@ -418,6 +442,12 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             return target.value;
         } else if (key === proxyTargetSymbol) {
             return target;
+        } else if (key === Symbol.iterator) {
+            const primaryKey = target.primaryKey;
+            if (primaryKey !== undefined) {
+                const array = mockArray(target);
+                return array[Symbol.iterator]();
+            }
         }
         return undefined;
     },
@@ -442,32 +472,18 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             switch (key) {
                 case proxyTargetSymbol:
                 case getTypeSymbol:
-                // Currently not supporting iteration over fields.
-                // case Symbol.iterator:
                     return true;
                 case valueSymbol:
                     // Could do `target.value !== ValueSchema.Nothing`
                     // instead if values which could be modified should report as existing.
                     return target.value !== undefined;
+                // Currently not supporting iteration over fields.
+                case Symbol.iterator:
+                    return target.primaryKey !== undefined;
                 default:
                     return false;
             }
         }
-
-        // For now primary array fields are handled by just returning the array, so we don't need this:
-        // const length = target.getPrimaryArrayLength();
-        // if (length !== undefined) {
-        //     // Act like an array.
-        //     // This means that "0" can be present, but not "0.0", "0.1", "-0", " 0" etc.
-        //     // Simplest way to check for this is to round trip:
-        //     if (key in []) {
-        //         return true;
-        //     }
-        //     const numeric = Number(key);
-        //     if (String(Number(key)) === key && Number.isInteger(numeric) && numeric >= 0 && numeric < length) {
-        //         return true;
-        //     }
-        // }
 
         return target.has(key);
     },
@@ -486,13 +502,26 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             } else if (key === getTypeSymbol) {
                 return { configurable: true, enumerable: false, value: target.getType.bind(target), writable: false };
             }
-        } else if (target.has(key)) {
-            return {
-                configurable: true,
-                enumerable: true,
-                value: target.proxifyField(key),
-                writable: false,
-            };
+        } else {
+            if (key === "length") {
+                const length = target.getPrimaryArrayLength();
+                if (length !== undefined) {
+                    return {
+                        configurable: true,
+                        enumerable: false,
+                        value: length,
+                        writable: false,
+                    };
+                }
+            }
+            if (target.has(key)) {
+                return {
+                    configurable: true,
+                    enumerable: true,
+                    value: target.proxifyField(key),
+                    writable: false,
+                };
+            }
         }
         return undefined;
     },
@@ -506,10 +535,16 @@ function inProxyOrUnwrap(target: ProxyTarget): UnwrappedEditableTree {
     if (isPrimitive(fieldSchema)) {
         const nodeValue = target.cursor.value;
         if (isPrimitiveValue(nodeValue)) {
+            // target.free();
             return nodeValue;
         }
         assert(fieldSchema.value === ValueSchema.Serializable, "`undefined` values not allowed for primitive fields");
     }
+    // const primary = target.primaryKey;
+    // if (primary !== undefined) {
+    //     const childTargets = mapCursorField(target.cursor, primary, (c) => new ProxyTarget(target.context, c));
+    //     return childTargets.map(inProxyOrUnwrap);
+    // }
     return adaptWithProxy(target, handler);
 }
 

@@ -2,8 +2,7 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-import { assert } from "@fluidframework/common-utils";
-import { Anchor, EmptyKey, Value } from "../../tree";
+import { EmptyKey, Value } from "../../tree";
 import { brand, fail } from "../../util";
 import { TreeSchema, ValueSchema, FieldSchema, LocalFieldKey } from "../../schema-stored";
 // TODO:
@@ -11,8 +10,6 @@ import { TreeSchema, ValueSchema, FieldSchema, LocalFieldKey } from "../../schem
 // The field kinds should instead come from a view schema registry thats provided somewhere.
 import { fieldKinds } from "../defaultFieldKinds";
 import { FieldKind } from "../modular-schema";
-import { ITreeSubscriptionCursorState } from "../../forest";
-import { ProxyTarget } from "./editableTree";
 
 /**
  * @returns true iff `schema` trees should default to being viewed as just their value when possible.
@@ -88,16 +85,4 @@ export function adaptWithProxy<From extends object, To extends object>(
 
 export function getArrayOwnKeys(length: number): string[] {
     return Object.getOwnPropertyNames(Array.from(Array(length)));
-}
-
-export interface PreparedForEdit extends ProxyTarget {
-    anchor: Anchor;
-}
-
-export function assertPreparedForEdit(target: ProxyTarget): asserts target is PreparedForEdit {
-    const cursorStates = ITreeSubscriptionCursorState;
-    if (target.lazyCursor.state !== cursorStates.Cleared) {
-        throw new Error("EditableTree's cursor must be cleared before editing.");
-    }
-    assert(target.anchor !== undefined, "EditableTree should have an anchor before editing.");
 }
