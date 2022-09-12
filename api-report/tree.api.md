@@ -359,7 +359,7 @@ export interface GenericTreeNode<TChild> extends NodeData {
 }
 
 // @public
-export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<SequenceEditBuilder>): [
+export function getEditableTree(forest: IEditableForest, sharedTree?: ISharedTree): [
 EditableTreeContext,
 UnwrappedEditableField
 ];
@@ -762,9 +762,6 @@ export interface NodeData {
     value?: TreeValue;
 }
 
-// @public (undocumented)
-export type NodePath = UpPath;
-
 // @public
 export interface NodePath extends UpPath {
 }
@@ -802,12 +799,6 @@ export interface PlacePath extends UpPath {
 export type PrimitiveValue = string | boolean | number;
 
 // @public (undocumented)
-export type PlacePath = UpPath;
-
-// @public (undocumented)
-export type PrimitiveValue = string | boolean | number;
-
-// @public (undocumented)
 export abstract class ProgressiveEditBuilder<TChange> {
     constructor(changeFamily: ChangeFamily<unknown, TChange>, deltaReceiver: (delta: Delta.Root) => void, anchorSet: AnchorSet);
     // @sealed
@@ -821,9 +812,6 @@ export type ProtoNode = JsonableTree;
 
 // @public
 type ProtoNode_2 = JsonableTree;
-
-// @public
-export const proxyTargetSymbol: unique symbol;
 
 // @public
 export const proxyTargetSymbol: unique symbol;

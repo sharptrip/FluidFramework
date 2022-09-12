@@ -17,7 +17,7 @@ import {
 } from "../../../feature-libraries";
 
 import { TestTreeProvider } from "../../utils";
-import { SharedTree } from "../../../shared-tree";
+import { ISharedTree } from "../../../shared-tree";
 import { TransactionResult } from "../../../checkout";
 
 // eslint-disable-next-line import/no-internal-modules
@@ -168,7 +168,7 @@ const personData: JsonableTree = {
     },
 };
 
-async function setupForest(schema: SchemaData, data: JsonableTree): Promise<SharedTree> {
+async function setupForest(schema: SchemaData, data: JsonableTree): Promise<ISharedTree> {
     const provider = await TestTreeProvider.create(2);
     assert(provider.trees[0].isAttached());
     const tree = provider.trees[0];
@@ -217,9 +217,12 @@ describe.only("editing with editable-tree", () => {
         assert.equal(person.address.street, "bla");
         person.age = newAge;
         assert.strictEqual(person.age, newAge);
-        const phonse = person.address.phones;
-        phonse[1] = 123;
+        const phones = person.address.phones;
+        phones[1] = 123;
         assert.equal(person.address.phones[1], 123);
+        assert.throws(() => {
+            phones[2] = { number: "123", prefix: "456" } as any;
+        });
         context.free();
     });
 
@@ -227,7 +230,12 @@ describe.only("editing with editable-tree", () => {
         const [context, person] = await buildTestPerson();
         assert.equal("zip" in person.address, false);
         assert.equal(person.address.zip, undefined);
-        person.address.zip = "99038";
+        const addressType = person.address[getTypeSymbol]();
+        assert(addressType !== undefined);
+        const zipTypes = addressSchema.localFields.get(brand("zip"))?.types;
+        assert(zipTypes !== undefined);
+        assert(zipTypes.has(stringSchema.name));
+        (person.address.zip as unknown) = { type: stringSchema.name, value: "99038" };
         assert.equal(person.address.zip, "99038");
         assert.equal("zip" in person.address, true);
         context.free();

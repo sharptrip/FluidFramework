@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 import { assert } from "@fluidframework/common-utils";
-import { FieldKey, Value, Anchor } from "../../tree";
+import { FieldKey, Value, Anchor, JsonableTree } from "../../tree";
 import {
     IEditableForest, TreeNavigationResult, mapCursorField, ITreeSubscriptionCursor, ITreeSubscriptionCursorState,
 } from "../../forest";
@@ -12,8 +12,9 @@ import {
     FieldSchema, rootFieldKey, LocalFieldKey, TreeSchemaIdentifier, TreeSchema, ValueSchema,
 } from "../../schema-stored";
 import { FieldKind, Multiplicity } from "../modular-schema";
-import { ICheckout, TransactionResult } from "../../checkout";
-import { SequenceEditBuilder } from "../sequence-change-family";
+import { TransactionResult } from "../../checkout";
+import { ISharedTree } from "../../shared-tree";
+import { NodePath, SequenceEditBuilder } from "../sequence-change-family";
 import { singleTextCursor } from "../treeTextCursor";
 import {
     AdaptingProxyHandler,
@@ -148,7 +149,7 @@ class ProxyContext implements EditableTreeContext {
     public readonly withAnchors: Set<ProxyTarget> = new Set();
     constructor(
         public readonly forest: IEditableForest,
-        public readonly tree?: ICheckout<SequenceEditBuilder>,
+        public readonly tree?: ISharedTree,
     ) {}
 
     public prepareForEdit(): void {
@@ -157,6 +158,7 @@ class ProxyContext implements EditableTreeContext {
         }
         assert(this.withCursors.size === 0, "prepareForEdit should remove all cursors");
     }
+
     public free(): void {
         for (const target of this.withCursors) {
             target.free();
@@ -166,6 +168,27 @@ class ProxyContext implements EditableTreeContext {
         }
         assert(this.withCursors.size === 0, "free should remove all cursors");
         assert(this.withAnchors.size === 0, "free should remove all anchors");
+    }
+
+    public setNodeValue(path: NodePath, value: unknown): boolean {
+        return this.runTransaction((editor) => editor.setValue(path, value));
+    }
+
+    public insertNode(path: NodePath, node: JsonableTree): boolean {
+        return this.runTransaction((editor) => editor.insert(path, singleTextCursor(node)));
+    }
+
+    public deleteNode(path: NodePath, count: number): boolean {
+        return this.runTransaction((editor) => editor.delete(path, count));
+    }
+
+    private runTransaction(f: (editor: SequenceEditBuilder) => void): boolean {
+        assert(this.tree !== undefined, "Transaction-based editing requires SharedTree");
+        const result = this.tree.runTransaction((forest, editor) => {
+            f(editor);
+            return TransactionResult.Apply;
+        });
+        return result === TransactionResult.Apply;
     }
 }
 
@@ -326,58 +349,51 @@ export class ProxyTarget {
      * This is correct only if sequence fields are unwrapped into arrays.
      */
     public setValue(key: string, _value: unknown): boolean {
-        assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
         const primary = this.getPrimaryArrayKey();
         const index = Number(key);
         const k: FieldKey = primary === undefined ? brand(key) : primary;
         const childTargets = mapCursorField(this.cursor, k, (c) => new ProxyTarget(this.context, c));
         const target = primary === undefined ? childTargets[0] : childTargets[index];
+        const type = target.getType() as TreeSchema;
+        assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
         this.context.prepareForEdit();
         assertPreparedForEdit(target);
         const path = this.context.forest.anchors.locate(target.anchor);
-        assert(path !== undefined, "Cannot locate a path to set a value");
-        return this.context.tree.runTransaction((forest, editor) => {
-            editor.setValue(path, _value);
-            return TransactionResult.Apply;
-        }) === TransactionResult.Apply;
+        assert(path !== undefined, "Can't locate a path to set a value");
+        return this.context.setNodeValue(path, _value);
     }
 
     public insertNode(key: string, _value: unknown): boolean {
-        assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
-        const fields = (this.getType() as TreeSchema).localFields;
-        const types = fields?.get(brand(key))?.types;
-        assert(types !== undefined, "Unknown type");
-        const nodeTypeName = [...types][0];
+        const type = this.getType() as TreeSchema;
+        let nodeValue = _value;
+        if (isPrimitive(type)) {
+            const types = type.localFields?.get(brand(key))?.types;
+            assert(types !== undefined, "Unknown primitive field type");
+            const nodeTypeName = [...types][0];
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            nodeValue = { type: nodeTypeName, value: _value } as JsonableTree;
+        }
         this.context.prepareForEdit();
         assertPreparedForEdit(this);
         const path = this.context.forest.anchors.locate(this.anchor);
-        assert(path !== undefined, "Cannot locate a path to set a value");
-        // TODO: support proxy and JsonableTree
-        return this.context.tree.runTransaction((forest, editor) => {
-            const cursor = singleTextCursor({ type: nodeTypeName, value: _value });
-            editor.insert({
-                parent: path,
-                parentField: brand(key),
-                parentIndex: 0,
-            }, cursor);
-            return TransactionResult.Apply;
-        }) === TransactionResult.Apply;
+        assert(path !== undefined, "Can't locate a path to insert a node");
+        return this.context.insertNode({
+            parent: path,
+            parentField: brand(key),
+            parentIndex: 0,
+        }, nodeValue as JsonableTree);
     }
 
     public deleteNode(key: string): boolean {
-        assert(this.context.tree !== undefined, "Transaction-based editing requires SharedTree");
         this.context.prepareForEdit();
         assertPreparedForEdit(this);
         const path = this.context.forest.anchors.locate(this.anchor);
-        assert(path !== undefined, "Cannot locate a path to set a value");
-        return this.context.tree.runTransaction((forest, editor) => {
-            editor.delete({
-                parent: path,
-                parentField: brand(key),
-                parentIndex: 0,
-            }, 1);
-            return TransactionResult.Apply;
-        }) === TransactionResult.Apply;
+        assert(path !== undefined, "Can't locate a path to delete a node");
+        return this.context.deleteNode({
+            parent: path,
+            parentField: brand(key),
+            parentIndex: 0,
+        }, 1);
     }
 }
 
@@ -535,7 +551,7 @@ function proxifyField(fieldKind: FieldKind, childTargets: ProxyTarget[]): Unwrap
  * Also returns an {@link EditableTreeContext} which is used manage the cursors and anchors within the EditableTrees:
  * This is necessary for supporting using this tree across edits to the forest, and not leaking memory.
  */
-export function getEditableTree(forest: IEditableForest, sharedTree?: ICheckout<SequenceEditBuilder>):
+export function getEditableTree(forest: IEditableForest, sharedTree?: ISharedTree):
     [EditableTreeContext, UnwrappedEditableField] {
     const context = new ProxyContext(forest, sharedTree);
 
