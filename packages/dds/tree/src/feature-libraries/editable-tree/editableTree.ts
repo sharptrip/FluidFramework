@@ -9,7 +9,7 @@ import {
 } from "../../forest";
 import { brand } from "../../util";
 import {
-    FieldSchema, rootFieldKey, LocalFieldKey, TreeSchemaIdentifier, TreeSchema, ValueSchema,
+    FieldSchema, LocalFieldKey, TreeSchemaIdentifier, TreeSchema, ValueSchema,
 } from "../../schema-stored";
 import { FieldKind, Multiplicity } from "../modular-schema";
 import { TransactionResult } from "../../checkout";
