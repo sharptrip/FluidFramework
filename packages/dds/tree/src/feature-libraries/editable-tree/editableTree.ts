@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 import { assert } from "@fluidframework/common-utils";
-import { FieldKey, Value, Anchor, JsonableTree } from "../../tree";
+import { FieldKey, Value, Anchor, rootFieldKey, JsonableTree } from "../../tree";
 import {
     IEditableForest, TreeNavigationResult, mapCursorField, ITreeSubscriptionCursor, ITreeSubscriptionCursorState,
 } from "../../forest";
@@ -183,7 +183,7 @@ class ProxyContext implements EditableTreeContext {
 
     private runTransaction(f: (editor: SequenceEditBuilder) => void): boolean {
         assert(this.tree !== undefined, "Transaction-based editing requires SharedTree");
-        const result = this.tree.runTransaction((forest, editor) => {
+        const result = this.tree?.runTransaction((forest, editor) => {
             f(editor);
             return TransactionResult.Apply;
         });
