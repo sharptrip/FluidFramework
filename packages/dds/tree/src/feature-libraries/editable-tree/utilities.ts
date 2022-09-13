@@ -29,7 +29,7 @@ export function isPrimitive(schema: TreeSchema): boolean {
 export type PrimitiveValue = string | boolean | number;
 
 export function isPrimitiveValue(nodeValue: Value): nodeValue is PrimitiveValue {
-    return typeof nodeValue !== "object";
+    return nodeValue !== undefined && typeof nodeValue !== "object";
 }
 
 export function getPrimaryField(schema: TreeSchema): { key: LocalFieldKey; schema: FieldSchema; } | undefined {
@@ -84,9 +84,5 @@ export function adaptWithProxy<From extends object, To extends object>(
 }
 
 export function getArrayOwnKeys(length: number): string[] {
-    const keys: string[] = ["length"];
-    for (let i = 0; i < length; i++) {
-        keys.push(String(i));
-    }
-    return keys;
+    return Object.getOwnPropertyNames(Array.from(Array(length)));
 }
