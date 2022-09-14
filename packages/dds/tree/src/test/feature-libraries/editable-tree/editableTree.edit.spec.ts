@@ -2,18 +2,16 @@
 * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
 * Licensed under the MIT License.
 */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable max-len */
 import { fail, strict as assert } from "assert";
-import { NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData, TreeSchemaIdentifier, rootFieldKey } from "../../../schema-stored";
-import { IEditableForest, initializeForest } from "../../../forest";
-import { JsonableTree, EmptyKey, Value, detachedFieldAsKey } from "../../../tree";
-import { brand, Brand, clone } from "../../../util";
 import {
-    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, getTypeSymbol, UnwrappedEditableField,
-    proxyTargetSymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive, singleTextCursor,
-    isPrimitiveValue, isPrimitive, Multiplicity, UnwrappedEditableTree, EditableTreeContext, ForestIndex,
+    NamedTreeSchema, namedTreeSchema, ValueSchema, fieldSchema, SchemaData, TreeSchemaIdentifier,
+} from "../../../schema-stored";
+import { JsonableTree, EmptyKey, detachedFieldAsKey, rootFieldKey } from "../../../tree";
+import { brand, Brand } from "../../../util";
+import {
+    getEditableTree, EditableTree, getTypeSymbol, UnwrappedEditableField,
+    emptyField, FieldKinds, singleTextCursor,
+    EditableTreeContext,
 } from "../../../feature-libraries";
 
 import { ITestTreeProvider, TestTreeProvider } from "../../utils";
@@ -99,7 +97,17 @@ const optionalChildSchema = namedTreeSchema({
 
 const emptyNode: JsonableTree = { type: optionalChildSchema.name };
 
-const schemaTypes: Set<NamedTreeSchema> = new Set([optionalChildSchema, stringSchema, float32Schema, int32Schema, complexPhoneSchema, phonesSchema, addressSchema, mapStringSchema, personSchema]);
+const schemaTypes: Set<NamedTreeSchema> = new Set([
+    optionalChildSchema,
+    stringSchema,
+    float32Schema,
+    int32Schema,
+    complexPhoneSchema,
+    phonesSchema,
+    addressSchema,
+    mapStringSchema,
+    personSchema,
+]);
 
 const schemaMap: Map<TreeSchemaIdentifier, NamedTreeSchema> = new Map();
 for (const named of schemaTypes) {

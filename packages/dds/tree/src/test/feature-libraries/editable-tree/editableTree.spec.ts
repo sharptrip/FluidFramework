@@ -5,7 +5,6 @@
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable max-len */
 import { fail, strict as assert } from "assert";
 import {
     NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData,
@@ -15,7 +14,8 @@ import { IEditableForest, initializeForest } from "../../../forest";
 import { JsonableTree, EmptyKey, Value, rootFieldKey } from "../../../tree";
 import { brand, Brand, clone } from "../../../util";
 import {
-    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, getTypeSymbol, UnwrappedEditableField, UnwrappedEditableTree,
+    defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, getTypeSymbol,
+    UnwrappedEditableField, UnwrappedEditableTree,
     proxyTargetSymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive, isPrimitiveValue, Multiplicity,
 } from "../../../feature-libraries";
 
@@ -101,7 +101,17 @@ const optionalChildSchema = namedTreeSchema({
 
 const emptyNode: JsonableTree = { type: optionalChildSchema.name };
 
-const schemaTypes: Set<NamedTreeSchema> = new Set([optionalChildSchema, stringSchema, float32Schema, int32Schema, complexPhoneSchema, phonesSchema, addressSchema, mapStringSchema, personSchema]);
+const schemaTypes: Set<NamedTreeSchema> = new Set([
+    optionalChildSchema,
+    stringSchema,
+    float32Schema,
+    int32Schema,
+    complexPhoneSchema,
+    phonesSchema,
+    addressSchema,
+    mapStringSchema,
+    personSchema,
+]);
 
 const schemaMap: Map<TreeSchemaIdentifier, NamedTreeSchema> = new Map();
 for (const named of schemaTypes) {
@@ -242,7 +252,7 @@ function expectTreeSequence(field: UnwrappedEditableField, expected: JsonableTre
     }
 }
 
-describe("editable-tree", () => {
+describe.only("editable-tree", () => {
     it("proxified forest", () => {
         const proxy = buildTestPerson();
         assert.ok(proxy);
@@ -282,7 +292,10 @@ describe("editable-tree", () => {
         // Check empty field does not show up:
         assert.equal("child" in emptyOptional, false);
 
-        const fullOptional = buildTestProxy({ type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: 1 }] } }) as object;
+        const fullOptional = buildTestProxy({
+            type: optionalChildSchema.name,
+            fields: { child: [{ type: int32Schema.name, value: 1 }] },
+        }) as object;
         // Check full field does show up:
         assert("child" in fullOptional);
 
@@ -372,7 +385,9 @@ describe("editable-tree", () => {
             treeSchema: schemaMap,
             globalFieldSchema: new Map([[rootFieldKey, rootSchema]]),
         };
-        const forest = setupForest(schemaData, [{ type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: 1 }] } }]);
+        const forest = setupForest(schemaData, [{
+            type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: 1 }] },
+        }]);
         const [context, field] = getEditableTree(forest);
         assert.equal((field as EditableTree).child, 1);
         context.free();
@@ -384,7 +399,9 @@ describe("editable-tree", () => {
             treeSchema: schemaMap,
             globalFieldSchema: new Map([[rootFieldKey, rootSchema]]),
         };
-        const forest = setupForest(schemaData, [{ type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: undefined }] } }]);
+        const forest = setupForest(schemaData, [{
+            type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: undefined }] },
+        }]);
         const [context, field] = getEditableTree(forest);
         assert.throws(() => ((field as EditableTree).child), /`undefined` values not allowed for primitive fields/);
         context.free();
@@ -408,7 +425,9 @@ describe("editable-tree", () => {
         // }
         // Non-empty
         {
-            const forest = setupForest(schemaData, [{ type: phonesSchema.name, fields: { [EmptyKey]: [{ type: int32Schema.name, value: 1 }] } }]);
+            const forest = setupForest(schemaData, [{
+                type: phonesSchema.name, fields: { [EmptyKey]: [{ type: int32Schema.name, value: 1 }] },
+            }]);
             const [context, field] = getEditableTree(forest);
             assert.deepStrictEqual((field as UnwrappedEditableTree[])[0], 1);
             context.free();

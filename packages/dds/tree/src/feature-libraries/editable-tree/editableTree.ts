@@ -15,7 +15,7 @@ import { FieldKind, Multiplicity } from "../modular-schema";
 import { TransactionResult } from "../../checkout";
 import { ISharedTree } from "../../shared-tree";
 import { NodePath, SequenceEditBuilder } from "../sequence-change-family";
-import { singleTextCursor } from "../treeTextCursor";
+import { singleTextCursor } from "../treeTextCursorLegacy";
 import {
     AdaptingProxyHandler,
     adaptWithProxy,
@@ -446,7 +446,7 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             const primaryKey = target.primaryKey;
             if (primaryKey !== undefined) {
                 const array = mockArray(target);
-                return array[Symbol.iterator]();
+                return array[Symbol.iterator];
             }
         }
         return undefined;

@@ -23,7 +23,8 @@ export { ITreeCursor, TreeNavigationResult, IEditableForest,
     ITreeSubscriptionCursor,
     ITreeSubscriptionCursorState,
     SynchronousNavigationResult,
-    initializeForest,
+    ITreeCursorNew,
+    CursorLocationType,
 } from "./forest";
 
 export {
@@ -119,6 +120,9 @@ export {
     valueSymbol,
     proxyTargetSymbol,
     defaultSchemaPolicy,
+    singleTextCursorNew,
+    TextCursorNew,
+    jsonableTreeFromCursorNew,
     PrimitiveValue,
     SequenceEditBuilder,
     SequenceChangeset,
