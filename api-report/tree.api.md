@@ -114,6 +114,12 @@ export interface Covariant<T> {
     _removeContravariance?: T;
 }
 
+// @public (undocumented)
+export const enum CursorLocationType {
+    Fields = 1,
+    Nodes = 0
+}
+
 // @public
 export function cursorToJsonObject(reader: ITreeCursor): JsonCompatible;
 
@@ -134,15 +140,9 @@ declare namespace Delta {
         Root,
         empty,
         Mark,
-        OuterMark,
-        InnerModify,
         MarkList,
         Skip_2 as Skip,
         Modify,
-        ModifyDeleted,
-        ModifyMovedOut,
-        ModifyMovedIn,
-        ModifyInserted,
         Delete,
         ModifyAndDelete,
         MoveOut,
@@ -329,7 +329,7 @@ export interface FieldMap<TChild> {
 type FieldMap_2<T> = Map<FieldKey, T>;
 
 // @public (undocumented)
-type FieldMarks<TMark> = FieldMap_2<MarkList<TMark>>;
+type FieldMarks = FieldMap_2<MarkList>;
 
 // @public (undocumented)
 export interface FieldSchema {
@@ -412,9 +412,6 @@ export interface IForestSubscription extends Dependee {
 }
 
 // @public
-type InnerModify = ModifyDeleted | ModifyInserted | ModifyMovedIn | ModifyMovedOut;
-
-// @public
 function inputLength(mark: Mark): number;
 
 // @public
@@ -430,7 +427,7 @@ interface InsertAndModify {
     // (undocumented)
     content: ProtoNode_2;
     // (undocumented)
-    fields: FieldMarks<Skip_2 | ModifyInserted | MoveIn | MoveInAndModify>;
+    fields: FieldMarks;
     // (undocumented)
     type: typeof MarkType.InsertAndModify;
 }
@@ -480,6 +477,33 @@ export interface ITreeCursor<TResult = TreeNavigationResult> {
 }
 
 // @public
+export interface ITreeCursorNew {
+    readonly chunkLength: number;
+    readonly chunkStart: number;
+    enterField(key: FieldKey): void;
+    enterNode(childIndex: number): void;
+    exitField(): void;
+    exitNode(): void;
+    readonly fieldIndex: number;
+    firstField(): boolean;
+    firstNode(): boolean;
+    getFieldKey(): FieldKey;
+    // (undocumented)
+    getFieldLength(): number;
+    // (undocumented)
+    getPath(): UpPath | undefined;
+    readonly mode: CursorLocationType;
+    nextField(): boolean;
+    nextNode(): boolean;
+    // (undocumented)
+    readonly pending: boolean;
+    seekNodes(offset: number): boolean;
+    skipPendingFields(): boolean;
+    readonly type: TreeType;
+    readonly value: Value;
+}
+
+// @public
 export interface ITreeSubscriptionCursor extends ITreeCursor {
     buildAnchor(): Anchor;
     clear(): void;
@@ -503,6 +527,9 @@ export interface JsonableTree extends PlaceholderTree {
 
 // @public
 export function jsonableTreeFromCursor(cursor: ITreeCursor): JsonableTree;
+
+// @public
+export function jsonableTreeFromCursorNew(cursor: ITreeCursorNew): JsonableTree;
 
 // @public (undocumented)
 export const jsonArray: NamedTreeSchema;
@@ -571,10 +598,10 @@ export interface MakeNominal {
 }
 
 // @public
-type Mark = OuterMark | InnerModify;
+type Mark = Skip_2 | Modify | Delete | MoveOut | MoveIn | Insert | ModifyAndDelete | ModifyAndMoveOut | MoveInAndModify | InsertAndModify;
 
 // @public
-type MarkList<TMark = Mark> = TMark[];
+type MarkList = Mark[];
 
 // @public (undocumented)
 const MarkType: {
@@ -592,7 +619,7 @@ const MarkType: {
 // @public
 interface Modify {
     // (undocumented)
-    fields?: FieldMarks<OuterMark>;
+    fields?: FieldMarks;
     // (undocumented)
     setValue?: Value;
     // (undocumented)
@@ -602,7 +629,7 @@ interface Modify {
 // @public
 interface ModifyAndDelete {
     // (undocumented)
-    fields: FieldMarks<Skip_2 | ModifyDeleted | MoveOut>;
+    fields: FieldMarks;
     // (undocumented)
     type: typeof MarkType.ModifyAndDelete;
 }
@@ -610,46 +637,12 @@ interface ModifyAndDelete {
 // @public
 interface ModifyAndMoveOut {
     // (undocumented)
-    fields?: FieldMarks<Skip_2 | ModifyMovedOut | Delete | MoveOut>;
+    fields?: FieldMarks;
     moveId: MoveId;
     // (undocumented)
     setValue?: Value;
     // (undocumented)
     type: typeof MarkType.ModifyAndMoveOut;
-}
-
-// @public
-interface ModifyDeleted {
-    // (undocumented)
-    fields: FieldMarks<Skip_2 | ModifyDeleted | ModifyAndMoveOut | MoveOut>;
-    // (undocumented)
-    type: typeof MarkType.Modify;
-}
-
-// @public
-interface ModifyInserted {
-    // (undocumented)
-    fields: FieldMarks<Skip_2 | ModifyInserted | MoveIn | MoveInAndModify>;
-    // (undocumented)
-    type: typeof MarkType.Modify;
-}
-
-// @public
-interface ModifyMovedIn {
-    // (undocumented)
-    fields: FieldMarks<Skip_2 | ModifyMovedIn | MoveIn | MoveInAndModify | Insert | InsertAndModify>;
-    // (undocumented)
-    type: typeof MarkType.Modify;
-}
-
-// @public
-interface ModifyMovedOut {
-    // (undocumented)
-    fields?: FieldMarks<Skip_2 | ModifyMovedOut | Delete | ModifyAndDelete | ModifyAndMoveOut | MoveOut>;
-    // (undocumented)
-    setValue?: Value;
-    // (undocumented)
-    type: typeof MarkType.Modify;
 }
 
 // @public @sealed
@@ -697,7 +690,7 @@ interface MoveIn {
 // @public
 interface MoveInAndModify {
     // (undocumented)
-    fields: FieldMarks<Skip_2 | ModifyMovedIn | MoveIn | Insert>;
+    fields: FieldMarks;
     moveId: MoveId;
     // (undocumented)
     type: typeof MarkType.MoveInAndModify;
@@ -801,9 +794,6 @@ export type OpId = number;
 const optional: FieldKind;
 
 // @public
-type OuterMark = Skip_2 | Modify | Delete | MoveOut | MoveIn | Insert | ModifyAndDelete | ModifyAndMoveOut | MoveInAndModify | InsertAndModify;
-
-// @public
 export type PlaceholderTree<TPlaceholder = never> = GenericTreeNode<PlaceholderTree<TPlaceholder>> | TPlaceholder;
 
 // @public
@@ -866,7 +856,7 @@ function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>>;
 export type RevisionTag = Brand<number, "rebaser.RevisionTag">;
 
 // @public
-type Root = FieldMarks<OuterMark>;
+type Root = FieldMarks;
 
 // @public
 export interface RootField {
@@ -948,6 +938,9 @@ export class SimpleDependee implements Dependee {
 export function singleTextCursor(root: JsonableTree): TextCursor;
 
 // @public (undocumented)
+export function singleTextCursorNew(root: JsonableTree): TextCursorNew;
+
+// @public (undocumented)
 export type Skip = number;
 
 // @public
@@ -1014,6 +1007,51 @@ export class TextCursor implements ITreeCursor<SynchronousNavigationResult> {
     get type(): TreeType;
     // (undocumented)
     up(): SynchronousNavigationResult;
+    // (undocumented)
+    get value(): Value;
+}
+
+// @public
+export class TextCursorNew implements ITreeCursorNew {
+    constructor(root: JsonableTree);
+    // (undocumented)
+    get chunkLength(): number;
+    // (undocumented)
+    get chunkStart(): number;
+    // (undocumented)
+    enterField(key: FieldKey): void;
+    // (undocumented)
+    enterNode(index: number): void;
+    // (undocumented)
+    exitField(): void;
+    // (undocumented)
+    exitNode(): void;
+    // (undocumented)
+    get fieldIndex(): number;
+    // (undocumented)
+    firstField(): boolean;
+    // (undocumented)
+    firstNode(): boolean;
+    // (undocumented)
+    getFieldKey(): FieldKey;
+    // (undocumented)
+    getFieldLength(): number;
+    // (undocumented)
+    getPath(): UpPath | undefined;
+    // (undocumented)
+    get mode(): CursorLocationType;
+    // (undocumented)
+    nextField(): boolean;
+    // (undocumented)
+    nextNode(): boolean;
+    // (undocumented)
+    get pending(): boolean;
+    // (undocumented)
+    seekNodes(offset: number): boolean;
+    // (undocumented)
+    skipPendingFields(): boolean;
+    // (undocumented)
+    get type(): TreeType;
     // (undocumented)
     get value(): Value;
 }
