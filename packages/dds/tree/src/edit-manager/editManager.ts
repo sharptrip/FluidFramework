@@ -47,10 +47,6 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
     ) { }
 
     public setLocalSessionId(id: SessionId) {
-        if (this.localSessionId === undefined || this.localSessionId === id) {
-            return;
-        }
-            // 0x3a1 /* Local session ID cannot be changed */);
         this.localSessionId = id;
     }
 
@@ -234,9 +230,7 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
         }
         // If there is no corresponding commit, we assume `pred` refers to initial state of the DDS.
         const firstIndex = (this.getCommitIndex(pred) ?? -1) + 1;
-        const lastIndex = this.getCommitIndex(last)
-            ?? this.getCommitIndex(this.getLastCommit()?.seqNumber ?? fail("No sequenced changes"))
-            ?? fail("Unknown sequence number");
+        const lastIndex = this.getCommitIndex(last) ?? fail("Unknown sequence number");
         return this.trunk.slice(firstIndex, lastIndex + 1);
     }
 
@@ -251,8 +245,12 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
     }
 
     private getCommitIndex(seqNumber: SeqNumber): number | undefined {
-        const index = this.trunk.findIndex((commit) => commit.seqNumber === seqNumber);
-        return index === -1 ? undefined : index;
+        for (let index = this.trunk.length - 1; index >= 0; --index) {
+            if (this.trunk[index].seqNumber <= seqNumber) {
+                return index;
+            }
+        }
+        return undefined;
     }
 
     private getOrCreateBranch(sessionId: SessionId, refSeq: SeqNumber): Branch<TChangeset> {

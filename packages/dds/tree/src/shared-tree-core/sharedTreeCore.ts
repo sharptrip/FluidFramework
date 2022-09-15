@@ -143,9 +143,6 @@ export class SharedTreeCore<TChange, TChangeFamily extends ChangeFamily<any, TCh
             changeset: changes,
         };
 
-        if (commit.sessionId === this.runtime.clientId) {
-            return;
-        }
         const delta = this.editManager.addSequencedChange(commit);
         const sequencedChange = this.editManager.getLastSequencedChange();
         for (const index of this.indexes) {
