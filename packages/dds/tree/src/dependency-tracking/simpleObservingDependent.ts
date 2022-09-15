@@ -4,7 +4,6 @@
  */
 
 import { assert } from "@fluidframework/common-utils";
-import { Delta } from "../tree";
 import { Dependee, InvalidationToken } from "./dependencies";
 import { ObservingDependent } from "./incrementalObservation";
 
@@ -15,7 +14,7 @@ export class SimpleObservingDependent implements ObservingDependent {
     private _dependees: Dependee[] = [];
 
     public constructor(
-        public readonly markInvalid: (token?: InvalidationToken, delta?: Delta.Root) => void,
+        public readonly markInvalid: (token?: InvalidationToken) => void,
         public readonly computationName = "SimpleObservingDependent",
     ) {}
 
