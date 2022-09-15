@@ -165,10 +165,6 @@ const personData: JsonableTree = {
     },
 };
 
-async function delay(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function buildProxy(tree: ISharedTree, initiate: boolean = false) {
 	// const rootType: TreeSchemaIdentifier = brand("Test:Person-1.0.0");
 	// const schema = new StoredSchemaRepository(defaultSchemaPolicy, fullSchemaData);
@@ -193,8 +189,6 @@ export async function buildProxy(tree: ISharedTree, initiate: boolean = false) {
     for (const [key, value] of fullSchemaData.treeSchema) {
         forest.schema.updateTreeSchema(key, value);
     }
-
-    await delay(2000);
 
     if (initiate) {
         tree.runTransaction((_forest, editor) => {

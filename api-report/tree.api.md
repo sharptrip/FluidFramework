@@ -943,14 +943,14 @@ export class SimpleDependee implements Dependee {
 
 // @public
 export class SimpleObservingDependent implements ObservingDependent {
-    constructor(markInvalid: (token?: InvalidationToken, delta?: Delta.Root) => void, computationName?: string);
+    constructor(markInvalid: (token?: InvalidationToken) => void, computationName?: string);
     // (undocumented)
     readonly computationName: string;
     dispose(): void;
     // (undocumented)
     listDependees(): readonly Dependee[];
     // (undocumented)
-    readonly markInvalid: (token?: InvalidationToken, delta?: Delta.Root) => void;
+    readonly markInvalid: (token?: InvalidationToken) => void;
     // (undocumented)
     registerDependee(dependee: Dependee): void;
     unregisterDependees(): void;

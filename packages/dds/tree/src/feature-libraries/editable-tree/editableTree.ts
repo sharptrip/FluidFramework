@@ -149,13 +149,11 @@ export interface EditableTreeContext {
     registerAfterHandler<T extends (() => void)>(afterHandler: T): void;
 }
 
-type afterHandler = () => void;
-
 class ProxyContext implements EditableTreeContext {
     public readonly withCursors: Set<ProxyTarget> = new Set();
     public readonly withAnchors: Set<ProxyTarget> = new Set();
     private readonly observers: Dependent[] = [];
-    private readonly afterHandlers: Set<afterHandler> = new Set();
+    private readonly afterHandlers: Set<(() => void)> = new Set();
     constructor(
         public readonly forest: IEditableForest,
         public readonly tree?: ISharedTree,
@@ -184,7 +182,7 @@ class ProxyContext implements EditableTreeContext {
 
     public prepareForEdit(): void {
         for (const target of this.withCursors) {
-            target.prepareForEdit();
+            target.anchorForEdit();
         }
         assert(this.withCursors.size === 0, "prepareForEdit should remove all cursors");
     }
@@ -250,7 +248,7 @@ class ProxyTarget {
         public readonly primaryParent?: ProxyTarget,
     ) {
         this.lazyCursor = cursor.fork();
-        this.prepareForEdit();
+        this.context.withCursors.add(this);
     }
 
     public free(): void {
@@ -263,13 +261,14 @@ class ProxyTarget {
         }
     }
 
-    public prepareForEdit(): void {
+    public anchorForEdit(): Anchor {
         if (this._anchor === undefined) {
             this._anchor = this.lazyCursor.buildAnchor();
             this.context.withAnchors.add(this);
         }
         this.lazyCursor.clear();
         this.context.withCursors.delete(this);
+        return this._anchor;
     }
 
     public get cursor(): ITreeSubscriptionCursor {
@@ -303,7 +302,6 @@ class ProxyTarget {
                 typeName = childTypes[0];
             }
         }
-        this.prepareForEdit();
         if (nameOnly) {
             return typeName;
         }
@@ -314,9 +312,7 @@ class ProxyTarget {
     }
 
     get value(): Value {
-        const value = this.cursor.value;
-        this.prepareForEdit();
-        return value;
+        return this.cursor.value;
     }
 
     public lookupFieldKind(key: string): FieldKind {
@@ -328,7 +324,6 @@ class ProxyTarget {
         const keys: string[] = [];
         const length = this.getPrimaryArrayLength();
         if (length !== undefined) {
-            this.prepareForEdit();
             return Object.getOwnPropertyNames(Array.from(Array(length)));
         }
         for (const key of this.cursor.keys) {
@@ -337,7 +332,6 @@ class ProxyTarget {
                 keys.push(key as string);
             }
         }
-        this.prepareForEdit();
         return keys;
     }
 
@@ -346,15 +340,12 @@ class ProxyTarget {
         if (primaryKey !== undefined) {
             if (this.cursor.down(primaryKey, Number(key)) === TreeNavigationResult.Ok) {
                 this.cursor.up();
-                this.prepareForEdit();
                 return true;
             }
             return false;
         }
         // Make fields present only if non-empty.
-        const res = this.cursor.length(brand(key)) !== 0;
-        this.prepareForEdit();
-        return res;
+        return this.cursor.length(brand(key)) !== 0;
     }
 
     /**
@@ -364,11 +355,9 @@ class ProxyTarget {
         const nodeType = this.getType() as TreeSchema;
         const primary = getPrimaryField(nodeType);
         if (primary === undefined) {
-            this.prepareForEdit();
             return undefined;
         }
         const kind = getFieldKind(primary.schema);
-        this.prepareForEdit();
         if (kind.multiplicity === Multiplicity.Sequence) {
             // TODO: this could have issues if there are non-primary keys
             // that can collide with the array APIs (length or integers).
@@ -392,18 +381,14 @@ class ProxyTarget {
         const fieldKind = this.lookupFieldKind(key as string);
         // Make the childTargets:
         const childTargets = mapCursorField(this.cursor, brand(key as string), (c) => new ProxyTarget(this.context, c));
-        this.prepareForEdit();
         return proxifyField(fieldKind, childTargets);
     }
 
     public getPrimaryArrayLength(): number | undefined {
         const primaryKey = this.primaryKey;
         if (primaryKey !== undefined) {
-            const length = this.cursor.length(primaryKey);
-            this.prepareForEdit();
-            return length;
+            return this.cursor.length(primaryKey);
         }
-        this.prepareForEdit();
         return undefined;
     }
 
@@ -419,9 +404,8 @@ class ProxyTarget {
         const target = primaryKey === undefined ? childTargets[0] : childTargets[index];
         const type = target.getType() as TreeSchema;
         assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
-        this.context.prepareForEdit();
+        const path = this.context.forest.anchors.locate(target.anchorForEdit());
         assertPreparedForEdit(target);
-        const path = this.context.forest.anchors.locate(target.anchor);
         assert(path !== undefined, "Can't locate a path to set a value");
         return this.context.setNodeValue(path, _value);
     }
@@ -436,9 +420,8 @@ class ProxyTarget {
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             nodeValue = { type: nodeTypeName, value: _value } as JsonableTree;
         }
-        this.context.prepareForEdit();
+        const path = this.context.forest.anchors.locate(this.anchorForEdit());
         assertPreparedForEdit(this);
-        const path = this.context.forest.anchors.locate(this.anchor);
         assert(path !== undefined, "Can't locate a path to insert a node");
         return this.context.insertNode({
             parent: path,
@@ -448,9 +431,8 @@ class ProxyTarget {
     }
 
     public deleteNode(key: string): boolean {
-        this.context.prepareForEdit();
+        const path = this.context.forest.anchors.locate(this.anchorForEdit());
         assertPreparedForEdit(this);
-        const path = this.context.forest.anchors.locate(this.anchor);
         assert(path !== undefined, "Can't locate a path to delete a node");
         return this.context.deleteNode({
             parent: path,
@@ -465,7 +447,6 @@ const mockArray = (target: ProxyTarget): UnwrappedEditableTree[] => {
     assert(primaryKey !== undefined, "no");
     const arr = mapCursorField(target.cursor, brand(primaryKey),
         (c) => inProxyOrUnwrap(new ProxyTarget(target.context, c, target)));
-    target.prepareForEdit();
     return arr;
 };
 
@@ -589,7 +570,6 @@ function inProxyOrUnwrap(target: ProxyTarget): UnwrappedEditableTree {
     if (isPrimitive(fieldSchema)) {
         const nodeValue = target.value;
         if (isPrimitiveValue(nodeValue)) {
-            target.prepareForEdit();
             return nodeValue;
         }
         assert(fieldSchema.value === ValueSchema.Serializable, "`undefined` values not allowed for primitive fields");
