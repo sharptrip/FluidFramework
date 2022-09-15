@@ -47,8 +47,10 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
     ) { }
 
     public setLocalSessionId(id: SessionId) {
-        assert(this.localSessionId === undefined || this.localSessionId === id,
-            0x3a1 /* Local session ID cannot be changed */);
+        if (this.localSessionId === undefined || this.localSessionId === id) {
+            return;
+        }
+            // 0x3a1 /* Local session ID cannot be changed */);
         this.localSessionId = id;
     }
 
@@ -232,7 +234,9 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
         }
         // If there is no corresponding commit, we assume `pred` refers to initial state of the DDS.
         const firstIndex = (this.getCommitIndex(pred) ?? -1) + 1;
-        const lastIndex = this.getCommitIndex(last) ?? fail("Unknown sequence number");
+        const lastIndex = this.getCommitIndex(last)
+            ?? this.getCommitIndex(this.getLastCommit()?.seqNumber ?? fail("No sequenced changes"))
+            ?? fail("Unknown sequence number");
         return this.trunk.slice(firstIndex, lastIndex + 1);
     }
 

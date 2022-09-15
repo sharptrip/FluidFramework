@@ -5,7 +5,7 @@
 
 export {
     Dependee, Dependent, NamedComputation, ObservingDependent, InvalidationToken, recordDependency,
-    SimpleDependee,
+    SimpleDependee, SimpleObservingDependent,
 } from "./dependency-tracking";
 
 export {

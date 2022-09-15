@@ -9,6 +9,7 @@ import * as React from "react";
 import { ErrorPopup } from "./ErrorPopup";
 import { IDeleteModalTextParameters } from "./DeleteModalTextParameters";
 import { InspectorModal } from "./InspectorModal";
+import { IRowData } from ".";
 
 const styles = () => ({
   cancelButton: {
@@ -34,11 +35,11 @@ const styles = () => ({
   },
 });
 
-export interface IDeleteOptions {
+export interface IDeleteOptions<T extends IRowData = any> {
   /**
    * The handler that is invoked if the user deciders to delete.
    */
-  handler: () => Promise<any>;
+   handler: (rowData: T, readonly: boolean) => any;
 }
 
 export interface IDeleteModalProps {

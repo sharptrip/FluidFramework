@@ -192,6 +192,7 @@ export interface EditableTree {
 export interface EditableTreeContext {
     free(): void;
     prepareForEdit(): void;
+    registerAfterHandler<T extends (() => void)>(afterHandler: T): void;
 }
 
 // @public
@@ -416,9 +417,6 @@ export interface IForestSubscription extends Dependee {
     readonly schema: StoredSchemaRepository;
     tryMoveCursorTo(destination: Anchor, cursorToMove: ITreeSubscriptionCursor, observer?: ObservingDependent): TreeNavigationResult;
 }
-
-// @public (undocumented)
-export function initializeForest(forest: IEditableForest, content: JsonableTree[]): void;
 
 // @public
 function inputLength(mark: Mark): number;
@@ -934,13 +932,28 @@ export class SimpleDependee implements Dependee {
     constructor(computationName?: string);
     // (undocumented)
     readonly computationName: string;
-    invalidateDependents(): void;
+    invalidateDependents(token?: InvalidationToken): void;
     // @sealed (undocumented)
     listDependents(): Set<Dependent>;
     // (undocumented)
     registerDependent(dependent: Dependent): boolean;
     // (undocumented)
     removeDependent(dependent: Dependent): void;
+}
+
+// @public
+export class SimpleObservingDependent implements ObservingDependent {
+    constructor(markInvalid: (token?: InvalidationToken, delta?: Delta.Root) => void, computationName?: string);
+    // (undocumented)
+    readonly computationName: string;
+    dispose(): void;
+    // (undocumented)
+    listDependees(): readonly Dependee[];
+    // (undocumented)
+    readonly markInvalid: (token?: InvalidationToken, delta?: Delta.Root) => void;
+    // (undocumented)
+    registerDependee(dependee: Dependee): void;
+    unregisterDependees(): void;
 }
 
 // @public (undocumented)

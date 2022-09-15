@@ -238,6 +238,8 @@ export interface IInspectorTableProps<T extends IRowData<T> = any> extends BaseT
   toTableRows?: (row: any, props: IToTableRowsProps,
     options?: Partial<IToTableRowsOptions>, pathPrefix?: string) => T[];
   columnsRenderers?: Record<string, (...props: any) => any>;
+
+  forceUpdate?: () => void;
 }
 
 export interface IInspectorSearchMatch {
@@ -301,7 +303,7 @@ export interface ColumnRendererType {
   };
 }
 
-export interface IEditableValueCellProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface IEditableValueCellProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onSubmit"> {
   /**
    * Indicates whether we are following references or not.
    * Defaults to true.
@@ -319,4 +321,8 @@ export interface IEditableValueCellProps extends React.InputHTMLAttributes<HTMLI
    * Indicates if read only mode is enabled
    */
   readOnly: boolean;
+  /**
+   *  A callback called upon submitting the field.
+   */
+   onSubmit: (val: string | number | boolean, props: IEditableValueCellProps) => void;
 }

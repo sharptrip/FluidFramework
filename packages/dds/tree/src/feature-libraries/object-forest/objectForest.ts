@@ -7,6 +7,7 @@ import { assert } from "@fluidframework/common-utils";
 import { jsonableTreeFromCursor, RootedTextCursor, singleTextCursor } from "../treeTextCursorLegacy";
 import {
     DisposingDependee, ObservingDependent, recordDependency, SimpleDependee, SimpleObservingDependent,
+    InvalidationToken,
 } from "../../dependency-tracking";
 import {
     ITreeCursor, ITreeSubscriptionCursor, IEditableForest,
@@ -165,6 +166,8 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
         };
         visitDelta(delta, visitor);
         cursor.free();
+
+        this.afterChange();
     }
 
     public observeItem(item: ObjectField | JsonableTree, observer: ObservingDependent | undefined): void {
@@ -224,8 +227,12 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     }
 
     private beforeChange(): void {
+        this.invalidateDependents(new InvalidationToken("beforeChange"));
         assert(this.currentCursors.size === 0, 0x374 /* No cursors can be current when modifying forest */);
-        this.invalidateDependents();
+    }
+
+    private afterChange(): void {
+        this.invalidateDependents(new InvalidationToken("afterChange", true));
     }
 
     tryMoveCursorTo(
