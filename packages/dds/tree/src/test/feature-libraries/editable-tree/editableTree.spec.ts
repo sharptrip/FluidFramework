@@ -15,7 +15,7 @@ import { JsonableTree, EmptyKey, Value, rootFieldKey } from "../../../tree";
 import { brand, Brand, clone } from "../../../util";
 import {
     defaultSchemaPolicy, getEditableTree, EditableTree, buildForest, getTypeSymbol,
-    UnwrappedEditableField, UnwrappedEditableTree,
+    UnwrappedEditableField, UnwrappedEditableTree, singleTextCursorNew,
     proxyTargetSymbol, emptyField, FieldKinds, valueSymbol, EditableTreeOrPrimitive, isPrimitiveValue, Multiplicity,
 } from "../../../feature-libraries";
 
@@ -183,7 +183,7 @@ const person: JsonableTree = {
 function setupForest(schema: SchemaData, data: JsonableTree[]): IEditableForest {
     const schemaRepo = new StoredSchemaRepository(defaultSchemaPolicy, schema);
     const forest = buildForest(schemaRepo);
-    initializeForest(forest, data);
+    initializeForest(forest, data.map(singleTextCursorNew));
     return forest;
 }
 
