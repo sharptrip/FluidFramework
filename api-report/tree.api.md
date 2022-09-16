@@ -1338,7 +1338,7 @@ class UnitEncoder extends ChangeEncoder<0> {
 export type UnwrappedEditableField = UnwrappedEditableTree | undefined | UnwrappedEditableFieldSequence;
 
 // @public (undocumented)
-export type UnwrappedEditableFieldSequence = ArrayLike<UnwrappedEditableTree> & FieldlessEditableTree;
+export type UnwrappedEditableFieldSequence = UnwrappedEditableTree[] & FieldlessEditableTree;
 
 // @public
 export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableFieldSequence;
