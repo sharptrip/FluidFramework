@@ -10,6 +10,8 @@ export {
     EditableTreeOrPrimitive,
     UnwrappedEditableTree,
     UnwrappedEditableField,
+    UnwrappedEditableFieldSequence,
+    FieldlessEditableTree,
     getTypeSymbol,
     valueSymbol,
     proxyTargetSymbol,

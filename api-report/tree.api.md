@@ -29,7 +29,7 @@ export class AnchorSet {
 }
 
 // @public
-function applyModifyToInsert(node: ProtoNode_2, modify: Modify): Map<FieldKey, MarkList>;
+function applyModifyToInsert(node: JsonableTree, modify: Modify): Map<FieldKey, MarkList>;
 
 // @public
 export type Brand<ValueType, Name extends string> = ValueType & BrandedType<ValueType, Name>;
@@ -181,10 +181,7 @@ export interface DetachedField extends Opaque<Brand<string, "tree.DetachedField"
 }
 
 // @public
-export interface EditableTree {
-    readonly [getTypeSymbol]: (key?: string, nameOnly?: boolean) => TreeSchema | TreeSchemaIdentifier | undefined;
-    readonly [proxyTargetSymbol]: object;
-    readonly [valueSymbol]: Value;
+export interface EditableTree extends FieldlessEditableTree {
     readonly [key: string]: UnwrappedEditableField;
 }
 
@@ -319,6 +316,13 @@ export { FieldKinds }
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>;
 
 // @public
+export interface FieldlessEditableTree {
+    readonly [getTypeSymbol]: (key?: string, nameOnly?: boolean) => TreeSchema | TreeSchemaIdentifier | undefined;
+    readonly [proxyTargetSymbol]: object;
+    readonly [valueSymbol]: Value;
+}
+
+// @public
 export interface FieldLocation {
     // (undocumented)
     readonly key: FieldKey;
@@ -376,7 +380,7 @@ export interface GenericTreeNode<TChild> extends NodeData {
 }
 
 // @public
-export function getEditableTree(tree: IEditableForest | ISharedTree): [
+export function getEditableTree(from: ISharedTree | IEditableForest): [
 EditableTreeContext,
 UnwrappedEditableField
 ];
@@ -508,6 +512,12 @@ export interface ITreeCursorNew {
     skipPendingFields(): boolean;
     readonly type: TreeType;
     readonly value: Value;
+}
+
+// @public
+export interface ITreeCursorSynchronous extends ITreeCursorNew {
+    // (undocumented)
+    readonly pending: false;
 }
 
 // @public
@@ -823,7 +833,7 @@ export abstract class ProgressiveEditBuilder<TChange> {
 export type ProtoNode = JsonableTree;
 
 // @public
-type ProtoNode_2 = JsonableTree;
+type ProtoNode_2 = ITreeCursorSynchronous;
 
 // @public
 export const proxyTargetSymbol: unique symbol;
@@ -960,7 +970,7 @@ export class SimpleObservingDependent implements ObservingDependent {
 export function singleTextCursor(root: JsonableTree): TextCursor;
 
 // @public (undocumented)
-export function singleTextCursorNew(root: JsonableTree): TextCursorNew;
+export function singleTextCursorNew(root: JsonableTree): ITreeCursorSynchronous;
 
 // @public (undocumented)
 export type Skip = number;
@@ -1029,51 +1039,6 @@ export class TextCursor implements ITreeCursor<SynchronousNavigationResult> {
     get type(): TreeType;
     // (undocumented)
     up(): SynchronousNavigationResult;
-    // (undocumented)
-    get value(): Value;
-}
-
-// @public
-export class TextCursorNew implements ITreeCursorNew {
-    constructor(root: JsonableTree);
-    // (undocumented)
-    get chunkLength(): number;
-    // (undocumented)
-    get chunkStart(): number;
-    // (undocumented)
-    enterField(key: FieldKey): void;
-    // (undocumented)
-    enterNode(index: number): void;
-    // (undocumented)
-    exitField(): void;
-    // (undocumented)
-    exitNode(): void;
-    // (undocumented)
-    get fieldIndex(): number;
-    // (undocumented)
-    firstField(): boolean;
-    // (undocumented)
-    firstNode(): boolean;
-    // (undocumented)
-    getFieldKey(): FieldKey;
-    // (undocumented)
-    getFieldLength(): number;
-    // (undocumented)
-    getPath(): UpPath | undefined;
-    // (undocumented)
-    get mode(): CursorLocationType;
-    // (undocumented)
-    nextField(): boolean;
-    // (undocumented)
-    nextNode(): boolean;
-    // (undocumented)
-    get pending(): boolean;
-    // (undocumented)
-    seekNodes(offset: number): boolean;
-    // (undocumented)
-    skipPendingFields(): boolean;
-    // (undocumented)
-    get type(): TreeType;
     // (undocumented)
     get value(): Value;
 }
@@ -1370,10 +1335,13 @@ class UnitEncoder extends ChangeEncoder<0> {
 }
 
 // @public
-export type UnwrappedEditableField = UnwrappedEditableTree | undefined | readonly UnwrappedEditableTree[];
+export type UnwrappedEditableField = UnwrappedEditableTree | undefined | UnwrappedEditableFieldSequence;
+
+// @public (undocumented)
+export type UnwrappedEditableFieldSequence = ArrayLike<UnwrappedEditableTree> & FieldlessEditableTree;
 
 // @public
-export type UnwrappedEditableTree = EditableTreeOrPrimitive | readonly UnwrappedEditableTree[];
+export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableFieldSequence;
 
 // @public
 export interface UpPath {

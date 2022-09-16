@@ -9,7 +9,8 @@ import { run } from "good-fences";
 // Since it's non-trivial to add good-fences to build or link due to fluid-build,
 // run it as a test.
 
-describe("good-fences", () => {
+describe("good-fences", function() {
+    this.timeout(5000);
     it("good-fences", async () => {
         const result = await run({});
         assert.deepEqual(result, { errors: [], warnings: [] });
