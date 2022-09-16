@@ -110,6 +110,8 @@ export {
     isNeverField,
     FullSchemaPolicy,
     UnwrappedEditableField,
+    UnwrappedEditableFieldSequence,
+    FieldlessEditableTree,
     EditableTreeContext,
     UnwrappedEditableTree,
     EditableTreeOrPrimitive,
