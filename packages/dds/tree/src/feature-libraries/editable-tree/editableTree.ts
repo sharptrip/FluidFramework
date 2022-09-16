@@ -128,7 +128,7 @@ export type EditableField = readonly [FieldSchema, readonly EditableTree[]];
  */
 export type UnwrappedEditableField = UnwrappedEditableTree | undefined | UnwrappedEditableFieldSequence;
 
-export type UnwrappedEditableFieldSequence = ArrayLike<UnwrappedEditableTree> & FieldlessEditableTree;
+export type UnwrappedEditableFieldSequence = UnwrappedEditableTree[] & FieldlessEditableTree;
 
 /**
  * A common context of a "forest" of EditableTrees.
