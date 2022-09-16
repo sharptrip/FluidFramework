@@ -213,7 +213,7 @@ async function buildTestPerson(): Promise<[EditableTreeContext, PersonType]> {
     return [context, proxy as PersonType];
 }
 
-describe.only("editing with editable-tree", () => {
+describe("editing with editable-tree", () => {
     it("update property", async () => {
         const trees = await setupForest(fullSchemaData, personData);
         const [context, person] = getEditableTree(trees[0]);
