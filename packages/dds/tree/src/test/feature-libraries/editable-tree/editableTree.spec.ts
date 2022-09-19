@@ -4,6 +4,7 @@
  */
 
 import { fail, strict as assert } from "assert";
+import { validateAssertionError } from "@fluidframework/test-runtime-utils";
 import {
     NamedTreeSchema, StoredSchemaRepository, namedTreeSchema, ValueSchema, fieldSchema, SchemaData,
     TreeSchemaIdentifier,
@@ -405,7 +406,9 @@ describe.only("editable-tree", () => {
             type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: undefined }] },
         }]);
         const [context, field] = getEditableTree(forest);
-        assert.throws(() => ((field as EditableTree).child), /`undefined` values not allowed for primitive fields/);
+        assert.throws(() => ((field as EditableTree).child),
+            (e) => validateAssertionError(e, "`undefined` values not allowed for primitive fields"),
+            "Expected exception was not thrown");
         context.free();
     });
 
