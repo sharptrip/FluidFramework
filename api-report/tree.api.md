@@ -188,6 +188,8 @@ export interface EditableTree extends FieldlessEditableTree {
 // @public
 export interface EditableTreeContext {
     free(): void;
+    // (undocumented)
+    getGlobalFieldSchema(key: GlobalFieldKey): FieldSchema | undefined;
     prepareForEdit(): void;
 }
 
@@ -317,6 +319,9 @@ const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>;
 // @public
 export interface FieldlessEditableTree {
     readonly [getTypeSymbol]: (key?: string, nameOnly?: boolean) => TreeSchema | TreeSchemaIdentifier | undefined;
+    // (undocumented)
+    get [nodeSymbol](): UnwrappedEditableField;
+    set [nodeSymbol](value: UnwrappedEditableField);
     readonly [proxyTargetSymbol]: object;
     readonly [valueSymbol]: Value;
 }
@@ -1323,13 +1328,10 @@ class UnitEncoder extends ChangeEncoder<0> {
 }
 
 // @public
-export type UnwrappedEditableField = UnwrappedEditableTree | undefined | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableField = EditableTreeOrPrimitive | undefined | UnwrappedEditableFieldSequence;
 
 // @public (undocumented)
-export type UnwrappedEditableFieldSequence = ArrayLike<UnwrappedEditableTree> & FieldlessEditableTree;
-
-// @public
-export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableFieldSequence = FieldlessEditableTree & UnwrappedEditableField[];
 
 // @public
 export interface UpPath {

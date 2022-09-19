@@ -10,12 +10,12 @@ import {
     TreeSchemaIdentifier,
 } from "../../../schema-stored";
 import { IEditableForest, initializeForest } from "../../../forest";
-import { JsonableTree, EmptyKey, Value, rootFieldKey } from "../../../tree";
+import { JsonableTree, EmptyKey, Value, rootFieldKey, FieldKey } from "../../../tree";
 import { brand, Brand, clone } from "../../../util";
 import {
     defaultSchemaPolicy, singleTextCursorNew, emptyField, FieldKinds, Multiplicity,
     getEditableTree, EditableTree, buildForest, getTypeSymbol, valueSymbol, proxyTargetSymbol, isPrimitiveValue,
-    UnwrappedEditableField, EditableTreeOrPrimitive, UnwrappedEditableFieldSequence,
+    UnwrappedEditableField, EditableTreeOrPrimitive, UnwrappedEditableFieldSequence, EditableTreeContext,
 } from "../../../feature-libraries";
 
 // eslint-disable-next-line import/no-internal-modules
@@ -99,6 +99,10 @@ const optionalChildSchema = namedTreeSchema({
 });
 
 const emptyNode: JsonableTree = { type: optionalChildSchema.name };
+
+type ChildType = EditableTree & {
+    child: unknown;
+};
 
 const schemaTypes: Set<NamedTreeSchema> = new Set([
     optionalChildSchema,
@@ -227,7 +231,6 @@ function expectTreeEquals(inputField: UnwrappedEditableField, expected: Jsonable
     assert.equal(type, expectedType);
     for (const key of Object.keys(node)) {
         const subNode: UnwrappedEditableField = node[key];
-        assert(subNode !== undefined, key);
         const fields = expected.fields ?? {};
         assert.equal(key in fields, true);
         const field: JsonableTree[] = fields[key];
@@ -317,7 +320,7 @@ describe.only("editable-tree", () => {
             const forest = setupForest(schemaData, []);
             const [context, field] = getEditableTree(forest);
             assert(Array.isArray(field));
-            assert.deepEqual(field.map((f) => f as UnwrappedEditableField), []);
+            assert.deepEqual(field.map((f) => f), []);
             context.free();
         }
         // Test 1 item
@@ -391,8 +394,8 @@ describe.only("editable-tree", () => {
         const forest = setupForest(schemaData, [{
             type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: 1 }] },
         }]);
-        const [context, field] = getEditableTree(forest);
-        assert.equal((field as EditableTree).child, 1);
+        const [context, field] = getEditableTree(forest) as [EditableTreeContext, ChildType];
+        assert.equal(field.child, 1);
         context.free();
     });
 
@@ -405,8 +408,8 @@ describe.only("editable-tree", () => {
         const forest = setupForest(schemaData, [{
             type: optionalChildSchema.name, fields: { child: [{ type: int32Schema.name, value: undefined }] },
         }]);
-        const [context, field] = getEditableTree(forest);
-        assert.throws(() => ((field as EditableTree).child),
+        const [context, field] = getEditableTree(forest) as [EditableTreeContext, ChildType];
+        assert.throws(() => (field.child),
             (e) => validateAssertionError(e, "`undefined` values not allowed for primitive fields"),
             "Expected exception was not thrown");
         context.free();
@@ -425,7 +428,7 @@ describe.only("editable-tree", () => {
             const forest = setupForest(schemaData, [data]);
             const [context, field] = getEditableTree(forest);
             assert(Array.isArray(field));
-            assert.deepEqual(field.map((f) => f as UnwrappedEditableField), []);
+            assert.deepEqual(field.map((f) => f), []);
             expectTreeEquals(field, data);
             context.free();
         }
@@ -505,7 +508,7 @@ describe.only("editable-tree", () => {
         }
         assert.equal(proxy.address.phones[0], "+49123456778");
         assert.deepEqual(Object.keys(proxy.address.phones), ["0", "1", "2"]);
-        const act = proxy.address.phones.map((phone): Value | UnwrappedEditableField => {
+        const act = proxy.address.phones.map((phone): UnwrappedEditableField => {
             if (isPrimitiveValue(phone)) {
                 return phone;
             } else {

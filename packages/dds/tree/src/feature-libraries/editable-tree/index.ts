@@ -8,15 +8,18 @@ export {
     EditableTree,
     EditableField,
     EditableTreeOrPrimitive,
-    UnwrappedEditableTree,
     UnwrappedEditableField,
     UnwrappedEditableFieldSequence,
     FieldlessEditableTree,
     getTypeSymbol,
     valueSymbol,
     proxyTargetSymbol,
-    EditableTreeContext,
 } from "./editableTree";
+
+export {
+    EditableTreeContext,
+} from "./editableTreeContext";
+
 export {
     PrimitiveValue,
     isPrimitiveValue,
