@@ -191,7 +191,11 @@ export interface EditableTreeContext {
     // (undocumented)
     getGlobalFieldSchema(key: GlobalFieldKey): FieldSchema | undefined;
     prepareForEdit(): void;
+    registerAfterHandler(afterHandler: EditableTreeContextHandler): void;
 }
+
+// @public (undocumented)
+export type EditableTreeContextHandler = (this: EditableTreeContext) => void;
 
 // @public
 export type EditableTreeOrPrimitive = EditableTree | PrimitiveValue;

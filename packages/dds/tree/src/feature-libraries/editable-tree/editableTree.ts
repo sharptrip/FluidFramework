@@ -2,6 +2,7 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
+
 import { assert } from "@fluidframework/common-utils";
 import { FieldKey, Value, Anchor, rootFieldKey, JsonableTree } from "../../tree";
 import {
@@ -244,7 +245,7 @@ export class ProxyTarget {
         // Lookup the schema:
         const fieldKind = this.lookupFieldKind(key as string);
         // Make the childTargets:
-        const childTargets = mapCursorField(this.cursor, brand(key as string), (c) => new ProxyTarget(this.context, c));
+        const childTargets = mapCursorField(this.cursor, brand(key as string), (c) => this.context.createNode(c));
         return proxifyField(fieldKind, childTargets);
     }
 
@@ -256,7 +257,7 @@ export class ProxyTarget {
         const primaryKey = this.primaryKey;
         const index = Number(key);
         const _key: FieldKey = primaryKey === undefined ? brand(key) : primaryKey;
-        const childTargets = mapCursorField(this.cursor, _key, (c) => new ProxyTarget(this.context, c));
+        const childTargets = mapCursorField(this.cursor, _key, (c) => this.context.createNode(c));
         const target = primaryKey === undefined ? childTargets[0] : childTargets[index];
         const type = target.getType() as TreeSchema;
         assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
@@ -515,7 +516,7 @@ function inProxyOrUnwrap(target: ProxyTarget | SequenceProxyTarget): UnwrappedEd
     const primaryKey = target.primaryKey;
     if (primaryKey !== undefined) {
         const sequenceTarget = new SequenceProxyTarget(target.context, target);
-        mapCursorField(target.cursor, primaryKey, (c) => sequenceTarget.push(new ProxyTarget(target.context, c)));
+        mapCursorField(target.cursor, primaryKey, (c) => sequenceTarget.push(target.context.createNode(c)));
         return adaptWithProxy(sequenceTarget, sequenceHandler);
     }
     return adaptWithProxy(target, handler);
@@ -565,7 +566,7 @@ export function getEditableTree(from: ISharedTree | IEditableForest):
     const targets: SequenceProxyTarget = new SequenceProxyTarget(context);
     if (cursorResult === TreeNavigationResult.Ok) {
         do {
-            targets.push(new ProxyTarget(context, cursor));
+            targets.push(context.createNode(cursor));
         } while (cursor.seek(1) === TreeNavigationResult.Ok);
     }
     cursor.free();

@@ -18,6 +18,7 @@ export {
 
 export {
     EditableTreeContext,
+    EditableTreeContextHandler,
 } from "./editableTreeContext";
 
 export {

@@ -115,6 +115,7 @@ export {
     UnwrappedEditableFieldSequence,
     FieldlessEditableTree,
     EditableTreeContext,
+    EditableTreeContextHandler,
     EditableTreeOrPrimitive,
     EditableTree,
     getEditableTree,
