@@ -12,14 +12,15 @@ import {
     getEditableTree, EditableTree, getTypeSymbol, UnwrappedEditableField,
     emptyField, FieldKinds, singleTextCursor,
     EditableTreeContext,
+    EditableTreeOrPrimitive,
+    FieldlessEditableTree,
+    valueSymbol,
+    isPrimitive, isPrimitiveValue,
 } from "../../../feature-libraries";
 
 import { ITestTreeProvider, TestTreeProvider } from "../../utils";
 import { ISharedTree } from "../../../shared-tree";
 import { TransactionResult } from "../../../checkout";
-
-// eslint-disable-next-line import/no-internal-modules
-import { getFieldKind, getFieldSchema, getPrimaryField } from "../../../feature-libraries/editable-tree/utilities";
 
 // TODO: Use typed schema (ex: typedTreeSchema), here, and derive the types below from them programmatically.
 

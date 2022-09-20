@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 import { assert } from "@fluidframework/common-utils";
-import { FieldKey, Value, Anchor, rootFieldKey, JsonableTree, Delta } from "../../tree";
+import { FieldKey, Value, Anchor, rootFieldKey, JsonableTree } from "../../tree";
 import {
     IEditableForest, TreeNavigationResult, mapCursorField, ITreeSubscriptionCursor, ITreeSubscriptionCursorState,
 } from "../../forest";
@@ -12,16 +12,13 @@ import {
     FieldSchema, LocalFieldKey, TreeSchemaIdentifier, TreeSchema, ValueSchema,
 } from "../../schema-stored";
 import { FieldKind, Multiplicity } from "../modular-schema";
-import { TransactionResult } from "../../checkout";
 import { ISharedTree } from "../../shared-tree";
-import { NodePath, SequenceEditBuilder } from "../sequence-change-family";
-import { singleTextCursor } from "../treeTextCursorLegacy";
-import { SimpleObservingDependent, InvalidationToken, Dependent } from "../../dependency-tracking";
 import {
     AdaptingProxyHandler,
     adaptWithProxy,
     getFieldKind, getFieldSchema, getPrimaryField, isPrimitive, isPrimitiveValue, PrimitiveValue,
 } from "./utilities";
+import { EditableTreeContext, ProxyContext } from "./editableTreeContext";
 
 /**
  * A symbol for extracting target from editable-tree proxies.
@@ -41,30 +38,38 @@ export const getTypeSymbol: unique symbol = Symbol("editable-tree:getType()");
 export const valueSymbol: unique symbol = Symbol("editable-tree:value");
 
 /**
+ * A symbol to get the node in contexts where string keys are already in use for fields.
+ */
+ export const nodeSymbol: unique symbol = Symbol("editable-tree:node");
+
+/**
  * {@link EditableTree}, but without fields i.e. having only utility symbols.
  *
  * Usefull if one needs to provide access to supplimentary data for types derived from {@link UnwrappedEditableField}.
  */
- export interface FieldlessEditableTree {
+export interface FieldlessEditableTree {
     /**
      * A function to get the type of a node.
      * If this node is well-formed, it must follow this schema.
      * @param key - if key is supplied, returns the type of a non-sequence child node (if exists)
      * @param nameOnly - if true, returns only the type identifier
      */
-     readonly [getTypeSymbol]: (key?: string, nameOnly?: boolean) => TreeSchema | TreeSchemaIdentifier | undefined;
+    readonly [getTypeSymbol]: (key?: string, nameOnly?: boolean) => TreeSchema | TreeSchemaIdentifier | undefined;
 
-     /**
-      * Value stored on this node.
-      */
-     readonly [valueSymbol]: Value;
+    /**
+     * Value stored on this node.
+     */
+    readonly [valueSymbol]: Value;
 
-     /**
-      * Stores the target for the proxy which implements reading and writing for this node.
-      * The details of this object are implementation details,
-      * but the presence of this symbol can be used to separate EditableTrees from other types.
-      */
-     readonly [proxyTargetSymbol]: object;
+    get [nodeSymbol](): UnwrappedEditableField;
+    set [nodeSymbol](value: UnwrappedEditableField);
+
+    /**
+     * Stores the target for the proxy which implements reading and writing for this node.
+     * The details of this object are implementation details,
+     * but the presence of this symbol can be used to separate EditableTrees from other types.
+     */
+    readonly [proxyTargetSymbol]: object;
 }
 
 /**
@@ -104,19 +109,6 @@ export interface EditableTree extends FieldlessEditableTree {
 export type EditableTreeOrPrimitive = EditableTree | PrimitiveValue;
 
 /**
- * EditableTree, but with these cases of unwrapping:
- * - primitives are unwrapped. See {@link EditableTreeOrPrimitive}.
- * - nodes with PrimaryField are unwrapped to just the primaryField. See `getPrimaryField`.
- * - fields are unwrapped based on their schema's multiplicity. See {@link UnwrappedEditableField}.
- *
- * TODO:
- * EditableTree should provide easy access to children in a way thats guaranteed
- * not to do this unwrapping for cases which need to refer to the actual nodes.
- * This may include cases like creating anchors and/or editing.
- */
-export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableFieldSequence;
-
-/**
  * A field of an {@link EditableTree}.
  */
 export type EditableField = readonly [FieldSchema, readonly EditableTree[]];
@@ -125,112 +117,10 @@ export type EditableField = readonly [FieldSchema, readonly EditableTree[]];
  * Unwrapped field.
  * Non-sequence multiplicities are unwrapped to the child tree or `undefined` if there is none.
  * Sequence multiplicities are handled with {@link UnwrappedEditableFieldSequence}.
- * See {@link UnwrappedEditableTree} for how the children themselves are unwrapped.
  */
-export type UnwrappedEditableField = UnwrappedEditableTree | undefined | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableField = EditableTreeOrPrimitive | undefined | UnwrappedEditableFieldSequence;
 
-export type UnwrappedEditableFieldSequence = UnwrappedEditableTree[] & FieldlessEditableTree;
-
-/**
- * A common context of a "forest" of EditableTrees.
- * It handles group operations like transforming cursors into anchors for edits.
- * TODO: add test coverage.
- */
-export interface EditableTreeContext {
-    /**
-     * Call before editing.
-     *
-     * Note that after performing edits, EditableTrees for nodes that no longer exist are invalid to use.
-     * TODO: maybe add an API to check if a specific EditableTree still exists,
-     * and only make use other than that invalid.
-     */
-    prepareForEdit(): void;
-
-    /**
-     * Call to free resources.
-     * EditableTrees created in this context are invalid to use after this.
-     */
-    free(): void;
-
-    /**
-     * Register a handler function to be called after changes applied to the forest.
-     */
-    registerAfterHandler<T extends (() => void)>(afterHandler: T): void;
-}
-
-class ProxyContext implements EditableTreeContext {
-    public readonly withCursors: Set<ProxyTarget> = new Set();
-    public readonly withAnchors: Set<ProxyTarget> = new Set();
-    private readonly observers: Dependent[] = [];
-    private readonly afterHandlers: Set<(() => void)> = new Set();
-    constructor(
-        public readonly forest: IEditableForest,
-        public readonly tree?: ISharedTree,
-    ) {
-        const observer = new SimpleObservingDependent((token?: InvalidationToken, delta?: Delta.Root) => {
-            assert(token !== undefined, "missing token");
-            if (!token.isSecondaryInvalidation) {
-                this.prepareForEdit();
-            } else {
-                this.triggerAfterHandlers();
-            }
-        });
-        this.observers.push(observer);
-        forest.registerDependent(observer);
-    }
-
-    private triggerAfterHandlers(): void {
-        for (const afterHandler of this.afterHandlers) {
-            afterHandler();
-        }
-    }
-
-    public registerAfterHandler<T extends (() => void)>(afterHandler: T): void {
-        this.afterHandlers.add(afterHandler);
-    }
-
-    public prepareForEdit(): void {
-        for (const target of this.withCursors) {
-            target.anchorForEdit();
-        }
-        assert(this.withCursors.size === 0, "prepareForEdit should remove all cursors");
-    }
-
-    public free(): void {
-        for (const target of this.withCursors) {
-            target.free();
-        }
-        for (const target of this.withAnchors) {
-            target.free();
-        }
-        for (const observer of this.observers) {
-            this.forest.removeDependent(observer);
-        }
-        assert(this.withCursors.size === 0, "free should remove all cursors");
-        assert(this.withAnchors.size === 0, "free should remove all anchors");
-    }
-
-    public setNodeValue(path: NodePath, value: unknown): boolean {
-        return this.runTransaction((editor) => editor.setValue(path, value));
-    }
-
-    public insertNode(path: NodePath, node: JsonableTree): boolean {
-        return this.runTransaction((editor) => editor.insert(path, singleTextCursor(node)));
-    }
-
-    public deleteNode(path: NodePath, count: number): boolean {
-        return this.runTransaction((editor) => editor.delete(path, count));
-    }
-
-    private runTransaction(f: (editor: SequenceEditBuilder) => void): boolean {
-        assert(this.tree !== undefined, "Transaction-based editing requires `SharedTree` instance");
-        const result = this.tree?.runTransaction((forest, editor) => {
-            f(editor);
-            return TransactionResult.Apply;
-        });
-        return result === TransactionResult.Apply;
-    }
-}
+export type UnwrappedEditableFieldSequence = FieldlessEditableTree & UnwrappedEditableField[];
 
 interface PreparedForEdit extends ProxyTarget {
     anchor: Anchor;
@@ -244,7 +134,7 @@ function assertPreparedForEdit(target: ProxyTarget): asserts target is PreparedF
     assert(target.anchor !== undefined, "EditableTree should have an anchor before editing.");
 }
 
-class ProxyTarget {
+export class ProxyTarget {
     public readonly lazyCursor: ITreeSubscriptionCursor;
     private _anchor?: Anchor;
     public get anchor(): Anchor | undefined {
@@ -270,7 +160,7 @@ class ProxyTarget {
         }
     }
 
-    public anchorForEdit(): Anchor {
+    public prepareAnchorForEdit(): Anchor {
         if (this._anchor === undefined) {
             this._anchor = this.lazyCursor.buildAnchor();
             this.context.withAnchors.add(this);
@@ -282,17 +172,11 @@ class ProxyTarget {
 
     public get cursor(): ITreeSubscriptionCursor {
         if (this.lazyCursor.state === ITreeSubscriptionCursorState.Cleared) {
-            assert(this._anchor !== undefined, "EditableTree should have an anchor if it does not have a cursor");
-            const forest = this.context.forest;
-            const result = forest.tryMoveCursorTo(this._anchor, this.lazyCursor);
-            // TODO: remove!!! as this is totally wrong!!
-            // This is just to overcome invalidation of the root anchor
-            if (result !== TreeNavigationResult.Ok) {
-                forest.anchors.forget(this._anchor);
-                this.context.withAnchors.delete(this);
-                const destination = forest.root(forest.rootField);
-                this.context.forest.tryMoveCursorTo(destination, this.lazyCursor);
-            }
+            assert(this.anchor !== undefined,
+                0x3c3 /* EditableTree should have an anchor if it does not have a cursor */);
+            const result = this.context.forest.tryMoveCursorTo(this.anchor, this.lazyCursor);
+            assert(result === TreeNavigationResult.Ok,
+                0x3c4 /* It is invalid to access an EditableTree node which no longer exists */);
             this.context.withCursors.add(this);
         }
         return this.lazyCursor;
@@ -307,7 +191,7 @@ class ProxyTarget {
                 typeName = childTypes[Number(key)];
             } else {
                 const childTypes = mapCursorField(this.cursor, brand(key), (c) => c.type);
-                assert(childTypes.length <= 1, "invalid non sequence");
+                assert(childTypes.length <= 1, 0x3c5 /* invalid non sequence */);
                 typeName = childTypes[0];
             }
         }
@@ -331,10 +215,6 @@ class ProxyTarget {
     public getKeys(): string[] {
         // For now this is an approximation:
         const keys: string[] = [];
-        // const length = this.getPrimaryArrayLength();
-        // if (length !== undefined) {
-        //     return Object.getOwnPropertyNames(Array.from(Array(length)));
-        // }
         for (const key of this.cursor.keys) {
             // TODO: with new cursor API, field iteration will skip empty fields and this check can be removed.
             if (this.has(key as string)) {
@@ -345,14 +225,6 @@ class ProxyTarget {
     }
 
     public has(key: string): boolean {
-        const primaryKey = this.primaryKey;
-        if (primaryKey !== undefined) {
-            if (this.cursor.down(primaryKey, Number(key)) === TreeNavigationResult.Ok) {
-                this.cursor.up();
-                return true;
-            }
-            return false;
-        }
         // Make fields present only if non-empty.
         return this.cursor.length(brand(key)) !== 0;
     }
@@ -395,7 +267,7 @@ class ProxyTarget {
         const target = primaryKey === undefined ? childTargets[0] : childTargets[index];
         const type = target.getType() as TreeSchema;
         assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
-        const path = this.context.forest.anchors.locate(target.anchorForEdit());
+        const path = this.context.forest.anchors.locate(target.prepareAnchorForEdit());
         assertPreparedForEdit(target);
         assert(path !== undefined, "Can't locate a path to set a value");
         return this.context.setNodeValue(path, _value);
@@ -411,7 +283,7 @@ class ProxyTarget {
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             nodeValue = { type: nodeTypeName, value: _value } as JsonableTree;
         }
-        const path = this.context.forest.anchors.locate(this.anchorForEdit());
+        const path = this.context.forest.anchors.locate(this.prepareAnchorForEdit());
         assertPreparedForEdit(this);
         assert(path !== undefined, "Can't locate a path to insert a node");
         return this.context.insertNode({
@@ -422,7 +294,7 @@ class ProxyTarget {
     }
 
     public deleteNode(key: string): boolean {
-        const path = this.context.forest.anchors.locate(this.anchorForEdit());
+        const path = this.context.forest.anchors.locate(this.prepareAnchorForEdit());
         assertPreparedForEdit(this);
         assert(path !== undefined, "Can't locate a path to delete a node");
         return this.context.deleteNode({
@@ -430,6 +302,13 @@ class ProxyTarget {
             parentField: brand(key),
             parentIndex: 0,
         }, 1);
+    }
+
+    public getPrimaryArrayLength(): number | undefined {
+        if (this.primaryKey !== undefined) {
+            return this.cursor.length(this.primaryKey);
+        }
+        return undefined;
     }
 }
 
@@ -443,14 +322,19 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
             // All string keys are fields
             return target.proxifyField(key);
         }
-        if (key === getTypeSymbol) {
-            return target.getType.bind(target);
-        } else if (key === valueSymbol) {
-            return target.value;
-        } else if (key === proxyTargetSymbol) {
-            return target;
+        switch (key) {
+            case getTypeSymbol: {
+                return target.getType.bind(target);
+            }
+            case valueSymbol: {
+                return target.value;
+            }
+            case proxyTargetSymbol: {
+                return target;
+            }
+            default:
+                return undefined;
         }
-        return undefined;
     },
     set: (target: ProxyTarget, key: string, _value: unknown, receiver: unknown): boolean => {
         // update value
@@ -525,15 +409,30 @@ class SequenceProxyTarget extends Array<ProxyTarget> {
                 { enumerable: false, writable: false, configurable: false, value: Reflect.get(this, propertyKey) });
         }
     }
+
     splice(start: number, deleteCount?: number, ...items: ProxyTarget[]): ProxyTarget[] {
         const deleted: ProxyTarget[] = [];
         return deleted;
     }
+
     public getType(key?: string, nameOnly?: boolean): TreeSchemaIdentifier | TreeSchema | undefined {
         return this.primaryTarget?.getType(key, nameOnly);
     }
+
     public get value() {
         return this;
+    }
+
+    public get length(): number {
+        return this.primaryTarget?.getPrimaryArrayLength() ?? 0;
+    }
+
+    public setValue(key: string, value: unknown): boolean {
+        const index = Number(key);
+        if (index >= 0 && index < this.length) {
+            return this.primaryTarget?.setValue(key, value) ?? false;
+        }
+        return false;
     }
 }
 
@@ -563,15 +462,11 @@ const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditab
             case proxyTargetSymbol:
                 return target;
             default:
-                return Reflect.get(target, key);
         }
+        return Reflect.get(target, key);
     },
     set: (target: SequenceProxyTarget, key: string, value: unknown, receiver: unknown): boolean => {
-        const index = Number(key);
-        if (index >= 0 && index < target.length) {
-            return target.primaryTarget?.setValue(key, value) ?? false;
-        }
-        return false;
+        return target.setValue(key, value);
     },
     deleteProperty: (target: SequenceProxyTarget, key: string): boolean => {
         throw new Error("Not supported");
@@ -606,7 +501,7 @@ const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditab
 };
 
 /**
- * See {@link UnwrappedEditableTree} for documentation on what unwrapping this perform.
+ * See {@link UnwrappedEditableField} for documentation on what unwrapping this perform.
  */
 function inProxyOrUnwrap(target: ProxyTarget | SequenceProxyTarget): UnwrappedEditableField {
     if (Array.isArray(target)) {
@@ -618,7 +513,8 @@ function inProxyOrUnwrap(target: ProxyTarget | SequenceProxyTarget): UnwrappedEd
         if (isPrimitiveValue(nodeValue)) {
             return nodeValue;
         }
-        assert(fieldSchema.value === ValueSchema.Serializable, "`undefined` values not allowed for primitive fields");
+        assert(fieldSchema.value === ValueSchema.Serializable,
+            0x3c7 /* `undefined` values not allowed for primitive fields */);
     }
     const primaryKey = target.primaryKey;
     if (primaryKey !== undefined) {
@@ -639,11 +535,8 @@ function proxifyField(fieldKind: FieldKind, childTargets: ProxyTarget[]): Unwrap
         return inProxyOrUnwrap(childTargets as SequenceProxyTarget);
     }
     // Avoid wrapping non-sequence fields in arrays
-    assert(childTargets.length <= 1, "Invalid non-sequence field");
-    if (childTargets.length === 1) {
-        return inProxyOrUnwrap(childTargets[0]);
-    }
-    return undefined;
+    assert(childTargets.length <= 1, 0x3c8 /* invalid non sequence */);
+    return childTargets.length === 1 ? inProxyOrUnwrap(childTargets[0]) : undefined;
 }
 
 /**

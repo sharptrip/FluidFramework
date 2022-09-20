@@ -12,7 +12,7 @@ import { assert } from "@fluidframework/common-utils";
 import {
     // EditableTreeContext, UnwrappedEditableField,
     getTypeSymbol, isPrimitive, proxyTargetSymbol,
-    TreeSchema, UnwrappedEditableTree, Value,
+    TreeSchema, Value,
     SimpleObservingDependent,
     IEditableForest,
     InvalidationToken,
@@ -112,7 +112,7 @@ const useStyles = makeStyles({
     },
 }, { name: "InspectorApp" });
 
-interface PropertyRow<T = UnwrappedEditableTree> extends IRowData<T> {
+interface PropertyRow<T = UnwrappedEditableField> extends IRowData<T> {
     context?: string;
     typeid: string;
     isReference?: boolean;

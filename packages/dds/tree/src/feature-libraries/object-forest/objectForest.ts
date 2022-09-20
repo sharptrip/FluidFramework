@@ -35,6 +35,10 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     // All cursors that are in the "Current" state. Must be empty when editing.
     public readonly currentCursors: Set<Cursor> = new Set();
 
+    private readonly beforeChangeToken = new InvalidationToken("Invalidate before change", false);
+
+    private readonly afterChangeToken = new InvalidationToken("Invalidate after change", true);
+
     public constructor(
         public readonly schema: StoredSchemaRepository, public readonly anchors: AnchorSet = new AnchorSet()) {
         super("object-forest.ObjectForest");
@@ -109,12 +113,9 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
             },
             onMoveOut: (index: number, count: number, id?: Delta.MoveId): void => {
                 assert(currentField !== undefined, 0x367 /* must be in field to onMoveOut */);
-                let srcField: ObjectField;
-                if (cursor.state === ITreeSubscriptionCursorState.Cleared) {
-                    srcField = this.getRoot(keyAsDetachedField(currentField));
-                } else {
-                    srcField = getGenericTreeField(cursor.getNode(), currentField, false);
-                }
+                const srcField = cursor.state === ITreeSubscriptionCursorState.Cleared
+                    ? this.getRoot(keyAsDetachedField(currentField))
+                    : getGenericTreeField(cursor.getNode(), currentField, false);
                 const field = this.detachRangeOfChildren(srcField, index, index + count);
                 if (id !== undefined) {
                     moves.set(id, field);
@@ -140,12 +141,9 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
             },
             enterNode: (index: number): void => {
                 assert(currentField !== undefined, 0x36b /* must be in field to enterNode */);
-                let result: TreeNavigationResult;
-                if (cursor.state === ITreeSubscriptionCursorState.Cleared) {
-                    result = this.tryMoveCursorTo(this.root(keyAsDetachedField(currentField), index), cursor);
-                } else {
-                    result = cursor.down(currentField, index);
-                }
+                const result = cursor.state === ITreeSubscriptionCursorState.Cleared
+                    ? this.tryMoveCursorTo(this.root(keyAsDetachedField(currentField), index), cursor)
+                    : cursor.down(currentField, index);
                 assert(result === TreeNavigationResult.Ok, 0x36c /* can only enter existing nodes */);
                 currentField = undefined;
             },
@@ -229,12 +227,12 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     }
 
     private beforeChange(): void {
-        this.invalidateDependents(new InvalidationToken("beforeChange"));
+        this.invalidateDependents(this.beforeChangeToken);
         assert(this.currentCursors.size === 0, 0x374 /* No cursors can be current when modifying forest */);
     }
 
     private afterChange(): void {
-        this.invalidateDependents(new InvalidationToken("afterChange", true));
+        this.invalidateDependents(this.afterChangeToken);
     }
 
     tryMoveCursorTo(

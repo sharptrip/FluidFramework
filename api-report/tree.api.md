@@ -188,6 +188,8 @@ export interface EditableTree extends FieldlessEditableTree {
 // @public
 export interface EditableTreeContext {
     free(): void;
+    // (undocumented)
+    getGlobalFieldSchema(key: GlobalFieldKey): FieldSchema | undefined;
     prepareForEdit(): void;
     registerAfterHandler<T extends (() => void)>(afterHandler: T): void;
 }
@@ -318,6 +320,9 @@ const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>;
 // @public
 export interface FieldlessEditableTree {
     readonly [getTypeSymbol]: (key?: string, nameOnly?: boolean) => TreeSchema | TreeSchemaIdentifier | undefined;
+    // (undocumented)
+    get [nodeSymbol](): UnwrappedEditableField;
+    set [nodeSymbol](value: UnwrappedEditableField);
     readonly [proxyTargetSymbol]: object;
     readonly [valueSymbol]: Value;
 }
@@ -352,7 +357,7 @@ export interface FieldSchema {
 // @public
 export const enum FieldScope {
     // (undocumented)
-    global = "fields",
+    global = "globalFields",
     // (undocumented)
     local = "fields"
 }
@@ -372,11 +377,15 @@ export interface FullSchemaPolicy extends SchemaPolicy {
 export type GapCount = number;
 
 // @public
-export interface GenericTreeNode<TChild> extends NodeData {
+export interface GenericFieldsNode<TChild> {
     // (undocumented)
     [FieldScope.local]?: FieldMapObject<TChild>;
     // (undocumented)
     [FieldScope.global]?: FieldMapObject<TChild>;
+}
+
+// @public
+export interface GenericTreeNode<TChild> extends GenericFieldsNode<TChild>, NodeData {
 }
 
 // @public
@@ -539,7 +548,7 @@ export enum ITreeSubscriptionCursorState {
 }
 
 // @public
-export interface JsonableTree extends PlaceholderTree {
+export interface JsonableTree extends GenericTreeNode<JsonableTree> {
 }
 
 // @public
@@ -555,7 +564,10 @@ export const jsonArray: NamedTreeSchema;
 export const jsonBoolean: NamedTreeSchema;
 
 // @public
-export type JsonCompatible = string | number | boolean | null | JsonCompatible[] | {
+export type JsonCompatible = string | number | boolean | null | JsonCompatible[] | JsonCompatibleObject;
+
+// @public
+export type JsonCompatibleObject = {
     [P in string]: JsonCompatible;
 };
 
@@ -809,9 +821,6 @@ export type OpId = number;
 
 // @public
 const optional: FieldKind;
-
-// @public
-export type PlaceholderTree<TPlaceholder = never> = GenericTreeNode<PlaceholderTree<TPlaceholder>> | TPlaceholder;
 
 // @public
 export interface PlacePath extends UpPath {
@@ -1335,13 +1344,10 @@ class UnitEncoder extends ChangeEncoder<0> {
 }
 
 // @public
-export type UnwrappedEditableField = UnwrappedEditableTree | undefined | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableField = EditableTreeOrPrimitive | undefined | UnwrappedEditableFieldSequence;
 
 // @public (undocumented)
-export type UnwrappedEditableFieldSequence = UnwrappedEditableTree[] & FieldlessEditableTree;
-
-// @public
-export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableFieldSequence = FieldlessEditableTree & UnwrappedEditableField[];
 
 // @public
 export interface UpPath {
