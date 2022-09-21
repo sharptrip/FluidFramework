@@ -334,13 +334,7 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
         }
     },
     set: (target: ProxyTarget, key: string, _value: unknown, receiver: unknown): boolean => {
-        // update value
-        if (target.has(key)) {
-            return target.setValue(key, _value);
-        // insert node
-        } else {
-            return target.insertNode(key, _value);
-        }
+        return target.has(key) ? target.setValue(key, _value) : target.insertNode(key, _value);
     },
     deleteProperty: (target: ProxyTarget, key: string): boolean => {
         if (target.has(key)) {
