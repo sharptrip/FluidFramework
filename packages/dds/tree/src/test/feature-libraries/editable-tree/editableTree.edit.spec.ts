@@ -12,10 +12,6 @@ import {
     getEditableTree, EditableTree, getTypeSymbol, UnwrappedEditableField,
     emptyField, FieldKinds, singleTextCursor,
     EditableTreeContext,
-    EditableTreeOrPrimitive,
-    FieldlessEditableTree,
-    valueSymbol,
-    isPrimitive, isPrimitiveValue,
 } from "../../../feature-libraries";
 
 import { ITestTreeProvider, TestTreeProvider } from "../../utils";

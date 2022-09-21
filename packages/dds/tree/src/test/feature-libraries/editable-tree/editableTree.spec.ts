@@ -10,7 +10,7 @@ import {
     TreeSchemaIdentifier,
 } from "../../../schema-stored";
 import { IEditableForest, initializeForest } from "../../../forest";
-import { JsonableTree, EmptyKey, Value, rootFieldKey, FieldKey } from "../../../tree";
+import { JsonableTree, EmptyKey, Value, rootFieldKey } from "../../../tree";
 import { brand, Brand, clone } from "../../../util";
 import {
     defaultSchemaPolicy, singleTextCursorNew, emptyField, FieldKinds, Multiplicity,
