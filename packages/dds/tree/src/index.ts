@@ -79,6 +79,7 @@ export {
     JsonCursor,
     jsonTypeSchema,
     jsonArray, jsonBoolean, jsonNull, jsonNumber, jsonObject, jsonString,
+    TypedJsonCursor,
 } from "./domains";
 
 export {
@@ -112,7 +113,8 @@ export {
     isNeverField,
     FullSchemaPolicy,
     UnwrappedEditableField,
-    UnwrappedEditableFieldSequence,
+    UnwrappedEditableTree,
+    UnwrappedEditableSequence,
     FieldlessEditableTree,
     EditableTreeContext,
     EditableTreeContextHandler,

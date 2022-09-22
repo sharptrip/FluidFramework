@@ -13,9 +13,9 @@ import { IEditableForest, initializeForest } from "../../../forest";
 import { JsonableTree, EmptyKey, Value, rootFieldKey } from "../../../tree";
 import { brand, Brand, clone } from "../../../util";
 import {
-    defaultSchemaPolicy, singleTextCursorNew, emptyField, FieldKinds, Multiplicity,
-    getEditableTree, EditableTree, buildForest, getTypeSymbol, valueSymbol, proxyTargetSymbol, isPrimitiveValue,
-    UnwrappedEditableField, EditableTreeOrPrimitive, UnwrappedEditableFieldSequence, EditableTreeContext,
+    defaultSchemaPolicy, singleTextCursorNew, emptyField, FieldKinds, Multiplicity, buildForest,
+    getEditableTree, EditableTree, EditableTreeContext, getTypeSymbol, valueSymbol, proxyTargetSymbol, isPrimitiveValue,
+    UnwrappedEditableField, EditableTreeOrPrimitive, UnwrappedEditableSequence,
 } from "../../../feature-libraries";
 
 // eslint-disable-next-line import/no-internal-modules
@@ -141,7 +141,7 @@ type ComplexPhoneType = EditableTree & {
 type AddressType = EditableTree & {
     street: string;
     zip?: string;
-    phones: UnwrappedEditableFieldSequence & (number | string | ComplexPhoneType)[];
+    phones: UnwrappedEditableSequence & (number | string | ComplexPhoneType)[];
 };
 
 type PersonType = EditableTree & {
@@ -508,11 +508,11 @@ describe.only("editable-tree", () => {
         }
         assert.equal(proxy.address.phones[0], "+49123456778");
         assert.deepEqual(Object.keys(proxy.address.phones), ["0", "1", "2"]);
-        const act = proxy.address.phones.map((phone): UnwrappedEditableField => {
+        const act = proxy.address.phones.map((phone) => {
             if (isPrimitiveValue(phone)) {
                 return phone;
             } else {
-                const cloned = clone(phone);
+                const cloned = clone(phone as EditableTree);
                 return cloned;
             }
         });

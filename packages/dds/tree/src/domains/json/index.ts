@@ -5,3 +5,4 @@
 
 export { JsonCursor, cursorToJsonObject } from "./jsonCursor";
 export * from "./jsonDomainSchema";
+export { TypedJsonCursor } from "./typedJsonCursor";

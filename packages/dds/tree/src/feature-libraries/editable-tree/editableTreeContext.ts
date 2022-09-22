@@ -7,12 +7,12 @@
 import { assert } from "@fluidframework/common-utils";
 import { TransactionResult } from "../../checkout";
 import { Dependent, SimpleObservingDependent, InvalidationToken } from "../../dependency-tracking";
-import { IEditableForest, ITreeSubscriptionCursor } from "../../forest";
+import { IEditableForest, ITreeSubscriptionCursor, ITreeCursor, IForestSubscription } from "../../forest";
 import { FieldSchema, GlobalFieldKey } from "../../schema-stored";
 import { ISharedTree } from "../../shared-tree";
-import { Delta, JsonableTree, keyFromSymbol, UpPath } from "../../tree";
+import { Delta, keyFromSymbol, UpPath } from "../../tree";
 import { NodePath, SequenceEditBuilder } from "../sequence-change-family";
-import { RootedTextCursor, singleTextCursor } from "../treeTextCursorLegacy";
+import { RootedTextCursor } from "../treeTextCursorLegacy";
 import { ProxyTarget } from "./editableTree";
 
 /**
@@ -20,7 +20,7 @@ import { ProxyTarget } from "./editableTree";
  * It handles group operations like transforming cursors into anchors for edits.
  * TODO: add test coverage.
  */
- export interface EditableTreeContext {
+export interface EditableTreeContext {
     /**
      * Call before editing.
      *
@@ -138,8 +138,8 @@ export class ProxyContext implements EditableTreeContext {
         return this.runTransaction((editor) => editor.setValue(path, value));
     }
 
-    public insertNode(path: NodePath, node: JsonableTree): boolean {
-        return this.runTransaction((editor) => editor.insert(path, singleTextCursor(node)));
+    public insertNode(path: NodePath, nodeCursor: ITreeCursor): boolean {
+        return this.runTransaction((editor) => editor.insert(path, nodeCursor));
     }
 
     public deleteNode(path: NodePath, count: number): boolean {
@@ -148,7 +148,7 @@ export class ProxyContext implements EditableTreeContext {
 
     private runTransaction(f: (editor: SequenceEditBuilder) => void): boolean {
         assert(this.tree !== undefined, "Transaction-based editing requires `SharedTree` instance");
-        const result = this.tree?.runTransaction((forest, editor) => {
+        const result = this.tree?.runTransaction((forest: IForestSubscription, editor: SequenceEditBuilder) => {
             f(editor);
             return TransactionResult.Apply;
         });

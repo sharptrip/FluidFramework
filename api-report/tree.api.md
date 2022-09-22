@@ -896,6 +896,17 @@ export interface RootField {
 // @public
 export const rootFieldKey: GlobalFieldKey;
 
+// @public (undocumented)
+export class SchemaCursor<T> extends JsonCursor<T> {
+    constructor(schema: StoredSchemaRepository, currentType: NamedTreeSchema, root: Jsonable<T>);
+    // (undocumented)
+    down(key: FieldKey, index: number): SynchronousNavigationResult;
+    // (undocumented)
+    get type(): TreeType;
+    // (undocumented)
+    up(): SynchronousNavigationResult;
+}
+
 // @public
 export interface SchemaData extends SchemaDataReader {
     // (undocumented)
@@ -1332,10 +1343,13 @@ class UnitEncoder extends ChangeEncoder<0> {
 }
 
 // @public
-export type UnwrappedEditableField = EditableTreeOrPrimitive | undefined | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableField = UnwrappedEditableTree | undefined | readonly UnwrappedEditableTree[];
 
 // @public (undocumented)
 export type UnwrappedEditableFieldSequence = FieldlessEditableTree & UnwrappedEditableField[];
+
+// @public
+export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableFieldSequence;
 
 // @public
 export interface UpPath {
