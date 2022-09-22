@@ -8,8 +8,9 @@ export {
     EditableTree,
     EditableField,
     EditableTreeOrPrimitive,
+    UnwrappedEditableTree,
     UnwrappedEditableField,
-    UnwrappedEditableFieldSequence,
+    UnwrappedEditableSequence,
     FieldlessEditableTree,
     getTypeSymbol,
     valueSymbol,
@@ -18,6 +19,7 @@ export {
 
 export {
     EditableTreeContext,
+    EditableTreeContextHandler,
 } from "./editableTreeContext";
 
 export {

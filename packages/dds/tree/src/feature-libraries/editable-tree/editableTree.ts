@@ -2,17 +2,19 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
+
 import { assert } from "@fluidframework/common-utils";
-import { FieldKey, Value, Anchor, rootFieldKey, JsonableTree } from "../../tree";
+import { FieldKey, Value, Anchor, rootFieldKey } from "../../tree";
 import {
     IEditableForest, TreeNavigationResult, mapCursorField, ITreeSubscriptionCursor, ITreeSubscriptionCursorState,
 } from "../../forest";
 import { brand } from "../../util";
 import {
-    FieldSchema, LocalFieldKey, TreeSchemaIdentifier, TreeSchema, ValueSchema,
+    FieldSchema, LocalFieldKey, TreeSchemaIdentifier, TreeSchema, ValueSchema, NamedTreeSchema,
 } from "../../schema-stored";
 import { FieldKind, Multiplicity } from "../modular-schema";
 import { ISharedTree } from "../../shared-tree";
+import { TypedJsonCursor } from "../../domains";
 import {
     AdaptingProxyHandler,
     adaptWithProxy,
@@ -109,6 +111,19 @@ export interface EditableTree extends FieldlessEditableTree {
 export type EditableTreeOrPrimitive = EditableTree | PrimitiveValue;
 
 /**
+ * EditableTree, but with these cases of unwrapping:
+ * - primitives are unwrapped. See {@link EditableTreeOrPrimitive}.
+ * - nodes with PrimaryField are unwrapped to just the primaryField. See `getPrimaryField`.
+ * - fields are unwrapped based on their schema's multiplicity. See {@link UnwrappedEditableField}.
+ *
+ * TODO:
+ * EditableTree should provide easy access to children in a way thats guaranteed
+ * not to do this unwrapping for cases which need to refer to the actual nodes.
+ * This may include cases like creating anchors and/or editing.
+ */
+export type UnwrappedEditableTree = EditableTreeOrPrimitive | UnwrappedEditableSequence;
+
+/**
  * A field of an {@link EditableTree}.
  */
 export type EditableField = readonly [FieldSchema, readonly EditableTree[]];
@@ -116,11 +131,12 @@ export type EditableField = readonly [FieldSchema, readonly EditableTree[]];
 /**
  * Unwrapped field.
  * Non-sequence multiplicities are unwrapped to the child tree or `undefined` if there is none.
- * Sequence multiplicities are handled with {@link UnwrappedEditableFieldSequence}.
+ * Sequence multiplicities are handled with arrays.
+ * See {@link UnwrappedEditableTree} for how the children themselves are unwrapped.
  */
-export type UnwrappedEditableField = EditableTreeOrPrimitive | undefined | UnwrappedEditableFieldSequence;
+export type UnwrappedEditableField = UnwrappedEditableTree | undefined | readonly UnwrappedEditableTree[];
 
-export type UnwrappedEditableFieldSequence = FieldlessEditableTree & UnwrappedEditableField[];
+export type UnwrappedEditableSequence = FieldlessEditableTree & readonly UnwrappedEditableTree[];
 
 interface PreparedForEdit extends ProxyTarget {
     anchor: Anchor;
@@ -251,8 +267,8 @@ export class ProxyTarget {
         // Lookup the schema:
         const fieldKind = this.lookupFieldKind(key as string);
         // Make the childTargets:
-        const childTargets = mapCursorField(this.cursor, brand(key as string), (c) => new ProxyTarget(this.context, c));
-        return proxifyField(fieldKind, childTargets);
+        const childTargets = mapCursorField(this.cursor, brand(key as string), (c) => this.context.createNode(c));
+        return proxifyField(this.context, fieldKind, childTargets);
     }
 
     /**
@@ -263,7 +279,7 @@ export class ProxyTarget {
         const primaryKey = this.primaryKey;
         const index = Number(key);
         const _key: FieldKey = primaryKey === undefined ? brand(key) : primaryKey;
-        const childTargets = mapCursorField(this.cursor, _key, (c) => new ProxyTarget(this.context, c));
+        const childTargets = mapCursorField(this.cursor, _key, (c) => this.context.createNode(c));
         const target = primaryKey === undefined ? childTargets[0] : childTargets[index];
         const type = target.getType() as TreeSchema;
         assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
@@ -274,23 +290,27 @@ export class ProxyTarget {
     }
 
     public insertNode(key: string, _value: unknown): boolean {
-        const type = this.getType() as TreeSchema;
-        let nodeValue = _value;
-        if (isPrimitive(type)) {
-            const types = type.localFields?.get(brand(key))?.types;
-            assert(types !== undefined, "Unknown primitive field type");
-            const nodeTypeName = [...types][0];
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            nodeValue = { type: nodeTypeName, value: _value } as JsonableTree;
-        }
-        const path = this.context.forest.anchors.locate(this.prepareAnchorForEdit());
+        const typeName = this.getType(undefined, true) as TreeSchemaIdentifier;
+        const primaryKey = this.primaryKey;
+        this.context.prepareForEdit();
         assertPreparedForEdit(this);
+        const path = this.context.forest.anchors.locate(this.anchor);
         assert(path !== undefined, "Can't locate a path to insert a node");
+        const type: NamedTreeSchema = { name: typeName, ...this.context.forest.schema.lookupTreeSchema(typeName) };
+        const jsonValue = isPrimitiveValue(_value) ? _value : _value as object;
+        const schemaCursor = new TypedJsonCursor(this.context.forest.schema, type, primaryKey ?? brand(key), jsonValue);
+        if (primaryKey !== undefined) {
+            return this.context.insertNode({
+                parent: path,
+                parentField: primaryKey,
+                parentIndex: Number(key),
+            }, schemaCursor);
+        }
         return this.context.insertNode({
             parent: path,
             parentField: brand(key),
             parentIndex: 0,
-        }, nodeValue as JsonableTree);
+        }, schemaCursor);
     }
 
     public deleteNode(key: string): boolean {
@@ -337,13 +357,7 @@ const handler: AdaptingProxyHandler<ProxyTarget, EditableTree> = {
         }
     },
     set: (target: ProxyTarget, key: string, _value: unknown, receiver: unknown): boolean => {
-        // update value
-        if (target.has(key)) {
-            return target.setValue(key, _value);
-        // insert node
-        } else {
-            return target.insertNode(key, _value);
-        }
+        return target.has(key) ? target.setValue(key, _value) : target.insertNode(key, _value);
     },
     deleteProperty: (target: ProxyTarget, key: string): boolean => {
         if (target.has(key)) {
@@ -401,18 +415,14 @@ class SequenceProxyTarget extends Array<ProxyTarget> {
     constructor(
         public readonly context: ProxyContext,
         public readonly primaryTarget?: ProxyTarget,
+        children?: ProxyTarget[],
     ) {
-        super();
+        super(...children ?? []);
         const privateProperties: PropertyKey[] = ["primaryTarget", "context"];
         for (const propertyKey of privateProperties) {
             Object.defineProperty(this, propertyKey,
                 { enumerable: false, writable: false, configurable: false, value: Reflect.get(this, propertyKey) });
         }
-    }
-
-    splice(start: number, deleteCount?: number, ...items: ProxyTarget[]): ProxyTarget[] {
-        const deleted: ProxyTarget[] = [];
-        return deleted;
     }
 
     public getType(key?: string, nameOnly?: boolean): TreeSchemaIdentifier | TreeSchema | undefined {
@@ -427,16 +437,132 @@ class SequenceProxyTarget extends Array<ProxyTarget> {
         return this.primaryTarget?.getPrimaryArrayLength() ?? 0;
     }
 
+    /**
+     * This covers:
+     * - []-assignment like arr[n] = "foo". Updates the node if 'n' is an existing index.
+     * Inserts the node ("appends") if 'n === length'. Breaks otherwise.
+     * - push(...)
+     * - unshift(...)
+     */
     public setValue(key: string, value: unknown): boolean {
+        const primaryKey = this.primaryTarget?.primaryKey;
+        assert(primaryKey !== undefined, "Not supported");
         const index = Number(key);
-        if (index >= 0 && index < this.length) {
+        const length = this.length;
+        if (index >= 0 && index < length) {
             return this.primaryTarget?.setValue(key, value) ?? false;
+        } else if (index === length) {
+            if (this.primaryTarget?.insertNode(key, value) &&
+                this.primaryTarget.cursor.down(primaryKey, length) === TreeNavigationResult.Ok) {
+                this.push(this.context.createNode(this.primaryTarget.cursor));
+                this.primaryTarget.cursor.up();
+                return true;
+            }
         }
         return false;
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    // TODO: (?) return deleted nodes as a detached array sequence
+    splice(start: number, deleteCount?: number, ...items: ProxyTarget[]): ProxyTarget[] {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    // TODO: (?) create a copy of a sequence slice as a detached array sequence
+    slice(start?: number, end?: number): ProxyTarget[] {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    pop(): ProxyTarget | undefined {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    shift(): ProxyTarget | undefined {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    reverse(): ProxyTarget[] {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    // TODO: returns a detached sequence of copied existing sequence elements and new elements
+    concat(): ProxyTarget[] {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    join(separator?: string): string {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    sort(compareFn?: (a: ProxyTarget, b: ProxyTarget) => number): this {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    indexOf(searchElement: ProxyTarget, index?: number): number {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    lastIndexOf(searchElement: ProxyTarget, index?: number): number {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    reduce<U>(
+        callbackfn: (previousValue: U, currentValue: ProxyTarget, currentIndex: number, array: ProxyTarget[]) => U,
+        initialValue?: U): U {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    reduceRight<U>(
+        callbackfn: (previousValue: U, currentValue: ProxyTarget, currentIndex: number, array: ProxyTarget[]) => U,
+        initialValue?: U): U {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    filter(predicate: (value: ProxyTarget, index: number, array: ProxyTarget[]) => unknown, thisArg?: any):
+        ProxyTarget[] {
+        throw new Error("Not implemented");
+    }
 }
 
-const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditableFieldSequence> = {
+const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditableSequence> = {
     get: (target: SequenceProxyTarget, key: string | symbol, receiver: object): unknown => {
         if (typeof key === "string") {
             const reflected = Reflect.get(target, key);
@@ -452,7 +578,7 @@ const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditab
             if (key === "length") {
                 return target.length;
             } else if (index >= 0 && index < target.length) {
-                return inProxyOrUnwrap(target[index]);
+                return inProxyOrUnwrap(target.context, target[index]);
             }
         }
         switch (key) {
@@ -462,10 +588,13 @@ const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditab
             case proxyTargetSymbol:
                 return target;
             default:
+                return Reflect.get(target, key);
         }
-        return Reflect.get(target, key);
     },
     set: (target: SequenceProxyTarget, key: string, value: unknown, receiver: unknown): boolean => {
+        if (key === "length") {
+            return target.length === value;
+        }
         return target.setValue(key, value);
     },
     deleteProperty: (target: SequenceProxyTarget, key: string): boolean => {
@@ -503,10 +632,7 @@ const sequenceHandler: AdaptingProxyHandler<SequenceProxyTarget, UnwrappedEditab
 /**
  * See {@link UnwrappedEditableField} for documentation on what unwrapping this perform.
  */
-function inProxyOrUnwrap(target: ProxyTarget | SequenceProxyTarget): UnwrappedEditableField {
-    if (Array.isArray(target)) {
-        return adaptWithProxy(target, sequenceHandler);
-    }
+function inProxyOrUnwrap(context: ProxyContext, target: ProxyTarget): UnwrappedEditableTree {
     const fieldSchema = target.getType() as TreeSchema;
     if (isPrimitive(fieldSchema)) {
         const nodeValue = target.value;
@@ -518,8 +644,8 @@ function inProxyOrUnwrap(target: ProxyTarget | SequenceProxyTarget): UnwrappedEd
     }
     const primaryKey = target.primaryKey;
     if (primaryKey !== undefined) {
-        const sequenceTarget = new SequenceProxyTarget(target.context, target);
-        mapCursorField(target.cursor, primaryKey, (c) => sequenceTarget.push(new ProxyTarget(target.context, c)));
+        const sequenceTarget = new SequenceProxyTarget(context, target);
+        mapCursorField(target.cursor, primaryKey, (c) => sequenceTarget.push(target.context.createNode(c)));
         return adaptWithProxy(sequenceTarget, sequenceHandler);
     }
     return adaptWithProxy(target, handler);
@@ -529,14 +655,15 @@ function inProxyOrUnwrap(target: ProxyTarget | SequenceProxyTarget): UnwrappedEd
  * @param fieldKind - determines how return value should be typed. See {@link UnwrappedEditableField}.
  * @param childTargets - targets for the children of the field.
  */
-function proxifyField(fieldKind: FieldKind, childTargets: ProxyTarget[]): UnwrappedEditableField {
+function proxifyField(context: ProxyContext, fieldKind: FieldKind, childTargets: ProxyTarget[]):
+    UnwrappedEditableField {
     if (fieldKind.multiplicity === Multiplicity.Sequence) {
         // Return array for sequence fields
-        return inProxyOrUnwrap(childTargets as SequenceProxyTarget);
+        return childTargets.map((target) => inProxyOrUnwrap(context, target));
     }
     // Avoid wrapping non-sequence fields in arrays
     assert(childTargets.length <= 1, 0x3c8 /* invalid non sequence */);
-    return childTargets.length === 1 ? inProxyOrUnwrap(childTargets[0]) : undefined;
+    return childTargets.length === 1 ? inProxyOrUnwrap(context, childTargets[0]) : undefined;
 }
 
 /**
@@ -566,14 +693,14 @@ export function getEditableTree(from: ISharedTree | IEditableForest):
     const cursor = forest.allocateCursor();
     const rootAnchor = forest.root(forest.rootField);
     const cursorResult = forest.tryMoveCursorTo(rootAnchor, cursor);
-    const targets: SequenceProxyTarget = new SequenceProxyTarget(context);
+    const targets: ProxyTarget[] = [];
     if (cursorResult === TreeNavigationResult.Ok) {
         do {
-            targets.push(new ProxyTarget(context, cursor));
+            targets.push(context.createNode(cursor));
         } while (cursor.seek(1) === TreeNavigationResult.Ok);
     }
     cursor.free();
     forest.anchors.forget(rootAnchor);
     const rootSchema = forest.schema.lookupGlobalFieldSchema(rootFieldKey);
-    return [context, proxifyField(getFieldKind(rootSchema), targets)];
+    return [context, proxifyField(context, getFieldKind(rootSchema), targets)];
 }

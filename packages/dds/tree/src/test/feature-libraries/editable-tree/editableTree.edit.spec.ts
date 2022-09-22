@@ -7,20 +7,14 @@ import {
     NamedTreeSchema, namedTreeSchema, ValueSchema, fieldSchema, SchemaData, TreeSchemaIdentifier,
 } from "../../../schema-stored";
 import { JsonableTree, EmptyKey, detachedFieldAsKey, rootFieldKey } from "../../../tree";
-import { brand, Brand } from "../../../util";
-import {
-    getEditableTree, EditableTree, getTypeSymbol, UnwrappedEditableField,
-    emptyField, FieldKinds, singleTextCursor,
-    EditableTreeContext,
-    EditableTreeOrPrimitive,
-    FieldlessEditableTree,
-    valueSymbol,
-    isPrimitive, isPrimitiveValue,
-} from "../../../feature-libraries";
-
-import { ITestTreeProvider, TestTreeProvider } from "../../utils";
 import { ISharedTree } from "../../../shared-tree";
 import { TransactionResult } from "../../../checkout";
+import { brand, Brand } from "../../../util";
+import {
+    emptyField, FieldKinds, singleTextCursor,
+    getEditableTree, EditableTree, getTypeSymbol, UnwrappedEditableField, EditableTreeContext,
+} from "../../../feature-libraries";
+import { ITestTreeProvider, TestTreeProvider } from "../../utils";
 
 // TODO: Use typed schema (ex: typedTreeSchema), here, and derive the types below from them programmatically.
 
@@ -135,7 +129,7 @@ type ComplexPhoneType = EditableTree & {
 type AddressType = EditableTree & {
     street: string;
     zip?: string;
-    phones: (number | string | ComplexPhoneType)[];
+    phones?: (number | string | ComplexPhoneType)[];
 };
 
 type PersonType = EditableTree & {
@@ -226,8 +220,9 @@ describe.only("editing with editable-tree", () => {
         person1.age = newAge;
         assert.strictEqual(person1.age, newAge);
         const phones = person1.address.phones;
+        assert(phones);
         phones[1] = 123;
-        assert.equal(person1.address.phones[1], 123);
+        assert.equal(person1.address.phones?.[1], 123);
         assert.throws(() => {
             phones[2] = { number: "123", prefix: "456" } as any;
         });
@@ -246,9 +241,19 @@ describe.only("editing with editable-tree", () => {
         const zipTypes = addressSchema.localFields.get(brand("zip"))?.types;
         assert(zipTypes !== undefined);
         assert(zipTypes.has(stringSchema.name));
-        (person.address.zip as unknown) = { type: stringSchema.name, value: "99038" };
+        person.address.zip = "99038";
         assert.equal(person.address.zip, "99038");
         assert.equal("zip" in person.address, true);
+        // delete person.address.phones;
+        // person.address.phones = [1, 2, 3];
+        assert(person.address.phones);
+        person.address.phones[3] = 999;
+        assert.equal(person.address.phones[3], 999);
+        person.address.phones.push("new entry");
+        assert.equal(person.address.phones[4], "new entry");
+        const morePhones = [1, 2, 3];
+        person.address.phones.push(...morePhones);
+        assert.throws(() => person.address.phones?.slice(5));
         context.free();
     });
 

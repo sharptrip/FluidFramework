@@ -4,7 +4,6 @@
  */
 
 export * from "./object-forest";
-export * from "./editable-tree";
 export * from "./defaultRebaser";
 export * from "./forestIndex";
 export { SchemaIndex } from "./schemaIndex";
@@ -45,3 +44,5 @@ export {
 // Split this up into separate import and export for compatibility with API-Extractor.
 import * as FieldKinds from "./defaultFieldKinds";
 export { FieldKinds };
+
+export * from "./editable-tree";
