@@ -152,7 +152,7 @@ export class SharedTreeCore<TChange, TChangeFamily extends ChangeFamily<any, TCh
     }
 
     protected onDisconnect() {
-        throw new Error("Method not implemented.");
+        console.log("disconnected");
     }
 
     protected applyStashedOp(content: any): unknown {

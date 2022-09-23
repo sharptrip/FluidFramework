@@ -965,13 +965,28 @@ export class SimpleDependee implements Dependee {
     constructor(computationName?: string);
     // (undocumented)
     readonly computationName: string;
-    invalidateDependents(): void;
+    invalidateDependents(token?: InvalidationToken): void;
     // @sealed (undocumented)
     listDependents(): Set<Dependent>;
     // (undocumented)
     registerDependent(dependent: Dependent): boolean;
     // (undocumented)
     removeDependent(dependent: Dependent): void;
+}
+
+// @public
+export class SimpleObservingDependent implements ObservingDependent {
+    constructor(markInvalid: (token?: InvalidationToken) => void, computationName?: string);
+    // (undocumented)
+    readonly computationName: string;
+    dispose(): void;
+    // (undocumented)
+    listDependees(): readonly Dependee[];
+    // (undocumented)
+    readonly markInvalid: (token?: InvalidationToken) => void;
+    // (undocumented)
+    registerDependee(dependee: Dependee): void;
+    unregisterDependees(): void;
 }
 
 // @public (undocumented)

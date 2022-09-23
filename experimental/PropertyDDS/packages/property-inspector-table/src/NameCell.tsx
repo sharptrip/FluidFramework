@@ -3,15 +3,14 @@
  * Licensed under the MIT License.
  */
 
-import { PropertyProxy } from "@fluid-experimental/property-proxy";
-import { BaseProperty, ArrayProperty, NodeProperty, MapProperty } from "@fluid-experimental/property-properties";
 import { createStyles, withStyles, WithStyles } from "@material-ui/core/styles";
 import classNames from "classnames";
 import * as React from "react";
-import { ItemMenu } from "./ItemMenu";
+import { ICopyOptions, ItemMenu } from "./ItemMenu";
 import { iconMarginRight, iconWidth, unit } from "./constants";
 import { IInspectorRow } from "./InspectorTableTypes";
 import { OverflowableCell } from "./OverflowableCell";
+import { IDeleteOptions } from "./DeleteModal";
 
 const styles = () => createStyles({
   iconContainer: {
@@ -51,47 +50,9 @@ export interface ICellProps extends React.HTMLAttributes<HTMLDivElement> {
 export interface INameCellProps {
   editReferenceHandler: any;
   readOnly: boolean;
+  copyHandler?: ICopyOptions["handler"];
+  deleteHandler?: IDeleteOptions["handler"];
 }
-
-const deletionHandler = (rowData: IInspectorRow) => {
-  const parent = PropertyProxy.proxify(rowData.parent!);
-  if (Array.isArray(parent)) {
-    (rowData!.parent! as ArrayProperty).remove(Number(rowData.name));
-  } else if (parent instanceof Map) {
-    (rowData!.parent! as MapProperty).remove(rowData.name);
-  } else if (parent instanceof Set) {
-    (rowData!.parent! as any).remove(rowData.name); // TODO: Should be SetProperty, once the types package is fixed.
-  } else {
-    (rowData!.parent! as NodeProperty).remove(rowData.name);
-  }
-  return (parent as any).getProperty().getRoot().getWorkspace().commit();
-};
-
-const copyHandler = (rowData: IInspectorRow, ref: React.MutableRefObject<HTMLTextAreaElement>) => {
-  const prop = (rowData.parent! as BaseProperty);
-  let path = prop.getAbsolutePath();
-  path += prop.getContext() === "single"
-    ? (!prop.isRoot() ? "." : "") + rowData.propertyId
-    : `[${ rowData.propertyId }]`;
-
-  const el = ref.current;
-  el.value = path;
-  el.focus();
-  el.select();
-  document.execCommand("copy");
-};
-
-const isStaticProperty = (parent: BaseProperty, rowName: string) => {
-  if (typeof (parent as NodeProperty).getDynamicIds === "function") {
-    const dynamicIds = (parent as NodeProperty).getDynamicIds();
-    if (dynamicIds.includes(rowName)) {
-      return false;
-    }
-  } else if (parent.getContext() !== "single") {
-    return false;
-  }
-  return true;
-};
 
 // Class names that are relevant to fake a hover style on the table row.
 const BaseTableRowClass = "BaseTable__row";
@@ -101,7 +62,8 @@ const NameCellHoveredClass = "NameCell__hovered";
  * Inspector table name column cell. Displays the property name for which the row represents.
  */
 const NameCell: React.FunctionComponent<WithStyles<typeof styles> & INameCellProps & ICellProps> =
-({ rowData, iconRenderer, classes, className, editReferenceHandler, readOnly, ...restProps }) => {
+({ rowData, iconRenderer, classes, className, editReferenceHandler, readOnly,
+  deleteHandler, copyHandler, ...restProps }) => {
   const icon = iconRenderer(rowData);
   const ref = React.useRef<HTMLDivElement>(null);
 
@@ -141,14 +103,12 @@ const NameCell: React.FunctionComponent<WithStyles<typeof styles> & INameCellPro
           openHandler={menuHandler}
           closeHandler={menuHandler}
           options={{
-            copy: {
+            copy: copyHandler ? {
               handler: copyHandler.bind(null, rowData),
-            },
-            delete:
-              (
-                !readOnly &&
-                !rowData.parentIsConstant && !isStaticProperty(rowData.parent as BaseProperty, rowData.propertyId)) ?
-                { handler: () => deletionHandler(rowData) } : undefined,
+            } : undefined,
+            delete: deleteHandler ? {
+              handler: deleteHandler.bind(null, rowData, readOnly),
+            } : undefined,
             edit: !readOnly && (rowData.isReference) ?
               { handler: editReferenceHandler } : undefined,
           }}

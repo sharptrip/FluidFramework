@@ -44,7 +44,9 @@
     "@fluid-experimental/property-properties": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
     "@fluid-experimental/property-proxy": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
     "@fluid-experimental/schemas": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
+    "@fluid-internal/tree": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
     "@fluidframework/aqueduct": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
+    "@fluidframework/azure-client": "^1.0.2",
     "@fluidframework/common-utils": "^1.0.0",
     "@fluidframework/container-definitions": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
     "@fluidframework/container-loader": ">=2.0.0-internal.1.2.0 <2.0.0-internal.2.0.0",
@@ -72,7 +74,8 @@
     "lodash": "^4.17.21",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
-    "react-virtualized-auto-sizer": "^1.0.2"
+    "react-virtualized-auto-sizer": "^1.0.2",
+    "react-json-view": "^1.21.3"
   },
   "devDependencies": {
     "@rushstack/eslint-config": "^2.5.1",

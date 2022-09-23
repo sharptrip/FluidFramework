@@ -7,6 +7,7 @@ import { assert } from "@fluidframework/common-utils";
 import { RootedTextCursor } from "../treeTextCursorLegacy";
 import {
     DisposingDependee, ObservingDependent, recordDependency, SimpleDependee, SimpleObservingDependent,
+    InvalidationToken,
 } from "../../dependency-tracking";
 import {
     ITreeSubscriptionCursor, IEditableForest,
@@ -33,6 +34,10 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
 
     // All cursors that are in the "Current" state. Must be empty when editing.
     public readonly currentCursors: Set<Cursor> = new Set();
+
+    private readonly beforeChangeToken = new InvalidationToken("Invalidate before change", false);
+
+    private readonly afterChangeToken = new InvalidationToken("Invalidate after change", true);
 
     public constructor(
         public readonly schema: StoredSchemaRepository, public readonly anchors: AnchorSet = new AnchorSet()) {
@@ -161,6 +166,8 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
         };
         visitDelta(delta, visitor);
         cursor.free();
+
+        this.afterChange();
     }
 
     public observeItem(item: ObjectField | JsonableTree, observer: ObservingDependent | undefined): void {
@@ -220,8 +227,12 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     }
 
     private beforeChange(): void {
+        this.invalidateDependents(this.beforeChangeToken);
         assert(this.currentCursors.size === 0, 0x374 /* No cursors can be current when modifying forest */);
-        this.invalidateDependents();
+    }
+
+    private afterChange(): void {
+        this.invalidateDependents(this.afterChangeToken);
     }
 
     tryMoveCursorTo(

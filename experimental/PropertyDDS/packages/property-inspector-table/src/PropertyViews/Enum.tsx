@@ -9,7 +9,6 @@ import Select, { SelectProps } from "@material-ui/core/Select";
 import * as React from "react";
 import { IEditableValueCellProps, IInspectorRow } from "../InspectorTableTypes";
 import { Utils } from "../typeUtils";
-import { getPropertyValue } from "../propertyInspectorUtils";
 
 type ValType = string | number | boolean;
 
@@ -33,7 +32,6 @@ const getOptions: GetOptionsType = (rowData) => {
 
 export const EnumView: React.FunctionComponent<EnumProps> = (props) => {
   const {
-    followReferences,
     SelectProps: selectProps,
     rowData,
     onSubmit,
@@ -42,8 +40,7 @@ export const EnumView: React.FunctionComponent<EnumProps> = (props) => {
   } = props;
 
   const options = getOptions(rowData);
-  const value = getPropertyValue(rowData.parent as ContainerProperty, rowData.name, rowData.context, rowData.typeid,
-    followReferences);
+  const value = rowData.value;
 
   return (
     <Select

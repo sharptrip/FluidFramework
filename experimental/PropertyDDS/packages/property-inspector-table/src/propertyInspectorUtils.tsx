@@ -26,6 +26,7 @@ import { InspectorMessages, minRowWidth, rowWidthInterval } from "./constants";
 import { HashCalculator } from "./HashCalculator";
 import {
   ColumnRendererType,
+  IEditableValueCellProps,
   IExpandedMap, IInspectorRow, IInspectorSearchMatch,
   IPropertyToTableRowOptions,
   IToTableRowsOptions, IToTableRowsProps, SearchResult,
@@ -696,7 +697,9 @@ const determineCellClassName = (rowData: IInspectorRow, columnIndex: number,
 export function valueCellRenderer(
   { rowData, cellData, columnIndex, tableProps, searchResult,
   }: ColumnRendererType) {
-  const { classes, checkoutInProgress, followReferences, rowIconRenderer, width, dataGetter, readOnly } = tableProps;
+  const {
+    classes, checkoutInProgress, followReferences, rowIconRenderer, width, dataGetter, readOnly,
+  } = tableProps;
   if (checkoutInProgress) {
     return getCellSkeleton(width);
   }
@@ -708,6 +711,11 @@ export function valueCellRenderer(
         className={determineCellClassName(rowData, columnIndex, classes, searchResult)}
         followReferences={followReferences}
         iconRenderer={rowIconRenderer!}
+        onSubmit={(val, props: IEditableValueCellProps) => {
+          const { rowData } = props;
+          // @TODO enable this line when EditableTree allow edits
+          rowData.parent![rowData.name] = val;
+        }}
         rowData={rowData}
         readOnly={!!readOnly} />
     );

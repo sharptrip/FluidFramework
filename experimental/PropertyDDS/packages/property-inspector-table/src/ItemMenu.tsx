@@ -13,12 +13,13 @@ import { SvgIcon } from "./SVGIcon";
 import { DeleteModal, IDeleteOptions } from "./DeleteModal";
 import { IDeleteModalTextParameters } from "./DeleteModalTextParameters";
 import { IShareOptions, ShareModal } from "./ShareModal";
+import { IRowData } from ".";
 
-export interface ICopyOptions {
+export interface ICopyOptions<T extends IRowData = any> {
   /**
    * The handler that is invoked if the user deciders to delete.
    */
-  handler: (ref: React.MutableRefObject<HTMLTextAreaElement>) => void;
+  handler: (rowData: T, ref: React.MutableRefObject<HTMLTextAreaElement>) => void;
 }
 
 export interface IEditOptions {

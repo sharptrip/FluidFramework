@@ -115,7 +115,7 @@ export class ProxyContext implements EditableTreeContext {
 
     public prepareForEdit(): void {
         for (const target of this.withCursors) {
-            target.prepareForEdit();
+            target.prepareAnchorForEdit();
         }
         assert(this.withCursors.size === 0, 0x3c0 /* prepareForEdit should remove all cursors */);
     }

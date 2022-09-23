@@ -163,7 +163,7 @@ export class ProxyTarget {
         public readonly primaryParent?: ProxyTarget,
     ) {
         this.lazyCursor = cursor.fork();
-        context.withCursors.add(this);
+        this.context.withCursors.add(this);
     }
 
     public free(): void {
@@ -176,13 +176,14 @@ export class ProxyTarget {
         }
     }
 
-    public prepareForEdit(): void {
+    public prepareAnchorForEdit(): Anchor {
         if (this._anchor === undefined) {
             this._anchor = this.lazyCursor.buildAnchor();
             this.context.withAnchors.add(this);
         }
         this.lazyCursor.clear();
         this.context.withCursors.delete(this);
+        return this._anchor;
     }
 
     public get cursor(): ITreeSubscriptionCursor {
@@ -200,9 +201,15 @@ export class ProxyTarget {
     public getType(key?: string, nameOnly?: boolean): TreeSchemaIdentifier | TreeSchema | undefined {
         let typeName = this.cursor.type;
         if (key !== undefined) {
-            const childTypes = mapCursorField(this.cursor, brand(key), (c) => c.type);
-            assert(childTypes.length <= 1, 0x3c5 /* invalid non sequence */);
-            typeName = childTypes[0];
+            const primaryKey = this.primaryKey;
+            if (primaryKey !== undefined) {
+                const childTypes = mapCursorField(this.cursor, primaryKey, (c) => c.type);
+                typeName = childTypes[Number(key)];
+            } else {
+                const childTypes = mapCursorField(this.cursor, brand(key), (c) => c.type);
+                assert(childTypes.length <= 1, 0x3c5 /* invalid non sequence */);
+                typeName = childTypes[0];
+            }
         }
         if (nameOnly) {
             return typeName;
@@ -276,9 +283,8 @@ export class ProxyTarget {
         const target = primaryKey === undefined ? childTargets[0] : childTargets[index];
         const type = target.getType() as TreeSchema;
         assert(isPrimitive(type), `"Set value" is not supported for non-primitive fields`);
-        this.context.prepareForEdit();
+        const path = this.context.forest.anchors.locate(target.prepareAnchorForEdit());
         assertPreparedForEdit(target);
-        const path = this.context.forest.anchors.locate(target.anchor);
         assert(path !== undefined, "Can't locate a path to set a value");
         return this.context.setNodeValue(path, _value);
     }
@@ -308,9 +314,8 @@ export class ProxyTarget {
     }
 
     public deleteNode(key: string): boolean {
-        this.context.prepareForEdit();
+        const path = this.context.forest.anchors.locate(this.prepareAnchorForEdit());
         assertPreparedForEdit(this);
-        const path = this.context.forest.anchors.locate(this.anchor);
         assert(path !== undefined, "Can't locate a path to delete a node");
         return this.context.deleteNode({
             parent: path,
