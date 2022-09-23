@@ -1,28 +1,20 @@
-/* eslint-disable max-len */
 /*!
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import ReactDOM from "react-dom";
 
-import _ from "lodash";
+// import _ from "lodash";
 import { assert } from "@fluidframework/common-utils";
 import {
     // EditableTreeContext, UnwrappedEditableField,
     getTypeSymbol, isPrimitive, proxyTargetSymbol,
     TreeSchema, Value,
-    SimpleObservingDependent,
-    IEditableForest,
-    InvalidationToken,
-    Delta,
     EditableTreeContext,
     UnwrappedEditableField,
-    ISharedTree,
-    getEditableTree,
 } from "@fluid-internal/tree";
-import { clone } from "@fluid-internal/tree/dist/util";
 import {
     IDataCreationOptions,
     IInspectorTableProps,

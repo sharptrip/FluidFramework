@@ -347,7 +347,7 @@ export interface IEditableValueCellProps extends Omit<React.InputHTMLAttributes<
    */
   readOnly: boolean;
   /**
-   *  A callback called upon submitting the field.
+   * A callback called upon submitting the field.
    */
    onSubmit: (val: string | number | boolean, props: IEditableValueCellProps) => void;
 }
