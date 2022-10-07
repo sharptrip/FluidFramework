@@ -69,7 +69,9 @@ describe("AnchorSet", () => {
         checkEquality(anchors.locate(anchor2), path2);
         checkEquality(anchors.locate(anchor3), path3);
         assert.doesNotThrow(() => anchors.forget(anchor4));
+        assert.doesNotThrow(() => anchors.forget(anchor1));
         assert.throws(() => anchors.locate(anchor4));
+        assert.throws(() => anchors.locate(anchor1));
     });
 
     it("can rebase over move", () => {
