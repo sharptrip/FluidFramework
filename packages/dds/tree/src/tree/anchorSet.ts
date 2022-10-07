@@ -548,7 +548,10 @@ class PathNode implements UpPath {
      */
     private disposeThis(): void {
         assert(this.status !== Status.Disposed, "PathNode must be alive");
-        this.parentPath?.removeChild(this);
+        // 'Dead' comes from deleted items, which have already been un-parented.
+        if (this.status !== Status.Dead) {
+            this.parentPath?.removeChild(this);
+        }
 
         this.status = Status.Disposed;
     }
