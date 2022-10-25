@@ -14,7 +14,6 @@ import {
     namedTreeSchema,
     ValueSchema,
     LocalFieldKey,
-    TreeSchema,
 } from "../../../schema-stored";
 import { IEditableForest, initializeForest } from "../../../forest";
 import {
@@ -32,7 +31,8 @@ import {
     EditableTree,
     EditableField,
     buildForest,
-    getTypeSymbol,
+    typeSymbol,
+    typeNameSymbol,
     UnwrappedEditableField,
     proxyTargetSymbol,
     FieldKinds,
@@ -93,15 +93,25 @@ describe("editable-tree", () => {
         const [, proxy] = buildTestPerson();
         assert.ok(proxy);
         assert.equal(Object.keys(proxy).length, 5);
-        assert.deepEqual(proxy[getTypeSymbol](undefined, false), personSchema);
-        assert.deepEqual(proxy.address[getTypeSymbol](undefined, false), addressSchema);
+        assert.deepEqual(proxy[typeSymbol], personSchema);
+        assert.deepEqual(proxy.address[typeSymbol], addressSchema);
         assert.deepEqual(
-            (proxy.address.phones?.[2] as ComplexPhoneType)[getTypeSymbol](undefined, false),
+            (proxy.address.phones?.[2] as ComplexPhoneType)[typeSymbol],
             complexPhoneSchema,
         );
-        assert.equal(proxy[getTypeSymbol](brand("name")), stringSchema.name);
-        assert.equal(proxy.address[getTypeSymbol](brand("phones")), phonesSchema.name);
-        assert.equal(proxy.address[getTypeSymbol](brand("sequencePhones")), undefined);
+        assert.equal(
+            proxy[getWithoutUnwrappingSymbol](brand("name")).getWithoutUnwrapping(0)[
+                typeNameSymbol
+            ],
+            stringSchema.name,
+        );
+        assert.equal(proxy.address.phones?.primaryType, phonesSchema.name);
+        assert.equal(
+            proxy.address[getWithoutUnwrappingSymbol](brand("phones")).getWithoutUnwrapping(0)[
+                typeNameSymbol
+            ],
+            phonesSchema.name,
+        );
     });
 
     it("traverse a complete tree by field keys", () => {
@@ -126,7 +136,8 @@ describe("editable-tree", () => {
         assert.equal("context" in personProxy, false);
         // Check for expected symbols:
         assert(proxyTargetSymbol in personProxy);
-        assert(getTypeSymbol in personProxy);
+        assert(typeSymbol in personProxy);
+        assert(typeNameSymbol in personProxy);
         assert(getWithoutUnwrappingSymbol in personProxy);
         // Check fields show up:
         assert("age" in personProxy);
@@ -263,7 +274,9 @@ describe("editable-tree", () => {
         const context = getEditableTreeContext(forest);
         assert(isUnwrappedNode(context.unwrappedRoot));
         assert.deepEqual(
-            context.unwrappedRoot[getTypeSymbol](globalFieldSymbol, false),
+            context.unwrappedRoot[getWithoutUnwrappingSymbol](
+                globalFieldSymbol,
+            ).getWithoutUnwrapping(0)[typeSymbol],
             stringSchema,
         );
         assert.equal(context.unwrappedRoot[globalFieldSymbol], "global foo");
@@ -482,15 +495,13 @@ describe("editable-tree", () => {
         const [, proxy] = buildTestPerson();
         const phones = proxy.address[getWithoutUnwrappingSymbol]("phones" as FieldKey);
         const primaryNode = phones.getWithoutUnwrapping(0);
-        const phonesPrimary = getPrimaryField(
-            primaryNode[getTypeSymbol](undefined, false) as TreeSchema,
-        );
+        const phonesPrimary = getPrimaryField(primaryNode[typeSymbol]);
         assert(phonesPrimary !== undefined);
         const nodeWithPrimaryField = phones.getWithoutUnwrapping(0);
         assert.equal([...nodeWithPrimaryField].length, 1);
         const primaryField = nodeWithPrimaryField[getWithoutUnwrappingSymbol](phonesPrimary.key);
         const forthNode = primaryField.getWithoutUnwrapping(3);
-        const primary = getPrimaryField(forthNode[getTypeSymbol](undefined, false) as TreeSchema);
+        const primary = getPrimaryField(forthNode[typeSymbol]);
         assert(primary !== undefined);
         assert.equal([...forthNode].length, 1);
         const simplePhones = forthNode[primary.key];

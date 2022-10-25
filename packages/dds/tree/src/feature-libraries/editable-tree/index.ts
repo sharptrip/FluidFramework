@@ -6,7 +6,8 @@
 export {
     anchorSymbol,
     getEditableTreeContext,
-    getTypeSymbol,
+    typeSymbol,
+    typeNameSymbol,
     EditableTree,
     EditableField,
     EditableTreeOrPrimitive,
