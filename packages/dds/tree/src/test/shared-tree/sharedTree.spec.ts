@@ -11,6 +11,7 @@ import {
     valueSymbol,
     getSchemaString,
     typeNameSymbol,
+    isEditableField,
 } from "../../feature-libraries";
 import { brand } from "../../util";
 import {
@@ -31,7 +32,7 @@ import { fieldSchema, GlobalFieldKey, namedTreeSchema, SchemaData } from "../../
 const globalFieldKey: GlobalFieldKey = brand("globalFieldKey");
 const globalFieldKeySymbol = symbolFromKey(globalFieldKey);
 
-describe("SharedTree", () => {
+describe.only("SharedTree", () => {
     it("reads only one node", async () => {
         // This is a regression test for a scenario in which a transaction would apply its delta twice,
         // inserting two nodes instead of just one
@@ -447,6 +448,51 @@ describe("SharedTree", () => {
         tree1.context.free();
         tree2.context.free();
     });
+
+    it("can insert and delete node of sequence child field", async () => {
+        const childKey: FieldKey = brand("sequenceChild");
+        const provider = await TestTreeProvider.create(1);
+        const [tree1] = provider.trees;
+
+        initializeTestTreeWithValue(tree1, 1);
+
+        assert(isUnwrappedNode(tree1.root));
+        const anchor = tree1.root[anchorSymbol];
+        tree1.runTransaction((forest, editor) => {
+            tree1.context.prepareForEdit();
+            const field = editor.sequenceField(tree1.locate(anchor), childKey);
+            field.insert(0, singleTextCursor({ type: brand("TestValue"), value: 1 }));
+            return TransactionResult.Apply;
+        });
+        tree1.runTransaction((forest, editor) => {
+            tree1.context.prepareForEdit();
+            const field = editor.sequenceField(tree1.locate(anchor), childKey);
+            field.insert(1, singleTextCursor({ type: brand("TestValue"), value: 2 }));
+            return TransactionResult.Apply;
+        });
+
+        const child = tree1.root[childKey];
+        assert(isEditableField(child));
+        assert(isUnwrappedNode(child[0]));
+        assert(child[0][valueSymbol] === 1);
+        assert(isUnwrappedNode(child[1]));
+        assert(child[1][valueSymbol] === 2);
+
+        const anchor1 = child[0][anchorSymbol];
+        const anchor2 = child[1][anchorSymbol];
+        const p1 = tree1.locate(anchor1);
+        const p2 = tree1.locate(anchor2);
+        tree1.runTransaction((forest, editor) => {
+            tree1.context.prepareForEdit();
+            const field = editor.sequenceField(tree1.locate(anchor), childKey);
+            field.delete(1, 1);
+            return TransactionResult.Apply;
+        });
+
+        assert(child[0][valueSymbol] === 1);
+
+        tree1.context.free();
+    });
 });
 
 const rootFieldSchema = fieldSchema(FieldKinds.value);
@@ -455,6 +501,7 @@ const rootNodeSchema = namedTreeSchema({
     name: brand("TestValue"),
     localFields: {
         optionalChild: fieldSchema(FieldKinds.optional, [brand("TestValue")]),
+        sequenceChild: fieldSchema(FieldKinds.sequence, [brand("TestValue")]),
     },
     extraLocalFields: fieldSchema(FieldKinds.sequence),
     globalFields: [globalFieldKey],

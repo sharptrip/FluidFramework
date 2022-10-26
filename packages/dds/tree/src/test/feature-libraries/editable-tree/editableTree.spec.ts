@@ -88,7 +88,7 @@ function buildTestPerson(): readonly [SchemaDataAndPolicy, PersonType] {
     return [schema, proxy as PersonType];
 }
 
-describe("editable-tree", () => {
+describe.only("editable-tree", () => {
     it("proxified forest", () => {
         const [, proxy] = buildTestPerson();
         assert.ok(proxy);

@@ -31,6 +31,7 @@ import {
     mapCursorField,
     moveToDetachedField,
 } from "../core";
+import { forestAfterChange } from "./object-forest";
 import { jsonableTreeFromCursor, singleTextCursor } from "./treeTextCursor";
 
 /**
@@ -75,6 +76,7 @@ export class ForestIndex implements Index<unknown>, SummaryElement {
 
     newLocalState(changeDelta: Delta.Root): void {
         this.forest.applyDelta(changeDelta);
+        forestAfterChange(this.forest);
     }
 
     /**

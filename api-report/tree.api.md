@@ -206,9 +206,13 @@ const DUMMY_INVERT_TAG: ChangesetTag;
 export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<UnwrappedEditableTree>;
+    // (undocumented)
+    deleteNodes(index: number, count: number): void;
     readonly fieldKey: FieldKey;
     readonly fieldSchema: FieldSchema;
     getWithoutUnwrapping(index: number): EditableTree;
+    // (undocumented)
+    insertNodes(index: number, newContent: ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
 }
 
@@ -216,11 +220,13 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
 export interface EditableTree extends Iterable<EditableField> {
     readonly [anchorSymbol]: Anchor;
     [getWithoutUnwrappingSymbol](fieldKey: FieldKey): EditableField;
+    // (undocumented)
+    [newFieldSymbol](fieldKey: FieldKey, newContent: ITreeCursor): void;
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
     readonly [typeSymbol]: NamedTreeSchema;
-    readonly [valueSymbol]: Value;
+    [valueSymbol]: Value;
     readonly [key: FieldKey]: UnwrappedEditableField;
 }
 
@@ -228,6 +234,7 @@ export interface EditableTree extends Iterable<EditableField> {
 export interface EditableTreeContext {
     free(): void;
     prepareForEdit(): void;
+    registerAfterHandler(afterHandler: (this: EditableTreeContext) => void): void;
     readonly root: EditableField;
     readonly unwrappedRoot: UnwrappedEditableField;
 }
@@ -844,6 +851,9 @@ export type NameFromBranded<T extends BrandedType<any, string>> = T extends Bran
 // @public
 export const neverTree: TreeSchema;
 
+// @public
+export const newFieldSymbol: unique symbol;
+
 // @public (undocumented)
 export type NodeChangeComposer = (changes: NodeChangeset[]) => NodeChangeset;
 
@@ -1126,7 +1136,7 @@ export class SimpleDependee implements Dependee {
     constructor(computationName?: string);
     // (undocumented)
     readonly computationName: string;
-    invalidateDependents(): void;
+    invalidateDependents(token?: InvalidationToken): void;
     // @sealed (undocumented)
     listDependents(): Set<Dependent>;
     // (undocumented)

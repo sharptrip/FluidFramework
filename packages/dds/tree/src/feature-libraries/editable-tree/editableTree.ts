@@ -9,7 +9,6 @@ import {
     Anchor,
     FieldKey,
     symbolIsFieldKey,
-    IEditableForest,
     TreeNavigationResult,
     ITreeSubscriptionCursor,
     ITreeSubscriptionCursorState,
@@ -23,6 +22,7 @@ import {
     mapCursorFields,
     CursorLocationType,
     FieldAnchor,
+    ITreeCursor,
 } from "../../core";
 import { brand } from "../../util";
 import { FieldKind, Multiplicity } from "../modular-schema";
@@ -74,6 +74,11 @@ export const getWithoutUnwrappingSymbol: unique symbol = Symbol(
 );
 
 /**
+ * A symbol to create a new field in a node in contexts where string keys are already in use for fields.
+ */
+export const newFieldSymbol: unique symbol = Symbol("editable-tree:newFieldSymbol()");
+
+/**
  * A tree which can be traversed and edited.
  *
  * When iterating, only visits non-empty fields.
@@ -96,7 +101,7 @@ export interface EditableTree extends Iterable<EditableField> {
     /**
      * Value stored on this node.
      */
-    readonly [valueSymbol]: Value;
+    [valueSymbol]: Value;
 
     /**
      * Stores the target for the proxy which implements reading and writing for this node.
@@ -136,6 +141,8 @@ export interface EditableTree extends Iterable<EditableField> {
      * when the fields are getting changed while iterating.
      */
     [Symbol.iterator](): IterableIterator<EditableField>;
+
+    [newFieldSymbol](fieldKey: FieldKey, newContent: ITreeCursor): void;
 }
 
 /**
@@ -198,6 +205,10 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
      * when the field is getting changed while iterating.
      */
     [Symbol.iterator](): IterableIterator<UnwrappedEditableTree>;
+
+    insertNodes(index: number, newContent: ITreeCursor[]): void;
+
+    deleteNodes(index: number, count: number): void;
 }
 
 /**
@@ -213,7 +224,7 @@ export type UnwrappedEditableField = UnwrappedEditableTree | undefined | Editabl
  */
 export class BaseProxyTarget {
     private readonly lazyCursor: ITreeSubscriptionCursor;
-    private anchor?: Anchor;
+    protected anchor?: Anchor;
 
     constructor(public readonly context: ProxyContext, cursor: ITreeSubscriptionCursor) {
         this.lazyCursor = cursor.fork();
@@ -270,6 +281,33 @@ export class BaseProxyTarget {
         }
         return this.lazyCursor;
     }
+
+    get hasAnchor(): boolean {
+        return this.anchor !== undefined;
+    }
+
+    public revive(): void {
+        // let result: TreeNavigationResult;
+        // const cursor = this.context.forest.allocateCursor();
+        // if (this.isRoot) {
+        //     const destination = this.context.forest.root(this.context.forest.rootField);
+        //     result = this.context.forest.tryMoveCursorTo(destination, cursor);
+        // } else {
+        //     assert(this.parentAnchor !== undefined, "Empty field must have a parent.");
+        //     result = this.context.forest.tryMoveCursorTo(this.parentAnchor, cursor);
+        //     if (result === TreeNavigationResult.Ok) {
+        //         result = cursor.down(this.fieldKey, 0);
+        //     }
+        // }
+        // if (result === TreeNavigationResult.Ok) {
+        //     this.lazyCursor = cursor;
+        //     this.context.withCursors.add(this);
+        //     this.anchor = this.lazyCursor.buildAnchor();
+        //     this.context.emptyFields.delete(this);
+        // } else {
+        //     cursor.free();
+        // }
+    }
 }
 
 function isFieldProxyTarget(target: BaseProxyTarget): target is FieldProxyTarget {
@@ -300,6 +338,13 @@ class NodeProxyTarget extends BaseProxyTarget {
 
     get value(): Value {
         return this.cursor.value;
+    }
+
+    set value(value: Value) {
+        assert(isPrimitive(this.type), "Cannot set value of a non-primitive field");
+        const path = this.context.forest.anchors.locate(this.getAnchor());
+        assert(path !== undefined, "Cannot locate a path to set a value");
+        this.context.setNodeValue(path, value);
     }
 
     public lookupFieldKind(field: FieldKey): FieldKind {
@@ -355,6 +400,43 @@ class NodeProxyTarget extends BaseProxyTarget {
             yield field;
         }
     }
+
+    public newField(fieldKey: FieldKey, newContent: ITreeCursor): boolean {
+        assert(!this.has(fieldKey), "The field already exists.");
+        const fieldKind = this.lookupFieldKind(fieldKey);
+        const path = this.context.forest.anchors.locate(this.getAnchor());
+        switch (fieldKind.multiplicity) {
+            case Multiplicity.Optional:
+                return this.context.handleOptionalField(path, fieldKey, newContent);
+            case Multiplicity.Sequence: {
+                return this.context.insertNodes(path, fieldKey, 0, newContent);
+            }
+            default:
+                return false;
+        }
+    }
+
+    public deleteField(fieldKey: FieldKey): boolean {
+        const fieldKind = this.lookupFieldKind(fieldKey);
+        assert(
+            fieldKind.multiplicity !== Multiplicity.Value,
+            "The field with 'value` multiplicity may not be deleted.",
+        );
+        this.cursor.enterField(fieldKey);
+        const count = this.cursor.getFieldLength();
+        this.cursor.exitField();
+        const path = this.context.forest.anchors.locate(this.getAnchor());
+        return this.context.deleteNodes(path, fieldKey, 0, count);
+        // switch (fieldKind.multiplicity) {
+        //     case Multiplicity.Optional:
+        //         return this.context.handleOptionalField(path, fieldKey, undefined);
+        //     case Multiplicity.Sequence: {
+        //         return this.context.deleteNodes(path, fieldKey, 0, count);
+        //     }
+        //     default:
+        //         return false;
+        // }
+    }
 }
 
 /**
@@ -383,6 +465,8 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
                 return target[Symbol.iterator].bind(target);
             case getWithoutUnwrappingSymbol:
                 return target.getWithoutUnwrapping.bind(target);
+            case newFieldSymbol:
+                return target.newField.bind(target);
             default:
                 return undefined;
         }
@@ -393,10 +477,28 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
         setValue: unknown,
         receiver: NodeProxyTarget,
     ): boolean => {
-        throw new Error("Not implemented.");
+        if ((typeof key === "string" || symbolIsFieldKey(key)) && target.has(brand(key))) {
+            const field = target.proxifyField(brand(key), false) as EditableField;
+            const fieldKind = getFieldKind(field.fieldSchema);
+            assert(
+                fieldKind.multiplicity !== Multiplicity.Sequence,
+                "Cannot set a value of the sequence field.",
+            );
+            assert(field.length === 1, "The field does not exist.");
+            field.getWithoutUnwrapping(0)[valueSymbol] = setValue;
+            return true;
+        }
+        if (key === valueSymbol) {
+            target.value = setValue;
+            return true;
+        }
+        return false;
     },
     deleteProperty: (target: NodeProxyTarget, key: string | symbol): boolean => {
-        throw new Error("Not implemented.");
+        if ((typeof key === "string" || symbolIsFieldKey(key)) && target.has(brand(key))) {
+            return target.deleteField(brand(key));
+        }
+        return false;
     },
     // Include documented symbols (except value when value is undefined) and all non-empty fields.
     has: (target: NodeProxyTarget, key: string | symbol): boolean => {
@@ -524,11 +626,13 @@ class FieldProxyTarget extends BaseProxyTarget implements ArrayLike<UnwrappedEdi
             fieldKey: this.fieldKey,
             parent: undefined,
         };
-        this.cursor.exitField();
-        const parentAnchor = this.getAnchor();
-        this.cursor.enterField(this.fieldKey);
-        if (parentAnchor !== this.context.forest.anchors.track(null)) {
-            fieldAnchor.parent = parentAnchor;
+        if (this.anchor === undefined) {
+            this.cursor.exitField();
+            this.getAnchor();
+            this.cursor.enterField(this.fieldKey);
+        }
+        if (this.anchor !== this.context.forest.anchors.track(null)) {
+            fieldAnchor.parent = this.anchor;
         }
         return fieldAnchor;
     }
@@ -573,6 +677,25 @@ class FieldProxyTarget extends BaseProxyTarget implements ArrayLike<UnwrappedEdi
         for (const node of this.asArray) {
             yield node;
         }
+    }
+
+    public insertNodes(index: number, newContent: ITreeCursor[]): void {
+        const anchor = this.getFieldAnchor();
+        if (anchor.parent) {
+            const path = this.context.forest.anchors.locate(anchor.parent);
+            this.context.insertNodes(path, this.fieldKey, index, newContent);
+        } else {
+            this.context.insertNodes(undefined, this.fieldKey, index, newContent);
+        }
+    }
+
+    public deleteNodes(index: number, count: number): void {
+        if (!this.length) return;
+        const fieldAnchor = this.getFieldAnchor();
+        const path = fieldAnchor.parent
+            ? this.context.forest.anchors.locate(fieldAnchor.parent)
+            : undefined;
+        this.context.deleteNodes(path, this.fieldKey, index, count);
     }
 }
 
@@ -748,16 +871,6 @@ export function proxifyField(
         return proxifiedNode;
     }
     return undefined;
-}
-
-/**
- * A simple API for a Forest to interact with the tree.
- *
- * @returns {@link EditableTreeContext} which is used manage the cursors and anchors within the EditableTrees:
- * This is necessary for supporting using this tree across edits to the forest, and not leaking memory.
- */
-export function getEditableTreeContext(forest: IEditableForest): EditableTreeContext {
-    return new ProxyContext(forest);
 }
 
 /**

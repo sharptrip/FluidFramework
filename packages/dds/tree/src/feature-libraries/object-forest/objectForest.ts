@@ -31,6 +31,7 @@ import {
     MapTree,
     getMapTreeField,
     FieldAnchor,
+    InvalidationToken,
 } from "../../core";
 import { brand, fail } from "../../util";
 import { CursorWithNode, SynchronousCursor } from "../treeCursorUtils";
@@ -42,6 +43,8 @@ function makeRoot(): MapTree {
         fields: new Map(),
     };
 }
+
+export const afterChangeToken = new InvalidationToken("ObjectForest:afterChange");
 
 /**
  * Reference implementation of IEditableForest.
@@ -199,11 +202,15 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
     }
 
     private beforeChange(): void {
+        this.invalidateDependents();
         assert(
             this.currentCursors.size === 0,
             0x374 /* No cursors can be current when modifying forest */,
         );
-        this.invalidateDependents();
+    }
+
+    afterChange(): void {
+        this.invalidateDependents(afterChangeToken);
     }
 
     tryMoveCursorToNode(
@@ -452,4 +459,8 @@ class Cursor extends SynchronousCursor implements ITreeSubscriptionCursor {
  */
 export function buildForest(schema: StoredSchemaRepository): IEditableForest {
     return new ObjectForest(schema);
+}
+
+export function forestAfterChange(forest: IEditableForest): void {
+    (forest as ObjectForest).afterChange();
 }
