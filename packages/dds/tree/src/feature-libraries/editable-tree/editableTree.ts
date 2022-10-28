@@ -63,7 +63,7 @@ export const valueSymbol: unique symbol = Symbol("editable-tree:value");
 export const anchorSymbol: unique symbol = Symbol("editable-tree:anchor");
 
 /**
- * A symbol to get a field of a node without unwrapping in contexts where string keys are already in use for fields.
+ * A symbol to get the field of a node without unwrapping in contexts where string keys are already in use for fields.
  */
 export const getWithoutUnwrappingSymbol: unique symbol = Symbol(
     "editable-tree:getWithoutUnwrapping()",
@@ -112,7 +112,7 @@ export interface EditableTree extends Iterable<EditableField> {
     readonly [anchorSymbol]: Anchor;
 
     /**
-     * Gets a field of this node by its key without unwrapping.
+     * Gets the field of this node by its key without unwrapping.
      */
     [getWithoutUnwrappingSymbol](fieldKey: FieldKey): EditableField;
 
