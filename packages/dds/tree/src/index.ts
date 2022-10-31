@@ -143,7 +143,6 @@ export {
     valueSymbol,
     proxyTargetSymbol,
     getWithoutUnwrappingSymbol,
-    newFieldSymbol,
     defaultSchemaPolicy,
     jsonableTreeFromCursor,
     PrimitiveValue,

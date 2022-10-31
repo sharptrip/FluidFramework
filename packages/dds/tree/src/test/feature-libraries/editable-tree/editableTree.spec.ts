@@ -64,6 +64,7 @@ import {
     int32Schema,
     schemaMap,
     personData,
+    Int32,
 } from "./mockData";
 import { expectFieldEquals, expectTreeEquals, expectTreeSequence } from "./utils";
 
@@ -110,7 +111,7 @@ describe("editable-tree", () => {
                 configurable: true,
                 enumerable: true,
                 value: expected,
-                writable: true,
+                writable: false,
             });
         }
         // property descriptors for utility symbols
@@ -356,7 +357,7 @@ describe("editable-tree", () => {
                 configurable: true,
                 enumerable: true,
                 value: "global foo",
-                writable: true,
+                writable: false,
             },
         );
         assert.equal(
@@ -590,5 +591,23 @@ describe("editable-tree", () => {
             );
             assert.equal(simplePhonesPrimaryField[i], expectedPhones[i]);
         }
+    });
+
+    it("update property", () => {
+        const newAge: Int32 = brand(32);
+        const [, proxy] = buildTestPerson();
+        assert.throws(() => (proxy.age = newAge), "Not implemented");
+    });
+
+    it("add property", () => {
+        const [, proxy] = buildTestPerson();
+        assert.throws(() => (proxy.address.zip = "999"), "Not implemented");
+    });
+
+    it("delete property", () => {
+        const [, proxy] = buildTestPerson();
+        assert.throws(() => {
+            delete proxy.address.zip;
+        }, "Not implemented");
     });
 });

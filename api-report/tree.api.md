@@ -206,11 +206,9 @@ const DUMMY_INVERT_TAG: ChangesetTag;
 export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<UnwrappedEditableTree>;
-    deleteNodes(index: number, count?: number): void;
     readonly fieldKey: FieldKey;
     readonly fieldSchema: FieldSchema;
     getWithoutUnwrapping(index: number): EditableTree;
-    insertNodes(index: number, newContent: ITreeCursor | ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
 }
 
@@ -218,12 +216,11 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
 export interface EditableTree extends Iterable<EditableField> {
     readonly [anchorSymbol]: Anchor;
     [getWithoutUnwrappingSymbol](fieldKey: FieldKey): EditableField;
-    [newFieldSymbol](fieldKey: FieldKey, newContent: ITreeCursor): EditableField | undefined;
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
     readonly [typeSymbol]: NamedTreeSchema;
-    [valueSymbol]: Value;
+    readonly [valueSymbol]: Value;
     readonly [key: FieldKey]: UnwrappedEditableField;
 }
 
@@ -231,7 +228,6 @@ export interface EditableTree extends Iterable<EditableField> {
 export interface EditableTreeContext {
     free(): void;
     prepareForEdit(): void;
-    registerAfterHandler(afterHandler: (this: EditableTreeContext) => void): void;
     readonly root: EditableField;
     readonly unwrappedRoot: UnwrappedEditableField;
 }
@@ -856,9 +852,6 @@ export type NameFromBranded<T extends BrandedType<any, string>> = T extends Bran
 
 // @public
 export const neverTree: TreeSchema;
-
-// @public
-export const newFieldSymbol: unique symbol;
 
 // @public (undocumented)
 export type NodeChangeComposer = (changes: NodeChangeset[]) => NodeChangeset;
