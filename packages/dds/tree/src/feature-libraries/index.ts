@@ -31,7 +31,6 @@ export {
     UnwrappedEditableTree,
     valueSymbol,
     getWithoutUnwrappingSymbol,
-    newFieldSymbol,
 } from "./editable-tree";
 export { ForestIndex } from "./forestIndex";
 export { singleMapTreeCursor, mapTreeFromCursor } from "./mapTreeCursor";
