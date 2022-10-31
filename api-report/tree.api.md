@@ -123,6 +123,9 @@ export interface Covariant<T> {
     _removeContravariance?: T;
 }
 
+// @public
+export const createFieldSymbol: unique symbol;
+
 // @public (undocumented)
 export const enum CursorLocationType {
     Fields = 1,
@@ -206,28 +209,38 @@ const DUMMY_INVERT_TAG: ChangesetTag;
 export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<UnwrappedEditableTree>;
+    deleteNodes(index: number, count?: number): void;
     readonly fieldKey: FieldKey;
     readonly fieldSchema: FieldSchema;
     getWithoutUnwrapping(index: number): EditableTree;
+    insertNodes(index: number, newContent: ITreeCursor | ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
 }
 
 // @public
 export interface EditableTree extends Iterable<EditableField> {
     readonly [anchorSymbol]: Anchor;
+    [createFieldSymbol](fieldKey: FieldKey, newContent: ITreeCursor): EditableField | undefined;
     [getWithoutUnwrappingSymbol](fieldKey: FieldKey): EditableField;
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
     readonly [typeSymbol]: NamedTreeSchema;
-    readonly [valueSymbol]: Value;
+    [valueSymbol]: Value;
     readonly [key: FieldKey]: UnwrappedEditableField;
 }
 
 // @public
 export interface EditableTreeContext {
     free(): void;
+    // (undocumented)
+    getDetachedField(fieldKey: FieldKey, fieldSchema: FieldSchema, unwrap: false): EditableField;
+    // (undocumented)
+    getDetachedField(fieldKey: FieldKey, fieldSchema: FieldSchema, unwrap: true): UnwrappedEditableField;
+    // (undocumented)
+    getDetachedField(fieldKey: FieldKey, fieldSchema: FieldSchema, unwrap: boolean): EditableField | UnwrappedEditableField;
     prepareForEdit(): void;
+    registerAfterHandler(afterHandler: (this: EditableTreeContext) => void): void;
     readonly root: EditableField;
     readonly unwrappedRoot: UnwrappedEditableField;
 }
