@@ -8,6 +8,7 @@ import {
     IEditableForest,
     lookupGlobalFieldSchema,
     rootFieldKey,
+    rootFieldKeySymbol,
     moveToDetachedField,
     FieldAnchor,
     Anchor,
@@ -86,27 +87,15 @@ export class ProxyContext implements EditableTreeContext {
     }
 
     public get root(): EditableField {
-        return this.getRoot(false);
+        return this.getRoot(false) as EditableField;
     }
 
-    private getRoot(unwrap: false): EditableField;
-    private getRoot(unwrap: true): UnwrappedEditableField;
     private getRoot(unwrap: boolean): UnwrappedEditableField | EditableField {
         const rootSchema = lookupGlobalFieldSchema(this.forest.schema, rootFieldKey);
         const cursor = this.forest.allocateCursor();
         moveToDetachedField(this.forest, cursor);
-        const proxifiedField = proxifyField(this, rootSchema, cursor, unwrap);
+        const proxifiedField = proxifyField(this, rootSchema, rootFieldKeySymbol, cursor, unwrap);
         cursor.free();
         return proxifiedField;
     }
-}
-
-/**
- * A simple API for a Forest to interact with the tree.
- *
- * @returns {@link EditableTreeContext} which is used manage the cursors and anchors within the EditableTrees:
- * This is necessary for supporting using this tree across edits to the forest, and not leaking memory.
- */
-export function getEditableTreeContext(forest: IEditableForest): EditableTreeContext {
-    return new ProxyContext(forest);
 }

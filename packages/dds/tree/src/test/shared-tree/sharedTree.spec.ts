@@ -10,7 +10,7 @@ import {
     isUnwrappedNode,
     valueSymbol,
     getSchemaString,
-    typeNameSymbol,
+    getTypeSymbol,
 } from "../../feature-libraries";
 import { brand } from "../../util";
 import {
@@ -369,7 +369,7 @@ describe("SharedTree", () => {
         const child = tree1.root[childKey];
         assert(isUnwrappedNode(child));
         assert.equal(child[valueSymbol], value);
-        assert.equal(child[typeNameSymbol], "TestValue");
+        assert.equal(child[getTypeSymbol](), "TestValue");
 
         await provider.ensureSynchronized();
         assert(isUnwrappedNode(tree2.root));
@@ -434,7 +434,7 @@ describe("SharedTree", () => {
         const child = tree1.root[childKey];
         assert(isUnwrappedNode(child));
         assert.equal(child[valueSymbol], value);
-        assert.equal(child[typeNameSymbol], hasNoFields.name);
+        assert.equal(child[getTypeSymbol](), hasNoFields.name);
 
         await provider.ensureSynchronized();
         assert(isUnwrappedNode(tree2.root));
@@ -442,7 +442,7 @@ describe("SharedTree", () => {
         const child2 = tree2.root[childKey];
         assert(isUnwrappedNode(child2));
         assert.equal(child2[valueSymbol], value);
-        assert.equal(child2[typeNameSymbol], hasNoFields.name);
+        assert.equal(child2[getTypeSymbol](), hasNoFields.name);
 
         tree1.context.free();
         tree2.context.free();
