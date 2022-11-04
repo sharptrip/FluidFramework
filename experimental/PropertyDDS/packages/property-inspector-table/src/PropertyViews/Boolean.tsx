@@ -3,9 +3,11 @@
  * Licensed under the MIT License.
  */
 
+import { ContainerProperty } from "@fluid-experimental/property-properties";
 import Switch, { SwitchProps } from "@material-ui/core/Switch";
 import * as React from "react";
 import { IEditableValueCellProps, IInspectorRow } from "../InspectorTableTypes";
+import { getPropertyValue } from "../propertyInspectorUtils";
 
 type BooleanProps = (IEditableValueCellProps & {
   onSubmit: (val: boolean, props: IEditableValueCellProps) => void;
@@ -15,13 +17,15 @@ type BooleanProps = (IEditableValueCellProps & {
 
 export const BooleanView: React.FunctionComponent<BooleanProps> = (props) => {
   const {
+    followReferences,
     onSubmit,
     SwitchProps: switchProps,
     rowData,
     readOnly,
   } = props;
 
-  const value = rowData.value;
+  const value = getPropertyValue(rowData.parent as ContainerProperty, rowData.name, rowData.context, rowData.typeid,
+    followReferences);
 
   return (
     <Switch

@@ -672,11 +672,3 @@ export const forbidden: FieldKind = new FieldKind(
 export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind> = new Map(
     [value, optional, sequence, forbidden, counter].map((s) => [s.identifier, s]),
 );
-
-export const defaultFieldKinds: Record<string, FieldKindIdentifier> = {
-    value: value.identifier,
-    optional: optional.identifier,
-    sequence: sequence.identifier,
-    forbidden: forbidden.identifier,
-    counter: counter.identifier,
-};

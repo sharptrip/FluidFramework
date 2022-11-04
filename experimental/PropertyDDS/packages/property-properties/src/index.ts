@@ -5,7 +5,6 @@
 
 import { PropertyFactory } from './propertyFactory';
 import { PropertyUtils } from './propertyUtils';
-import { PropertyTemplate } from './propertyTemplate';
 import { BaseProperty } from './properties/baseProperty';
 import { ContainerProperty } from './properties/containerProperty';
 import { MapProperty } from './properties/mapProperty';
@@ -26,7 +25,6 @@ import { enableValidations } from './enableValidations';
 
 export {
     PropertyFactory,
-    PropertyTemplate,
     PropertyUtils,
     BaseProperty,
     ContainerProperty,
