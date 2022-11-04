@@ -29,6 +29,7 @@ export {
     UnwrappedEditableField,
     UnwrappedEditableTree,
     valueSymbol,
+    indexSymbol,
     getField,
     createField,
 } from "./editable-tree";
@@ -74,6 +75,7 @@ export {
 
 // Split this up into separate import and export for compatibility with API-Extractor.
 import * as FieldKinds from "./defaultFieldKinds";
+export { defaultFieldKinds as fieldKinds } from "./defaultFieldKinds";
 export { FieldKinds };
 
 export { applyModifyToTree, mapFieldMarks, mapMark, mapMarkList } from "./deltaUtils";
