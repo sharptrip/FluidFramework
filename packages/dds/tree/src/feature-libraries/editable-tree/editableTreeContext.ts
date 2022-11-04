@@ -24,6 +24,10 @@ import {
     Delta,
     Dependent,
     afterChangeToken,
+    FieldSchema,
+    DetachedField,
+    keyAsDetachedField,
+    symbolFromKey,
 } from "../../core";
 import { DefaultChangeset, DefaultEditBuilder } from "../defaultChangeFamily";
 import { ProxyTarget, EditableField, proxifyField, UnwrappedEditableField } from "./editableTree";
@@ -76,6 +80,27 @@ export interface EditableTreeContext {
      * is committed successfully.
      */
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
+
+    /**
+     * Gets a detached field of EditableTree without unwrapping.
+     */
+    getDetachedField(field: DetachedField, fieldSchema: FieldSchema, unwrap: false): EditableField;
+    /**
+     * Gets a detached field of EditableTree unwrapped.
+     */
+    getDetachedField(
+        field: DetachedField,
+        fieldSchema: FieldSchema,
+        unwrap: true,
+    ): UnwrappedEditableField;
+    /**
+     * Gets a detached field of EditableTree.
+     */
+    getDetachedField(
+        field: DetachedField,
+        fieldSchema: FieldSchema,
+        unwrap: boolean,
+    ): EditableField | UnwrappedEditableField;
 }
 
 /**
@@ -88,6 +113,8 @@ export class ProxyContext implements EditableTreeContext {
     public readonly withAnchors: Set<ProxyTarget<Anchor | FieldAnchor>> = new Set();
     private readonly observer: Dependent;
     private readonly afterChangeHandlers: Set<(context: EditableTreeContext) => void> = new Set();
+    private readonly rootField: DetachedField;
+    private readonly rootSchema: FieldSchema;
 
     /**
      * @param forest - the Forest
@@ -110,6 +137,8 @@ export class ProxyContext implements EditableTreeContext {
             },
         );
         this.forest.registerDependent(this.observer);
+        this.rootField = keyAsDetachedField(symbolFromKey(rootFieldKey));
+        this.rootSchema = lookupGlobalFieldSchema(this.forest.schema, rootFieldKey);
     }
 
     public prepareForEdit(): void {
@@ -133,20 +162,27 @@ export class ProxyContext implements EditableTreeContext {
     }
 
     public get unwrappedRoot(): UnwrappedEditableField {
-        return this.getRoot(true);
+        return this.getDetachedField(this.rootField, this.rootSchema, true);
     }
 
     public get root(): EditableField {
-        return this.getRoot(false);
+        return this.getDetachedField(this.rootField, this.rootSchema, false);
     }
 
-    private getRoot(unwrap: false): EditableField;
-    private getRoot(unwrap: true): UnwrappedEditableField;
-    private getRoot(unwrap: boolean): UnwrappedEditableField | EditableField {
-        const rootSchema = lookupGlobalFieldSchema(this.forest.schema, rootFieldKey);
+    getDetachedField(field: DetachedField, fieldSchema: FieldSchema, unwrap: false): EditableField;
+    getDetachedField(
+        field: DetachedField,
+        fieldSchema: FieldSchema,
+        unwrap: true,
+    ): UnwrappedEditableField;
+    getDetachedField(
+        field: DetachedField,
+        fieldSchema: FieldSchema,
+        unwrap: boolean,
+    ): EditableField | UnwrappedEditableField {
         const cursor = this.forest.allocateCursor();
-        moveToDetachedField(this.forest, cursor);
-        const proxifiedField = proxifyField(this, rootSchema, cursor, unwrap);
+        moveToDetachedField(this.forest, cursor, field);
+        const proxifiedField = proxifyField(this, fieldSchema, cursor, unwrap);
         cursor.free();
         return proxifiedField;
     }

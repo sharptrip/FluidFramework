@@ -17,12 +17,19 @@ import {
     LocalFieldKey,
     SchemaDataAndPolicy,
     lookupGlobalFieldSchema,
+    DetachedField,
+    detachedFieldAsKey,
+    keyAsDetachedField,
+    mapCursorField,
+    moveToDetachedField,
 } from "../../core";
 // TODO:
 // This module currently is assuming use of defaultFieldKinds.
 // The field kinds should instead come from a view schema registry thats provided somewhere.
 import { fieldKinds } from "../defaultFieldKinds";
 import { FieldKind } from "../modular-schema";
+import { singleTextCursor, jsonableTreeFromCursor } from "../treeTextCursor";
+import { EditableField, proxyTargetSymbol, FieldProxyTarget, proxifyField } from "./editableTree";
 
 /**
  * @returns true iff `schema` trees should default to being viewed as just their value when possible.
@@ -136,4 +143,28 @@ export function keyIsValidIndex(key: string | number, length: number): boolean {
     const index = Number(key);
     if (typeof key === "string" && String(index) !== key) return false;
     return Number.isInteger(index) && 0 <= index && index < length;
+}
+
+/**
+ * Copies a part of the EditableTree starting from the given `field`
+ * and stores the copied sub-tree under a {@link DetachedField}.
+ *
+ * @param field - the field to copy from
+ * @param newField - if not provided, the field key will be used as a detached field key.
+ * @returns the detached field as an {@link EditableField}
+ */
+export function copyAsDetachedField(field: EditableField, newField?: DetachedField): EditableField {
+    const target = field[proxyTargetSymbol] as FieldProxyTarget;
+    const context = target.context;
+    const detachedField = newField ?? keyAsDetachedField(field.fieldKey);
+    const cursor = context.forest.allocateCursor();
+    moveToDetachedField(context.forest, cursor, detachedField);
+    assert(cursor.getFieldLength() === 0, "The detached field already exists.");
+    cursor.clear();
+    const nodes = mapCursorField(target.cursor, (c) => singleTextCursor(jsonableTreeFromCursor(c)));
+    context.insertNodes(undefined, detachedFieldAsKey(detachedField), 0, nodes);
+    moveToDetachedField(context.forest, cursor, detachedField);
+    const proxifiedField = proxifyField(context, field.fieldSchema, cursor, false);
+    cursor.free();
+    return proxifiedField;
 }

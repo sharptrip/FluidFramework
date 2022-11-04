@@ -117,6 +117,9 @@ export interface Contravariant<T> {
 }
 
 // @public
+export function copyAsDetachedField(field: EditableField, newField?: DetachedField): EditableField;
+
+// @public
 export interface Covariant<T> {
     // (undocumented)
     _removeContravariance?: T;
@@ -233,6 +236,9 @@ export interface EditableTree extends Iterable<EditableField> {
 export interface EditableTreeContext {
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     free(): void;
+    getDetachedField(field: DetachedField, fieldSchema: FieldSchema, unwrap: false): EditableField;
+    getDetachedField(field: DetachedField, fieldSchema: FieldSchema, unwrap: true): UnwrappedEditableField;
+    getDetachedField(field: DetachedField, fieldSchema: FieldSchema, unwrap: boolean): EditableField | UnwrappedEditableField;
     prepareForEdit(): void;
     readonly root: EditableField;
     readonly unwrappedRoot: UnwrappedEditableField;
