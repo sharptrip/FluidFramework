@@ -146,6 +146,7 @@ const NameCell: React.FunctionComponent<WithStyles<typeof styles> & INameCellPro
             },
             delete:
               (
+                !rowData.isEditableTree &&
                 !readOnly &&
                 !rowData.parentIsConstant && !isStaticProperty(rowData.parent as BaseProperty, rowData.propertyId)) ?
                 { handler: () => deletionHandler(rowData) } : undefined,
