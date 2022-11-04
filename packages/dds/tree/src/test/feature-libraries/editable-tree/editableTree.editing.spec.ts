@@ -7,6 +7,7 @@
 import { strict as assert } from "assert";
 import { validateAssertionError } from "@fluidframework/test-runtime-utils";
 import {
+    DetachedField,
     FieldKey,
     FieldKindIdentifier,
     fieldSchema,
@@ -31,9 +32,11 @@ import {
     FieldKinds,
     emptyField,
     valueSymbol,
+    copyAsDetachedField,
 } from "../../../feature-libraries";
 import { ITestTreeProvider, TestTreeProvider } from "../../utils";
 import {
+    AddressType,
     ComplexPhoneType,
     fullSchemaData,
     personData,
@@ -329,4 +332,39 @@ describe("editable-tree: editing", () => {
             });
         });
     }
+
+    it("detached fields", async () => {
+        const detachedField: DetachedField = brand("addressCopy");
+        const [provider, trees] = await createSharedTrees(fullSchemaData, [personData], 2);
+        assert(isUnwrappedNode(trees[0].root));
+
+        const addressCopy = copyAsDetachedField(
+            trees[0].root[getField](brand("address")),
+            detachedField,
+        );
+        assert.deepEqual(addressCopy, trees[0].root[getField](brand("address")));
+
+        const detached = trees[0].context.getDetachedField(
+            detachedField,
+            addressCopy.fieldSchema,
+            false,
+        );
+        assert.deepEqual(addressCopy, detached);
+
+        const detachedAddress = detached[0] as AddressType;
+        detachedAddress.street = "New street";
+        assert.notEqual(detachedAddress.street, (trees[0].root as PersonType).address.street);
+
+        await provider.ensureSynchronized();
+        const detached_1 = trees[1].context.getDetachedField(
+            detachedField,
+            detached.fieldSchema,
+            false,
+        );
+        assert.equal((detached_1[0] as AddressType).street, "New street");
+        assert.deepEqual(detached, detached_1);
+
+        trees[0].context.free();
+        trees[1].context.free();
+    });
 });
