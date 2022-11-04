@@ -88,7 +88,7 @@ const testCases: (readonly [string, FieldKey])[] = [
     ["a local field", localFieldKey],
 ];
 
-describe.only("editable-tree: editing", () => {
+describe("editable-tree: editing", () => {
     it("assert set primitive value using assignment", async () => {
         const [, trees] = await createSharedTrees(fullSchemaData, [personData]);
         const person = trees[0].root as PersonType;

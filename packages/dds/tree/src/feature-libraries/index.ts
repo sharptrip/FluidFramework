@@ -29,7 +29,6 @@ export {
     UnwrappedEditableField,
     UnwrappedEditableTree,
     valueSymbol,
-    indexSymbol,
     getField,
     createField,
 } from "./editable-tree";
