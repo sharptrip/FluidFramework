@@ -93,7 +93,7 @@ function buildTestPerson(): readonly [SchemaDataAndPolicy, PersonType] {
     return [schema, proxy as PersonType];
 }
 
-describe("editable-tree: read-only", () => {
+describe.only("editable-tree: read-only", () => {
     it("can use `Object.keys` and `Reflect.ownKeys` with EditableTree", () => {
         const [, proxy] = buildTestPerson();
         assert(isUnwrappedNode(proxy));

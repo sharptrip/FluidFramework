@@ -141,6 +141,7 @@ export {
     typeSymbol,
     typeNameSymbol,
     valueSymbol,
+    indexSymbol,
     proxyTargetSymbol,
     getField,
     createField,
@@ -152,6 +153,7 @@ export {
     OptionalFieldEditBuilder,
     SequenceFieldEditBuilder,
     SequenceField,
+    singleTextCursor,
 } from "./feature-libraries";
 
 export { ISharedTree, SharedTreeFactory } from "./shared-tree";

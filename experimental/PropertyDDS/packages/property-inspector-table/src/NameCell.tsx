@@ -3,8 +3,8 @@
  * Licensed under the MIT License.
  */
 
-import { PropertyProxy } from "@fluid-experimental/property-proxy";
-import { BaseProperty, ArrayProperty, NodeProperty, MapProperty } from "@fluid-experimental/property-properties";
+// import { PropertyProxy } from "@fluid-experimental/property-proxy";
+import { BaseProperty } from "@fluid-experimental/property-properties";
 import { createStyles, withStyles, WithStyles } from "@material-ui/core/styles";
 import classNames from "classnames";
 import * as React from "react";
@@ -53,19 +53,19 @@ export interface INameCellProps {
   readOnly: boolean;
 }
 
-const deletionHandler = (rowData: IInspectorRow) => {
-  const parent = PropertyProxy.proxify(rowData.parent!);
-  if (Array.isArray(parent)) {
-    (rowData!.parent! as ArrayProperty).remove(Number(rowData.name));
-  } else if (parent instanceof Map) {
-    (rowData!.parent! as MapProperty).remove(rowData.name);
-  } else if (parent instanceof Set) {
-    (rowData!.parent! as any).remove(rowData.name); // TODO: Should be SetProperty, once the types package is fixed.
-  } else {
-    (rowData!.parent! as NodeProperty).remove(rowData.name);
-  }
-  return (parent as any).getProperty().getRoot().getWorkspace().commit();
-};
+// const deletionHandler = (rowData: IInspectorRow) => {
+//   const parent = PropertyProxy.proxify(rowData.parent!);
+//   if (Array.isArray(parent)) {
+//     (rowData!.parent! as ArrayProperty).remove(Number(rowData.name));
+//   } else if (parent instanceof Map) {
+//     (rowData!.parent! as MapProperty).remove(rowData.name);
+//   } else if (parent instanceof Set) {
+//     (rowData!.parent! as any).remove(rowData.name); // TODO: Should be SetProperty, once the types package is fixed.
+//   } else {
+//     (rowData!.parent! as NodeProperty).remove(rowData.name);
+//   }
+//   return (parent as any).getProperty().getRoot().getWorkspace().commit();
+// };
 
 const copyHandler = (rowData: IInspectorRow, ref: React.MutableRefObject<HTMLTextAreaElement>) => {
   const prop = (rowData.parent! as BaseProperty);
@@ -81,17 +81,17 @@ const copyHandler = (rowData: IInspectorRow, ref: React.MutableRefObject<HTMLTex
   document.execCommand("copy");
 };
 
-const isStaticProperty = (parent: BaseProperty, rowName: string) => {
-  if (typeof (parent as NodeProperty).getDynamicIds === "function") {
-    const dynamicIds = (parent as NodeProperty).getDynamicIds();
-    if (dynamicIds.includes(rowName)) {
-      return false;
-    }
-  } else if (parent.getContext() !== "single") {
-    return false;
-  }
-  return true;
-};
+// const isStaticProperty = (parent: BaseProperty, rowName: string) => {
+//   if (typeof (parent as NodeProperty).getDynamicIds === "function") {
+//     const dynamicIds = (parent as NodeProperty).getDynamicIds();
+//     if (dynamicIds.includes(rowName)) {
+//       return false;
+//     }
+//   } else if (parent.getContext() !== "single") {
+//     return false;
+//   }
+//   return true;
+// };
 
 // Class names that are relevant to fake a hover style on the table row.
 const BaseTableRowClass = "BaseTable__row";
@@ -144,11 +144,11 @@ const NameCell: React.FunctionComponent<WithStyles<typeof styles> & INameCellPro
             copy: {
               handler: copyHandler.bind(null, rowData),
             },
-            delete:
-              (
-                !readOnly &&
-                !rowData.parentIsConstant && !isStaticProperty(rowData.parent as BaseProperty, rowData.propertyId)) ?
-                { handler: () => deletionHandler(rowData) } : undefined,
+            delete: undefined,
+              // (
+              //   !readOnly &&
+              //   !rowData.parentIsConstant && !isStaticProperty(rowData.parent as BaseProperty, rowData.propertyId)) ?
+              //   { handler: () => deletionHandler(rowData) } : undefined,
             edit: !readOnly && (rowData.isReference) ?
               { handler: editReferenceHandler } : undefined,
           }}
