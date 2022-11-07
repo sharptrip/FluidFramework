@@ -114,10 +114,9 @@ export interface EditableTreeRow extends IRowData<EditableTree | EditableField> 
   context?: string;
   typeid: string;
   isReference?: boolean;
-  parent: EditableField;
+  parent: EditableTree | EditableField;
   value?: Value;
   name: string;
-  nodeIndex: number;
 }
 
 export function isEditableTreeRow(data: IInspectorRow | EditableTreeRow): data is EditableTreeRow {

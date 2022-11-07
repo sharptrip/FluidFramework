@@ -32,6 +32,7 @@ export {
     indexSymbol,
     getField,
     createField,
+    getPrimaryField,
 } from "./editable-tree";
 export { ForestIndex } from "./forestIndex";
 export { singleMapTreeCursor, mapTreeFromCursor } from "./mapTreeCursor";

@@ -593,8 +593,12 @@ class InspectorTable<
   // @TODO turn it private when refactoring editing workflow
   private readonly handleCreateData = async (rowData: T, name: string, type: string, context: string) => {
     if (this.dataCreation) {
-      await this.props.dataCreationHandler!(rowData, name, type, context);
+      // TODO: this change appeared to be required since otherwise (having it below the `await` line)
+      // it is not executed due to unknown reason, letting the `renderCreationRow` to be called again
+      // with a wrong `showFormRowID` and causing the app to crash due to the freed EditableTree root.
+      // To be investigated.
       this.setState({ showFormRowID: "0" });
+      await this.props.dataCreationHandler!(rowData, name, type, context);
     }
   };
 

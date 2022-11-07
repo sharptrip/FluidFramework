@@ -18,6 +18,13 @@ import {
     isEditableField,
     EditableField,
     isGlobalFieldKey,
+    isPrimitive,
+    typeSymbol,
+    isUnwrappedNode,
+    createField,
+    singleTextCursor,
+    brand,
+    getPrimaryField,
 } from "@fluid-internal/tree";
 import {
     IDataCreationOptions,
@@ -26,7 +33,6 @@ import {
     ModalManager,
     ModalRoot,
     fetchRegisteredTemplates,
-    handlePropertyDataCreation,
     IToTableRowsProps,
     IToTableRowsOptions,
     nameCellRenderer,
@@ -118,7 +124,15 @@ export const handleDataCreationOptionGeneration = (
 
 const tableProps: Partial<IInspectorTableProps> = {
     columns: ["name", "value", "type"],
-    dataCreationHandler: handlePropertyDataCreation,
+    dataCreationHandler: async (rowData: EditableTreeRow, name: string, typeid: string, context: string) => {
+        // TODO: clarify & fix, how a generic schema like `NodeProperty` should be handled
+        // It seems that currently the `schemaConverter` incorrectly handles it.
+        if (isUnwrappedNode(rowData.parent)) {
+            rowData.parent[createField](brand(name), singleTextCursor({ type: brand(typeid) }));
+        } else {
+            rowData.parent.insertNodes(Number(name), singleTextCursor({ type: brand(typeid) }));
+        }
+    },
     dataCreationOptionGenerationHandler: handleDataCreationOptionGeneration,
     expandColumnKey: "name",
     width: 1000,
@@ -147,7 +161,6 @@ function nodeToRow(
         typeid: node[typeNameSymbol],
         parent,
         data: node,
-        nodeIndex,
         isEditableTree: true,
     };
     return row;
@@ -161,6 +174,21 @@ const getNodeFields = (
     for (const field of node) {
         getFieldNodes(field, rows, pathPrefix);
     }
+    const nodeType = node[typeSymbol];
+    // Prevent to create fields under a node already having a primary field.
+    // It is not well defined, how array should look like, see note on `getPrimaryField`.
+    // TODO: clarify & fix
+    if (!isPrimitive(nodeType) && getPrimaryField(nodeType) === undefined) {
+        rows.push({
+            id: `${pathPrefix}/Add`,
+            isNewDataRow: true,
+            parent: node,
+            value: "",
+            typeid: "",
+            name: "",
+            isEditableTree: true,
+        });
+    }
     return rows;
 };
 
@@ -173,6 +201,17 @@ const getFieldNodes = (
     for (let index = 0; index < field.length; index++) {
         const node = field.getNode(index);
         rows.push(nodeToRow(field, node, pathPrefix, isSequence));
+    }
+    if (isSequence) {
+        rows.push({
+            id: `${pathPrefix}/Add`,
+            isNewDataRow: true,
+            parent: field,
+            value: "",
+            typeid: "",
+            name: "",
+            isEditableTree: true,
+        });
     }
     return rows;
 };

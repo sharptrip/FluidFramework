@@ -71,3 +71,5 @@ export {
 } from "./propertyInspectorUtils";
 export { TypeColumn, useChipStyles } from "./TypeColumn";
 export { search, showNextResult } from "./utils";
+
+export { NewDataForm, INewDataFormProps } from "./NewDataForm";
