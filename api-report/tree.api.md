@@ -222,6 +222,8 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
 export interface EditableTree extends Iterable<EditableField> {
     [createField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): EditableField | undefined;
     [getField](fieldKey: FieldKey): EditableField;
+    // (undocumented)
+    readonly [indexSymbol]: number;
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
@@ -347,6 +349,9 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
 // @public
 export type FieldKindIdentifier = Brand<string, "tree.FieldKindIdentifier">;
 
+// @public (undocumented)
+export const fieldKinds: Record<string, FieldKindIdentifier>;
+
 // @public
 export interface FieldLocation {
     // (undocumented)
@@ -469,6 +474,9 @@ export interface IForestSubscription extends Dependee {
     tryMoveCursorToNode(destination: Anchor, cursorToMove: ITreeSubscriptionCursor, observer?: ObservingDependent): TreeNavigationResult;
 }
 
+// @public (undocumented)
+export const indexSymbol: unique symbol;
+
 // @public
 function inputLength(mark: Mark<unknown>): number;
 
@@ -521,6 +529,9 @@ export type isAny<T> = boolean extends (T extends {} ? true : false) ? true : fa
 
 // @public
 export function isEditableField(field: UnwrappedEditableField): field is EditableField;
+
+// @public
+export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
 
 // @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
@@ -1156,6 +1167,9 @@ export class SimpleDependee implements Dependee {
 
 // @public
 export function singleJsonCursor<T>(root: Jsonable<T>): ITreeCursorSynchronous;
+
+// @public (undocumented)
+export function singleTextCursor(root: JsonableTree): ITreeCursorSynchronous;
 
 // @public (undocumented)
 type SizedMark<TNodeChange = NodeChangeType> = Skip_2 | SizedObjectMark<TNodeChange>;
