@@ -13,6 +13,7 @@ import {
     UnwrappedEditableField,
     EditableTreeOrPrimitive,
     isPrimitiveValue,
+    proxyTargetSymbol,
     valueSymbol,
     typeSymbol,
     typeNameSymbol,
@@ -22,7 +23,6 @@ import {
     isEditableField,
     isPrimitive,
     getField,
-    isUnwrappedNode,
 } from "../../../feature-libraries";
 import {
     getPrimaryField,
@@ -65,7 +65,7 @@ export function expectTreeEquals(
         return;
     }
     // Confirm we have an EditableTree object.
-    assert(isUnwrappedNode(node));
+    assert(node[proxyTargetSymbol] !== undefined);
     assert.equal(node[valueSymbol], expected.value);
     const type = node[typeSymbol];
     assert.deepEqual(type, expectedType);

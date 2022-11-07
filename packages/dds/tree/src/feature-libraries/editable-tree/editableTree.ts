@@ -79,8 +79,6 @@ export const getField: unique symbol = Symbol("editable-tree:getField()");
  */
 export const createField: unique symbol = Symbol("editable-tree:createField()");
 
-export const indexSymbol: unique symbol = Symbol("editable-tree:index");
-
 /**
  * A tree which can be traversed and edited.
  *
@@ -106,8 +104,6 @@ export interface EditableTree extends Iterable<EditableField> {
      * Concurrently setting the value will follow the "last-write-wins" semantics.
      */
     [valueSymbol]: Value;
-
-    readonly [indexSymbol]: number;
 
     /**
      * Stores the target for the proxy which implements reading and writing for this node.
@@ -333,10 +329,6 @@ export class NodeProxyTarget extends ProxyTarget<Anchor> {
         super(context, cursor);
     }
 
-    get index(): number {
-        return this.cursor.fieldIndex;
-    }
-
     buildAnchorFromCursor(cursor: ITreeSubscriptionCursor): Anchor {
         return cursor.buildAnchor();
     }
@@ -501,8 +493,6 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
                 return target.getField.bind(target);
             case createField:
                 return target.createField.bind(target);
-            case indexSymbol:
-                return target.index;
             default:
                 return undefined;
         }
@@ -554,7 +544,6 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
             case typeNameSymbol:
             case Symbol.iterator:
             case getField:
-            case indexSymbol:
                 return true;
             case valueSymbol:
                 // Could do `target.value !== ValueSchema.Nothing`
@@ -608,13 +597,6 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
                     configurable: true,
                     enumerable: false,
                     value: target.value,
-                    writable: false,
-                };
-            case indexSymbol:
-                return {
-                    configurable: true,
-                    enumerable: false,
-                    value: target.index,
                     writable: false,
                 };
             case Symbol.iterator:

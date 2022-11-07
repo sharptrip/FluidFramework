@@ -2216,7 +2216,7 @@ declare module "@fluid-experimental/property-properties" {
             /**
              * Extracts typeids directly referred to in a template
              */
-            static extractDependencies(template: PropertyTemplateType): Array<any>;
+            public extractDependencies(): Array<any>;
 
             constants: any[];
 
