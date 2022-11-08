@@ -15,8 +15,8 @@ export {
     UnwrappedEditableTree,
     UnwrappedEditableField,
     valueSymbol,
-    getField,
-    createField,
+    getWithoutUnwrappingSymbol,
+    createFieldSymbol,
 } from "./editableTree";
 
 export { EditableTreeContext, getEditableTreeContext } from "./editableTreeContext";

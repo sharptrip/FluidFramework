@@ -29,8 +29,8 @@ export {
     UnwrappedEditableField,
     UnwrappedEditableTree,
     valueSymbol,
-    getField,
-    createField,
+    getWithoutUnwrappingSymbol,
+    createFieldSymbol,
 } from "./editable-tree";
 export { ForestIndex } from "./forestIndex";
 export { singleMapTreeCursor, mapTreeFromCursor } from "./mapTreeCursor";

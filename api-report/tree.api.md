@@ -124,7 +124,7 @@ export interface Covariant<T> {
 }
 
 // @public
-export const createField: unique symbol;
+export const createFieldSymbol: unique symbol;
 
 // @public (undocumented)
 export const enum CursorLocationType {
@@ -213,15 +213,15 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     deleteNodes(index: number, count?: number): void;
     readonly fieldKey: FieldKey;
     readonly fieldSchema: FieldSchema;
-    getNode(index: number): EditableTree;
+    getWithoutUnwrapping(index: number): EditableTree;
     insertNodes(index: number, newContent: ITreeCursor | ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
 }
 
 // @public
 export interface EditableTree extends Iterable<EditableField> {
-    [createField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): EditableField | undefined;
-    [getField](fieldKey: FieldKey): EditableField;
+    [createFieldSymbol](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): EditableField | undefined;
+    [getWithoutUnwrappingSymbol](fieldKey: FieldKey): EditableField;
     readonly [proxyTargetSymbol]: object;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
@@ -412,7 +412,7 @@ export interface GenericTreeNode<TChild> extends GenericFieldsNode<TChild>, Node
 }
 
 // @public
-export const getField: unique symbol;
+export const getWithoutUnwrappingSymbol: unique symbol;
 
 // @public
 export type GlobalFieldKey = Brand<string, "tree.GlobalFieldKey">;
