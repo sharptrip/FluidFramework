@@ -226,9 +226,6 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
      */
     deleteNodes(index: number, count?: number): void;
 
-    /**
-     * Nodes of this field, indexed by their numeric indices.
-     */
     [index: number]: UnwrappedEditableTree;
 }
 
