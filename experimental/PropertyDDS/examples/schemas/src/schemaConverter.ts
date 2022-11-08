@@ -37,6 +37,20 @@ const numberTypes = new Set([
     "Float32",
     "Float64",
 ]);
+const primitiveTypes = new Set([
+    "Bool",
+    "String",
+    "Int8",
+    "Uint8",
+    "Int16",
+    "Uint16",
+    "Int32",
+    "Int64",
+    "Uint64",
+    "Uint32",
+    "Float32",
+    "Float64",
+]);
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type Context = {
@@ -102,6 +116,13 @@ export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
             }
         };
         extractContexts(schemaTemplate.properties);
+    }
+
+    for (const type of primitiveTypes) {
+        const typeid: TreeSchemaIdentifier = brand(type);
+        if (!referencedTypeIDs.has(typeid)) {
+            referencedTypeIDs.set(typeid, { typeid, context: "single" });
+        }
     }
 
     // Now we create the actual schemas, since we are now able to reference the dependent types
