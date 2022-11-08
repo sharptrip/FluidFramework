@@ -11,7 +11,6 @@ import {
     JsonableTree,
     ITreeCursor,
     TaggedChange,
-    TreeSchemaIdentifier,
 } from "../core";
 import { brand, fail, JsonCompatible, JsonCompatibleReadOnly } from "../util";
 import { singleTextCursor, jsonableTreeFromCursor } from "./treeTextCursor";
@@ -401,8 +400,6 @@ export interface OptionalChangeset {
     childChange?: NodeChangeset;
 }
 
-const DUMMY_REVIVED_NODE_TYPE: TreeSchemaIdentifier = brand("RevivedNode");
-
 const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> =
     referenceFreeFieldChangeRebaser({
         compose: (
@@ -448,13 +445,8 @@ const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> =
             const inverse: OptionalChangeset = {};
 
             if (change.fieldChange !== undefined) {
+                // TODO: Invert the content in the fieldChange
                 inverse.fieldChange = { wasEmpty: change.fieldChange.newContent === undefined };
-                if (!change.fieldChange.wasEmpty) {
-                    // TODO: restore the real node.
-                    // This temporary hack makes it possible to clear optional fields in transactions that succeed
-                    // because they roll-back the edit only to reapply it immediately after.
-                    inverse.fieldChange.newContent = { type: DUMMY_REVIVED_NODE_TYPE };
-                }
             }
 
             if (change.childChange !== undefined) {
