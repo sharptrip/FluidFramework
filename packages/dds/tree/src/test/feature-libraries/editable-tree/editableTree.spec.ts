@@ -44,6 +44,7 @@ import {
     isEditableField,
     UnwrappedEditableTree,
     getWithoutUnwrappingSymbol,
+    anchorSymbol,
 } from "../../../feature-libraries";
 import {
     getPrimaryField,
@@ -231,6 +232,18 @@ describe("editable-tree: read-only", () => {
             const expected = {
                 configurable: true,
                 enumerable: false,
+                writable: false,
+            };
+            assert.deepEqual(descriptor, expected);
+        }
+
+        {
+            const descriptor = Object.getOwnPropertyDescriptor(nameNode, anchorSymbol);
+            assert(descriptor !== undefined);
+            const expected = {
+                configurable: true,
+                enumerable: false,
+                value: Reflect.get(nameNode, anchorSymbol),
                 writable: false,
             };
             assert.deepEqual(descriptor, expected);

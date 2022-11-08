@@ -4,6 +4,7 @@
  */
 
 export {
+    anchorSymbol,
     typeSymbol,
     typeNameSymbol,
     EditableTree,
