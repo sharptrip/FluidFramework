@@ -71,7 +71,6 @@ export {
     FieldAnchor,
     RevisionTag,
     TaggedChange,
-    isGlobalFieldKey,
 } from "./core";
 
 export {
@@ -144,8 +143,6 @@ export {
     typeSymbol,
     typeNameSymbol,
     valueSymbol,
-    // TODO: not yet commited
-    indexSymbol,
     proxyTargetSymbol,
     getField,
     createField,
@@ -157,9 +154,6 @@ export {
     OptionalFieldEditBuilder,
     SequenceFieldEditBuilder,
     SequenceField,
-    // it is agreed to export these two into public API (maybe in some other form)
-    singleTextCursor,
-    fieldKinds,
 } from "./feature-libraries";
 
 export { ISharedTree, SharedTreeFactory } from "./shared-tree";

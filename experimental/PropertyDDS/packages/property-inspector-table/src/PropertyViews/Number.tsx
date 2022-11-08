@@ -3,9 +3,11 @@
  * Licensed under the MIT License.
  */
 
+import { ContainerProperty } from "@fluid-experimental/property-properties";
 import TextField, { TextFieldProps } from "@material-ui/core/TextField";
 import * as React from "react";
 import { IEditableValueCellProps, IInspectorRow } from "../InspectorTableTypes";
+import { getPropertyValue } from "../propertyInspectorUtils";
 
 type NumberProps = (IEditableValueCellProps & {
   onSubmit: (val: number, props: IEditableValueCellProps) => void;
@@ -39,7 +41,8 @@ export const NumberView: React.FunctionComponent<NumberProps> = (props) => {
     ...restProps // tslint:disable-line:trailing-comma
   } = props;
 
-  const value = rowData.value;
+  const value = getPropertyValue(rowData.parent as ContainerProperty, rowData.name, rowData.context, rowData.typeid,
+    followReferences);
 
   return (
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
