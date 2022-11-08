@@ -27,6 +27,7 @@ import {
     brand,
     hasPrimaryField,
     FieldKey,
+    ValueSchema,
 } from "@fluid-internal/tree";
 import {
     IDataCreationOptions,
@@ -158,7 +159,9 @@ function expandNode(
     pathPrefix: string,
 ): void {
     const id = getRowId(parent.fieldKey, node[indexSymbol], pathPrefix);
-    if (!isPrimitive(node[typeSymbol])) {
+    const nodeType = node[typeSymbol];
+    // TODO: e.g., how to properly schematize maps (`Serializable`)?
+    if (!isPrimitive(nodeType) || nodeType.value === ValueSchema.Serializable) {
         expanded[id] = true;
     }
     forEachField(expandNode, expanded, node, id);
@@ -202,7 +205,8 @@ function nodeToRows(
     const children = forEachField(nodeToRows, [], node, id, addNewDataLine);
     // TODO: currently, the whole story around arrays is not well defined neither implemented.
     // Prevent to create fields under a node already having a primary field.
-    if (!(isPrimitive(node[typeSymbol]) || hasPrimaryField(node))) {
+    if (!(isPrimitive(node[typeSymbol]) || hasPrimaryField(node))
+        || node[typeSymbol].value === ValueSchema.Serializable) {
         addNewDataLine(children, node, id);
     }
     rows.push({
@@ -276,7 +280,7 @@ const editableTreeTableProps: Partial<IInspectorTableProps> = {
         pathPrefix: string = "",
     ): IEditableTreeRow[] => {
         assert(isEditableField(data), "wrong root type");
-        return forEachNode(nodeToRows, data, []);
+        return forEachNode(nodeToRows, data, [], "", addNewDataLine);
     },
 };
 
