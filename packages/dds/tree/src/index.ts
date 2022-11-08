@@ -71,6 +71,9 @@ export {
     FieldAnchor,
     RevisionTag,
     TaggedChange,
+    // TODO: seems to be missing in the API
+    isGlobalFieldKey,
+    symbolIsFieldKey, // end of TODO
 } from "./core";
 
 export {
@@ -144,6 +147,9 @@ export {
     typeNameSymbol,
     valueSymbol,
     indexSymbol,
+    // TODO: not yet commited
+    isPrimaryField,
+    // end of TODO
     proxyTargetSymbol,
     getField,
     createField,
@@ -155,6 +161,9 @@ export {
     OptionalFieldEditBuilder,
     SequenceFieldEditBuilder,
     SequenceField,
+    // TODO: it is agreed to export these two into public API (maybe in some other form)
+    singleTextCursor,
+    fieldKinds, // end of TODO
 } from "./feature-libraries";
 
 export { ISharedTree, SharedTreeFactory } from "./shared-tree";

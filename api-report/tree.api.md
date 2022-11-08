@@ -220,7 +220,7 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
 
 // @public
 export interface EditableTree extends Iterable<EditableField> {
-    [createField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): EditableField | undefined;
+    [createField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): void;
     [getField](fieldKey: FieldKey): EditableField;
     readonly [indexSymbol]: number;
     readonly [proxyTargetSymbol]: object;
@@ -347,6 +347,9 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
 
 // @public
 export type FieldKindIdentifier = Brand<string, "tree.FieldKindIdentifier">;
+
+// @public (undocumented)
+export const fieldKinds: Record<string, FieldKindIdentifier>;
 
 // @public
 export interface FieldLocation {
@@ -527,6 +530,9 @@ export type isAny<T> = boolean extends (T extends {} ? true : false) ? true : fa
 export function isEditableField(field: UnwrappedEditableField): field is EditableField;
 
 // @public
+export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
+
+// @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
     readonly context: EditableTreeContext;
     readonly root: UnwrappedEditableField;
@@ -535,6 +541,9 @@ export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObje
 
 // @public (undocumented)
 export function isNeverField(policy: FullSchemaPolicy, originalData: SchemaData, field: FieldSchema): boolean;
+
+// @public (undocumented)
+export function isPrimaryField(field: EditableField): boolean;
 
 // @public (undocumented)
 export function isPrimitive(schema: TreeSchema): boolean;
@@ -1162,6 +1171,9 @@ export class SimpleDependee implements Dependee {
 export function singleJsonCursor<T>(root: Jsonable<T>): ITreeCursorSynchronous;
 
 // @public (undocumented)
+export function singleTextCursor(root: JsonableTree): ITreeCursorSynchronous;
+
+// @public (undocumented)
 type SizedMark<TNodeChange = NodeChangeType> = Skip_2 | SizedObjectMark<TNodeChange>;
 
 // @public (undocumented)
@@ -1180,6 +1192,9 @@ export interface StoredSchemaRepository<TPolicy extends SchemaPolicy = SchemaPol
 
 // @public (undocumented)
 export function symbolFromKey(key: GlobalFieldKey): GlobalFieldKeySymbol;
+
+// @public (undocumented)
+export function symbolIsFieldKey(key: symbol): key is GlobalFieldKeySymbol;
 
 // @public (undocumented)
 export interface TaggedChange<TChangeset> {

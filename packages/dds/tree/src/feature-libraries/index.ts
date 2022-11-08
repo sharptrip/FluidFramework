@@ -32,6 +32,7 @@ export {
     valueSymbol,
     getField,
     createField,
+    isPrimaryField,
 } from "./editable-tree";
 export { ForestIndex } from "./forestIndex";
 export { singleMapTreeCursor, mapTreeFromCursor } from "./mapTreeCursor";
@@ -75,6 +76,7 @@ export {
 
 // Split this up into separate import and export for compatibility with API-Extractor.
 import * as FieldKinds from "./defaultFieldKinds";
+export { defaultFieldKinds as fieldKinds } from "./defaultFieldKinds";
 export { FieldKinds };
 
 export { applyModifyToTree, mapFieldMarks, mapMark, mapMarkList } from "./deltaUtils";
