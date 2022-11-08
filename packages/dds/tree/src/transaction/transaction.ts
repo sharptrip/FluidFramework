@@ -6,7 +6,6 @@
 import { IEditableForest, IForestSubscription } from "../forest";
 import { ChangeFamily, ProgressiveEditBuilder } from "../change-family";
 import { TransactionResult } from "../checkout";
-import { brand } from "../util";
 
 /**
  * The interface a checkout has to implement for a transaction to be able to be applied to it.
@@ -46,7 +45,7 @@ export function runSynchronousTransaction<TEditor extends ProgressiveEditBuilder
     // then reapply it (when the local edit is added) when possible.
     {
         // Roll back changes
-        const inverse = checkout.changeFamily.rebaser.invert({ revision: brand(-1), change: edit });
+        const inverse = checkout.changeFamily.rebaser.invert(edit);
 
         // TODO: maybe unify logic to edit forest and its anchors here with that in ProgressiveEditBuilder.
         // TODO: update schema in addition to anchors and tree data (in both places).

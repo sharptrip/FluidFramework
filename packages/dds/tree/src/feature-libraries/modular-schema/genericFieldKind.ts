@@ -14,7 +14,6 @@ import {
     NodeChangeComposer,
     NodeChangeInverter,
     NodeChangeRebaser,
-    referenceFreeFieldChangeRebaser,
 } from "./fieldChangeHandler";
 import { FieldKind, Multiplicity } from "./fieldKind";
 
@@ -55,7 +54,7 @@ export type EncodedGenericChangeset = EncodedGenericChange[];
  * {@link FieldChangeHandler} implementation for {@link GenericChangeset}.
  */
 export const genericChangeHandler: FieldChangeHandler<GenericChangeset> = {
-    rebaser: referenceFreeFieldChangeRebaser({
+    rebaser: {
         compose: (
             changes: GenericChangeset[],
             composeChildren: NodeChangeComposer,
@@ -121,7 +120,7 @@ export const genericChangeHandler: FieldChangeHandler<GenericChangeset> = {
             rebased.push(...change.slice(iChange));
             return rebased;
         },
-    }),
+    },
     encoder: {
         encodeForJson(
             formatVersion: number,

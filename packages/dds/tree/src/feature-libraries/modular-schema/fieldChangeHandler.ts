@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange } from "../../core";
+import { FieldKindIdentifier, Delta, FieldKey, Value } from "../../core";
 import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
 
 /**
@@ -35,32 +35,13 @@ export interface FieldChangeRebaser<TChangeset> {
      * @returns the inverse of `changes`.
      * See {@link ChangeRebaser} for details.
      */
-    invert(change: TaggedChange<TChangeset>, invertChild: NodeChangeInverter): TChangeset;
+    invert(change: TChangeset, invertChild: NodeChangeInverter): TChangeset;
 
     /**
      * Rebase `change` over `over`.
      * See {@link ChangeRebaser} for details.
      */
-    rebase(
-        change: TChangeset,
-        over: TaggedChange<TChangeset>,
-        rebaseChild: NodeChangeRebaser,
-    ): TChangeset;
-}
-
-/**
- * Helper for creating a {@link FieldChangeRebaser} which does not need access to revision tags
- */
-export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
-    compose: (changes: TChangeset[], composeChild: NodeChangeComposer) => TChangeset;
-    invert: (change: TChangeset, invertChild: NodeChangeInverter) => TChangeset;
-    rebase: (change: TChangeset, over: TChangeset, rebaseChild: NodeChangeRebaser) => TChangeset;
-}): FieldChangeRebaser<TChangeset> {
-    return {
-        compose: data.compose,
-        invert: (change, invertChild) => data.invert(change.change, invertChild),
-        rebase: (change, over, rebaseChild) => data.rebase(change, over.change, rebaseChild),
-    };
+    rebase(change: TChangeset, over: TChangeset, rebaseChild: NodeChangeRebaser): TChangeset;
 }
 
 export interface FieldChangeEncoder<TChangeset> {
@@ -97,7 +78,6 @@ export type NodeChangeInverter = (change: NodeChangeset) => NodeChangeset;
 export type NodeChangeRebaser = (change: NodeChangeset, baseChange: NodeChangeset) => NodeChangeset;
 
 export type NodeChangeComposer = (changes: NodeChangeset[]) => NodeChangeset;
-
 export type NodeChangeEncoder = (change: NodeChangeset) => JsonCompatibleReadOnly;
 export type NodeChangeDecoder = (change: JsonCompatibleReadOnly) => NodeChangeset;
 

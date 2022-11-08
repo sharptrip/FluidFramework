@@ -5,7 +5,6 @@
 
 import { strict as assert } from "assert";
 import { SequenceField as SF } from "../../../feature-libraries";
-import { makeAnonChange } from "../../../rebase";
 import { TreeSchemaIdentifier } from "../../../schema-stored";
 import { brand } from "../../../util";
 import { TestChange } from "../../testChange";
@@ -18,7 +17,7 @@ const tomb = "Dummy Changeset Tag";
 function rebase(change: TestChangeset, base: TestChangeset): TestChangeset {
     deepFreeze(change);
     deepFreeze(base);
-    return SF.rebase(change, makeAnonChange(base), TestChange.rebase);
+    return SF.rebase(change, base, TestChange.rebase);
 }
 
 describe("SequenceField - Rebase", () => {

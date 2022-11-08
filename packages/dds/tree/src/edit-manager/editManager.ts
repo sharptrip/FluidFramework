@@ -5,10 +5,9 @@
 
 import { assert } from "@fluidframework/common-utils";
 import { ChangeFamily } from "../change-family";
-import { TaggedChange, RevisionTag } from "../rebase";
 import { SimpleDependee } from "../dependency-tracking";
 import { AnchorSet, Delta } from "../tree";
-import { brand, Brand, fail, RecursiveReadonly } from "../util";
+import { Brand, fail, RecursiveReadonly } from "../util";
 
 export interface Commit<TChangeset> {
     sessionId: SessionId;
@@ -43,12 +42,7 @@ export class EditManager<
     // This is the ordered list of changes made by this client which have not yet been confirmed as sequenced changes.
     // The first change in this list is based on the last change in the trunk.
     // Every other change in this list is based on the change preceding it.
-    private localChanges: TaggedChange<TChangeset>[] = [];
-
-    // Because we do not have sequence numbers for local changes, we assign them temporary revision tags.
-    // We use negative numbers to avoid collisions with finalized revision tags.
-    // TODO: Eventually we will have to send references to local revision tag (e.g. when undoing a local change)
-    private nextLocalRevision = -1;
+    private localChanges: TChangeset[] = [];
 
     private localSessionId?: SessionId;
 
@@ -111,7 +105,7 @@ export class EditManager<
     }
 
     public getLocalChanges(): readonly RecursiveReadonly<TChangeset>[] {
-        return this.localChanges.map((change) => change.change);
+        return this.localChanges;
     }
 
     public addSequencedChange(newCommit: Commit<TChangeset>): Delta.Root {
@@ -131,22 +125,10 @@ export class EditManager<
             // `newCommit` should correspond to the oldest change in `localChanges`, so we move it into trunk.
             // `localChanges` are already rebased to the trunk, so we can use the stored change instead of rebasing the
             // change in the incoming commit.
-            const change = this.localChanges.shift() ?? fail(UNEXPECTED_SEQUENCED_LOCAL_EDIT);
-
-            // TODO: The local change may contain references to local revision tags.
-            // When other clients rebase this change, they will instead use the corresponding sequence numbers
-            // instead of this client's local revision numbers. Although this need not inherently cause a divergence
-            // in the state of the document, this is potentially dangerous.
-            // This could be solved by one of the following approaches:
-            // A) Maintain a `Branch` of sequenced changes from this client in addition to `localChanges`,
-            //    and only use the rebased changes from that branch when adding to the trunk.
-            // B) Use a UUID as the revision tag for each changeset instead of a sequence number,
-            //    so that we do not need local revision tags.
-            // C) Strip any references to local changes before adding the change to the trunk.
-            //    This would also have to be done on each branch with references to changes local to that branch.
+            const changeset = this.localChanges.shift() ?? fail(UNEXPECTED_SEQUENCED_LOCAL_EDIT);
             this.trunk.push({
                 ...newCommit,
-                changeset: change.change,
+                changeset,
             });
             return Delta.empty;
         }
@@ -162,12 +144,7 @@ export class EditManager<
             changeset: newChangeFullyRebased,
         });
 
-        return this.changeFamily.intoDelta(
-            this.rebaseLocalBranch({
-                revision: brand(newCommit.seqNumber),
-                change: newChangeFullyRebased,
-            }),
-        );
+        return this.changeFamily.intoDelta(this.rebaseLocalBranch(newChangeFullyRebased));
     }
 
     /**
@@ -189,7 +166,7 @@ export class EditManager<
             "The session ID should be set before processing changes",
         );
 
-        this.localChanges.push({ revision: this.allocateLocalRevisionTag(), change });
+        this.localChanges.push(change);
 
         if (this.anchors !== undefined) {
             this.changeFamily.rebaser.rebaseAnchors(this.anchors, change);
@@ -209,7 +186,10 @@ export class EditManager<
 
         const changeRebasedToRef = branch.localChanges.reduceRight(
             (newChange, branchCommit) =>
-                this.changeFamily.rebaser.rebase(newChange, this.inverseFromCommit(branchCommit)),
+                this.changeFamily.rebaser.rebase(
+                    newChange,
+                    this.changeFamily.rebaser.invert(branchCommit.changeset),
+                ),
             commitToRebase.changeset,
         );
 
@@ -217,29 +197,24 @@ export class EditManager<
     }
 
     // TODO: Try to share more logic between this method and `rebaseBranch`
-    private rebaseLocalBranch(trunkChange: TaggedChange<TChangeset>): TChangeset {
-        const newBranchChanges: TaggedChange<TChangeset>[] = [];
-        const inverses: TaggedChange<TChangeset>[] = [];
+    private rebaseLocalBranch(trunkChange: TChangeset): TChangeset {
+        const newBranchChanges: TChangeset[] = [];
+        const inverses: TChangeset[] = [];
 
         for (const localChange of this.localChanges) {
-            let change = this.rebaseChange(localChange.change, inverses);
+            let change = this.rebaseChange(localChange, inverses);
             change = this.changeFamily.rebaser.rebase(change, trunkChange);
             change = this.rebaseChange(change, newBranchChanges);
 
-            newBranchChanges.push({ ...localChange, change });
+            newBranchChanges.push(change);
 
-            const inverse = this.changeFamily.rebaser.invert(localChange);
-
-            inverses.unshift({
-                revision: revisionTagForInverse(localChange.revision),
-                change: inverse,
-            });
+            inverses.unshift(this.changeFamily.rebaser.invert(localChange));
         }
 
         const netChange = this.changeFamily.rebaser.compose([
-            ...inverses.map((change) => change.change),
-            trunkChange.change,
-            ...newBranchChanges.map((change) => change.change),
+            ...inverses,
+            trunkChange,
+            ...newBranchChanges,
         ]);
 
         if (this.anchors !== undefined) {
@@ -247,7 +222,6 @@ export class EditManager<
         }
 
         this.localChanges = newBranchChanges;
-
         return netChange;
     }
 
@@ -267,9 +241,8 @@ export class EditManager<
             return;
         }
         const newBranchChanges: Commit<TChangeset>[] = [];
-        const inverses: TaggedChange<TChangeset>[] = [];
+        const inverses: TChangeset[] = [];
 
-        let nextTempRevision = -1;
         for (const commit of branch.localChanges) {
             if (commit.seqNumber > newRef) {
                 let change = this.rebaseChange(commit.changeset, inverses);
@@ -282,10 +255,7 @@ export class EditManager<
                 });
             }
 
-            inverses.unshift({
-                revision: brand(nextTempRevision--),
-                change: this.changeFamily.rebaser.invert(taggedChangeFromCommit(commit)),
-            });
+            inverses.unshift(this.changeFamily.rebaser.invert(commit.changeset));
         }
 
         branch.localChanges = newBranchChanges;
@@ -293,13 +263,13 @@ export class EditManager<
     }
 
     private rebaseOverCommits(changeToRebase: TChangeset, commits: Commit<TChangeset>[]) {
-        return this.rebaseChange(changeToRebase, commits.map(taggedChangeFromCommit));
+        return this.rebaseChange(
+            changeToRebase,
+            commits.map((commit) => commit.changeset),
+        );
     }
 
-    private rebaseChange(
-        changeToRebase: TChangeset,
-        changesToRebaseOver: TaggedChange<TChangeset>[],
-    ) {
+    private rebaseChange(changeToRebase: TChangeset, changesToRebaseOver: TChangeset[]) {
         return changesToRebaseOver.reduce(
             (a, b) => this.changeFamily.rebaser.rebase(a, b),
             changeToRebase,
@@ -356,27 +326,6 @@ export class EditManager<
         }
         return this.branches.get(sessionId) as Branch<TChangeset>;
     }
-
-    private inverseFromCommit(commit: Commit<TChangeset>): TaggedChange<TChangeset> {
-        return {
-            revision: revisionTagForInverse(brand(commit.seqNumber)),
-            change: this.changeFamily.rebaser.invert(taggedChangeFromCommit(commit)),
-        };
-    }
-
-    private allocateLocalRevisionTag(): RevisionTag {
-        return brand(this.nextLocalRevision--);
-    }
-}
-
-function taggedChangeFromCommit<T>(commit: Commit<T>): TaggedChange<T> {
-    return { revision: brand(commit.seqNumber), change: commit.changeset };
-}
-
-// This always returns undefined, as we do not currently need an identity for the inverse of a change.
-// TODO: Correctly implement this function if needed; otherwise remove it.
-function revisionTagForInverse(revision: RevisionTag | undefined): RevisionTag | undefined {
-    return undefined;
 }
 
 export interface Branch<TChangeset> {

@@ -4,7 +4,6 @@
  */
 
 import { clone, fail, StackyIterator } from "../../util";
-import { TaggedChange } from "../../core";
 import {
     getInputLength,
     getOutputLength,
@@ -34,10 +33,10 @@ import { MarkListFactory } from "./markListFactory";
  */
 export function rebase<TNodeChange>(
     change: Changeset<TNodeChange>,
-    base: TaggedChange<Changeset<TNodeChange>>,
+    base: Changeset<TNodeChange>,
     rebaseChild: NodeChangeRebaser<TNodeChange>,
 ): Changeset<TNodeChange> {
-    return rebaseMarkList(change, base.change, rebaseChild);
+    return rebaseMarkList(change, base, rebaseChild);
 }
 
 export type NodeChangeRebaser<TNodeChange> = (

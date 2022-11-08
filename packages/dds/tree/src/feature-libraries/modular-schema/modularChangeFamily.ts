@@ -16,7 +16,6 @@ import {
     FieldKey,
     UpPath,
     Value,
-    TaggedChange,
 } from "../../core";
 import { brand, getOrAddEmptyToMap, JsonCompatibleReadOnly } from "../../util";
 import {
@@ -143,15 +142,15 @@ export class ModularChangeFamily
         return composedNodeChange;
     }
 
-    invert(changes: TaggedChange<FieldChangeMap>): FieldChangeMap {
+    invert(changes: FieldChangeMap): FieldChangeMap {
         const invertedFields: FieldChangeMap = new Map();
 
-        for (const [field, fieldChange] of changes.change) {
+        for (const [field, fieldChange] of changes.entries()) {
             const invertedChange = getChangeHandler(
                 this.fieldKinds,
                 fieldChange.fieldKind,
-            ).rebaser.invert({ ...changes, change: fieldChange.change }, (childChanges) =>
-                this.invertNodeChange({ ...changes, change: childChanges }),
+            ).rebaser.invert(fieldChange.change, (childChanges) =>
+                this.invertNodeChange(childChanges),
             );
 
             invertedFields.set(field, {
@@ -163,20 +162,20 @@ export class ModularChangeFamily
         return invertedFields;
     }
 
-    private invertNodeChange(change: TaggedChange<NodeChangeset>): NodeChangeset {
+    private invertNodeChange(change: NodeChangeset): NodeChangeset {
         // TODO: Correctly invert `change.valueChange`
-        if (change.change.fieldChanges === undefined) {
+        if (change.fieldChanges === undefined) {
             return {};
         }
 
-        return { fieldChanges: this.invert({ ...change, change: change.change.fieldChanges }) };
+        return { fieldChanges: this.invert(change.fieldChanges) };
     }
 
-    rebase(change: FieldChangeMap, over: TaggedChange<FieldChangeMap>): FieldChangeMap {
+    rebase(change: FieldChangeMap, over: FieldChangeMap): FieldChangeMap {
         const rebasedFields: FieldChangeMap = new Map();
 
         for (const [field, fieldChange] of change) {
-            const baseChanges = over.change.get(field);
+            const baseChanges = over.get(field);
             if (baseChanges === undefined) {
                 rebasedFields.set(field, fieldChange);
             } else {
@@ -186,9 +185,8 @@ export class ModularChangeFamily
                 } = this.normalizeFieldChanges([fieldChange, baseChanges]);
                 const rebasedField = fieldKind.changeHandler.rebaser.rebase(
                     fieldChangeset,
-                    { ...over, change: baseChangeset },
-                    (child, baseChild) =>
-                        this.rebaseNodeChange(child, { ...over, change: baseChild }),
+                    baseChangeset,
+                    (child, baseChild) => this.rebaseNodeChange(child, baseChild),
                 );
 
                 // TODO: Could optimize by skipping this assignment if `rebasedField` is empty
@@ -202,20 +200,14 @@ export class ModularChangeFamily
         return rebasedFields;
     }
 
-    private rebaseNodeChange(
-        change: NodeChangeset,
-        over: TaggedChange<NodeChangeset>,
-    ): NodeChangeset {
-        if (change.fieldChanges === undefined || over.change.fieldChanges === undefined) {
+    private rebaseNodeChange(change: NodeChangeset, over: NodeChangeset): NodeChangeset {
+        if (change.fieldChanges === undefined || over.fieldChanges === undefined) {
             return change;
         }
 
         return {
             ...change,
-            fieldChanges: this.rebase(change.fieldChanges, {
-                ...over,
-                change: over.change.fieldChanges,
-            }),
+            fieldChanges: this.rebase(change.fieldChanges, over.fieldChanges),
         };
     }
 
@@ -225,7 +217,7 @@ export class ModularChangeFamily
 
     intoDelta(change: FieldChangeMap): Delta.Root {
         const delta: Delta.Root = new Map();
-        for (const [field, fieldChange] of change) {
+        for (const [field, fieldChange] of change.entries()) {
             const deltaField = getChangeHandler(this.fieldKinds, fieldChange.fieldKind).intoDelta(
                 fieldChange.change,
                 (childChange) => this.deltaFromNodeChange(childChange),
