@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/common-utils";
-import { indexSymbol, isEditableField, isUnwrappedNode } from "@fluid-internal/tree";
 import { PropertyProxy } from "@fluid-experimental/property-proxy";
 import { BaseProperty, ArrayProperty, NodeProperty, MapProperty } from "@fluid-experimental/property-properties";
 import { createStyles, withStyles, WithStyles } from "@material-ui/core/styles";
@@ -12,7 +10,7 @@ import classNames from "classnames";
 import * as React from "react";
 import { ItemMenu } from "./ItemMenu";
 import { iconMarginRight, iconWidth, unit } from "./constants";
-import { EditableTreeRow, IInspectorRow, isEditableTreeRow } from "./InspectorTableTypes";
+import { IInspectorRow } from "./InspectorTableTypes";
 import { OverflowableCell } from "./OverflowableCell";
 
 const styles = () => createStyles({
@@ -43,11 +41,11 @@ export interface ICellProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
    * A callback that returns the icons based on the row data.
    */
-  iconRenderer: (rowData: IInspectorRow | EditableTreeRow) => React.ReactNode;
+  iconRenderer: (rowData: IInspectorRow) => React.ReactNode;
   /**
    * The row data of the row which contains the cell.
    */
-  rowData: IInspectorRow | EditableTreeRow;
+  rowData: IInspectorRow;
 }
 
 export interface INameCellProps {
@@ -68,31 +66,6 @@ const deletionHandler = (rowData: IInspectorRow) => {
   }
   return (parent as any).getProperty().getRoot().getWorkspace().commit();
 };
-
-const deletionHandler2 = async (rowData: EditableTreeRow) => {
-  assert(isUnwrappedNode(rowData.data), "requires data as node");
-  assert(isEditableField(rowData.parent), "requires parent as field");
-  // TODO: this works only now since SharedTree internals allow to delete nodes for any field kind.
-  // On the other hand, `delete rowData.parent[fieldKey]` requires to know the parent field of the node.
-  // This is one of the cases, which might be conventiently implemented
-  // if EditableTree will support UpPath like proposed in
-  // https://github.com/microsoft/FluidFramework/pull/12810#issuecomment-1303949419
-  rowData.parent.deleteNodes(rowData.data[indexSymbol], 1);
-  return Promise.resolve(true);
-};
-
-function getDeleteHandler({ rowData, readOnly }: Partial<INameCellProps & ICellProps>) {
-  if (readOnly || rowData === undefined) {
-    return undefined;
-  }
-  if (isEditableTreeRow(rowData)) {
-    return { handler: async () => deletionHandler2(rowData) };
-  }
-  if (rowData.parentIsConstant || isStaticProperty(rowData.parent as BaseProperty, rowData.propertyId)) {
-    return undefined;
-  }
-  return { handler: () => deletionHandler(rowData) };
-}
 
 const copyHandler = (rowData: IInspectorRow, ref: React.MutableRefObject<HTMLTextAreaElement>) => {
   const prop = (rowData.parent! as BaseProperty);
@@ -168,8 +141,15 @@ const NameCell: React.FunctionComponent<WithStyles<typeof styles> & INameCellPro
           openHandler={menuHandler}
           closeHandler={menuHandler}
           options={{
-            copy: isEditableTreeRow(rowData) ? undefined : { handler: copyHandler.bind(null, rowData) },
-            delete: getDeleteHandler({ rowData, readOnly }),
+            copy: {
+              handler: copyHandler.bind(null, rowData),
+            },
+            delete:
+              (
+                !rowData.isEditableTree &&
+                !readOnly &&
+                !rowData.parentIsConstant && !isStaticProperty(rowData.parent as BaseProperty, rowData.propertyId)) ?
+                { handler: () => deletionHandler(rowData) } : undefined,
             edit: !readOnly && (rowData.isReference) ?
               { handler: editReferenceHandler } : undefined,
           }}

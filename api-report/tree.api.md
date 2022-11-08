@@ -419,12 +419,6 @@ export interface GenericTreeNode<TChild> extends GenericFieldsNode<TChild>, Node
 // @public
 export const getField: unique symbol;
 
-// @public (undocumented)
-export function getPrimaryField(schema: TreeSchema): {
-    key: LocalFieldKey;
-    schema: FieldSchema;
-} | undefined;
-
 // @public
 export type GlobalFieldKey = Brand<string, "tree.GlobalFieldKey">;
 
