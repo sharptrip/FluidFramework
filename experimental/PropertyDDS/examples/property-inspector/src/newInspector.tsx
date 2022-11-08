@@ -25,7 +25,7 @@ import {
     createField,
     singleTextCursor,
     brand,
-    isPrimaryField,
+    hasPrimaryField,
     FieldKey,
 } from "@fluid-internal/tree";
 import {
@@ -43,6 +43,7 @@ import {
     // NewDataForm,
     // getShortId,
     IEditableTreeRow,
+    IExpandedMap,
 } from "@fluid-experimental/property-inspector-table";
 
 import { Tabs, Tab } from "@material-ui/core";
@@ -144,106 +145,122 @@ const tableProps: Partial<IInspectorTableProps> = {
     expandColumnKey: "name",
     width: 1000,
     height: 600,
+    expandAll: (data: EditableField): IExpandedMap => {
+        assert(isEditableField(data), "wrong root type");
+        return forEachNode(expandNode, data, {});
+    },
 };
 
-function stringifyKey(fieldKey: FieldKey, pathPrefix: string): string {
-    // TODO: this is a workaround, which must be replaced with the `EditableTreeUpPath` (not yet implemented)
-    // in order to get, if the field is a root field.
-    // For `EditableTreeUpPath`, see https://github.com/microsoft/FluidFramework/pull/12810#issuecomment-1303949419
-    if (pathPrefix === "") {
-        return "/";
+function expandNode(
+    expanded: IExpandedMap,
+    parent: EditableField,
+    node: EditableTree,
+    pathPrefix: string,
+): void {
+    const id = getRowId(parent.fieldKey, node[indexSymbol], pathPrefix);
+    if (!isPrimitive(node[typeSymbol])) {
+        expanded[id] = true;
     }
+    forEachField(expandNode, expanded, node, id);
+}
+
+// TODO: maybe discuss alternatives on how global fields must be converted into row IDs.
+// Global fields in runtime are used as follows:
+// - as `GlobalFieldKeySymbol` (a symbol) => `Symbol(myGlobalField)` - used to read the tree data;
+// - as `GlobalFieldKey` (a string) => `myGlobalField` - used in `TreeSchema` and `JsonableTree`,
+// since global and local fields there are structurally separated.
+// Here we use "Symbol(myGlobalField)" (and not "myGlobalField") as a unique ID for this field,
+// since then a name clashing occurs iff one defines a local field "Symbol(myGlobalField)" for the same node,
+// and it will be more probable if we'll use just a string "myGlobalField" instead.
+// We might introduce a new special syntax for the IDs of global fields to avoid clashing,
+// but it seems that the default syntax already provides a very good safeguard though.
+const getRowId = (fieldKey: FieldKey, nodeIndex: number, pathPrefix: string): string =>
+    `${pathPrefix}/${String(fieldKey)}[${nodeIndex}]`;
+
+function stringifyKey(fieldKey: FieldKey): string {
     if (isGlobalFieldKey(fieldKey) && symbolIsFieldKey(fieldKey)) {
         return keyFromSymbol(fieldKey);
     }
     return fieldKey;
 }
 
-function nodeToRow(
+function nodeToRows(
+    rows: IEditableTreeRow[],
     parent: EditableField,
     node: EditableTree,
     pathPrefix: string,
     isSequenceNode = false,
-): IEditableTreeRow {
+): void {
     const fieldKey = parent.fieldKey;
     const nodeIndex = node[indexSymbol];
-    // TODO: maybe discuss alternatives on how global fields must be converted into row IDs.
-    // Global fields in runtime are used as follows:
-    // - as `GlobalFieldKeySymbol` (a symbol) => `Symbol(myGlobalField)` - used to read the tree data;
-    // - as `GlobalFieldKey` (a string) => `myGlobalField` - used in `TreeSchema` and `JsonableTree`,
-    // since global and local fields there are structurally separated.
-    // Here we use "Symbol(myGlobalField)" (and not "myGlobalField") as a unique ID for this field,
-    // since then a name clashing occurs iff one defines a local field "Symbol(myGlobalField)" for the same node,
-    // and it will be more probable if we'll use just a string "myGlobalField" instead.
-    // We might introduce a new special syntax for the IDs of global fields to avoid clashing,
-    // but it seems that the default syntax already provides a very good safeguard though.
-    const id = `${pathPrefix}/${String(fieldKey)}[${nodeIndex}]`;
-    const name = isSequenceNode ? `[${nodeIndex}]` : stringifyKey(fieldKey, pathPrefix);
-    const row: IEditableTreeRow = {
+    const id = getRowId(fieldKey, nodeIndex, pathPrefix);
+    // TODO: this is a workaround, which must be replaced with the `EditableTreeUpPath` (not yet implemented)
+    // in order to get, if the field is a root field.
+    // For `EditableTreeUpPath`, see https://github.com/microsoft/FluidFramework/pull/12810#issuecomment-1303949419
+    const keyAsString = pathPrefix === "" ? "/" : stringifyKey(fieldKey);
+    const name = isSequenceNode ? `[${nodeIndex}]` : keyAsString;
+    const children = forEachField(nodeToRows, [], node, id, addNewDataLine);
+    // TODO: currently, the whole story around arrays is not well defined neither implemented.
+    // Prevent to create fields under a node already having a primary field.
+    if (!(isPrimitive(node[typeSymbol]) || hasPrimaryField(node))) {
+        addNewDataLine(children, node, id);
+    }
+    rows.push({
         id,
         name,
         context: "single",
-        children: getNodeFields(node, id),
+        children,
         isReference: false,
         value: node[valueSymbol],
         typeid: node[typeNameSymbol],
         parent,
         data: node,
         isEditableTree: true,
-    };
-    return row;
+    });
 }
 
-const getNodeFields = (
+function addNewDataLine(rows: IEditableTreeRow[], parent: EditableField | EditableTree, pathPrefix: string): void {
+    rows.push({
+        id: `${pathPrefix}/Add`,
+        isNewDataRow: true,
+        parent,
+        value: "",
+        typeid: "",
+        name: "",
+        isEditableTree: true,
+    });
+}
+
+function forEachField<T>(
+    fn: (result: T, parent: EditableField, node: EditableTree, pathPrefix: string, isSequence: boolean) => void,
+    data: T,
     node: EditableTree,
     pathPrefix: string,
-): IEditableTreeRow[] => {
-    const rows: IEditableTreeRow[] = [];
-    let hasPrimaryField = false;
+    addOnIfSequenceField?: (result: T, parent: EditableField | EditableTree, pathPrefix: string) => void,
+): T {
     for (const field of node) {
-        getFieldNodes(field, rows, pathPrefix);
-        hasPrimaryField = hasPrimaryField || isPrimaryField(field);
+        forEachNode(fn, field, data, pathPrefix, addOnIfSequenceField);
     }
-    const nodeType = node[typeSymbol];
-    // TODO: currently, the whole story around arrays is not well defined neither implemented.
-    // Prevent to create fields under a node already having a primary field.
-    if (!(isPrimitive(nodeType) || hasPrimaryField)) {
-        rows.push({
-            id: `${pathPrefix}/Add`,
-            isNewDataRow: true,
-            parent: node,
-            value: "",
-            typeid: "",
-            name: "",
-            isEditableTree: true,
-        });
-    }
-    return rows;
-};
+    return data;
+}
 
-const getFieldNodes = (
+function forEachNode<T>(
+    fn: (result: T, parent: EditableField, node: EditableTree, pathPrefix: string, isSequence: boolean) => void,
     field: EditableField,
-    rows: IEditableTreeRow[] = [],
+    data: T,
     pathPrefix = "",
-): IEditableTreeRow[] => {
+    addOnIfSequenceField?: (result: T, parent: EditableField | EditableTree, pathPrefix: string) => void,
+): T {
     const isSequence = field.fieldSchema.kind === fieldKinds.sequence;
     for (let index = 0; index < field.length; index++) {
         const node = field.getNode(index);
-        rows.push(nodeToRow(field, node, pathPrefix, isSequence));
+        fn(data, field, node, pathPrefix, isSequence);
     }
-    if (isSequence) {
-        rows.push({
-            id: `${pathPrefix}/Add`,
-            isNewDataRow: true,
-            parent: field,
-            value: "",
-            typeid: "",
-            name: "",
-            isEditableTree: true,
-        });
+    if (isSequence && addOnIfSequenceField !== undefined) {
+        addOnIfSequenceField(data, field, pathPrefix);
     }
-    return rows;
-};
+    return data;
+}
 
 const editableTreeTableProps: Partial<IInspectorTableProps> = {
     ...tableProps,
@@ -259,7 +276,7 @@ const editableTreeTableProps: Partial<IInspectorTableProps> = {
         pathPrefix: string = "",
     ): IEditableTreeRow[] => {
         assert(isEditableField(data), "wrong root type");
-        return getFieldNodes(data);
+        return forEachNode(nodeToRows, data, []);
     },
 };
 

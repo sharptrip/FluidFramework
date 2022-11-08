@@ -23,7 +23,7 @@ import {
 // The field kinds should instead come from a view schema registry thats provided somewhere.
 import { fieldKinds } from "../defaultFieldKinds";
 import { FieldKind, Multiplicity } from "../modular-schema";
-import { EditableField } from "./editableTree";
+import { EditableTree, typeSymbol } from "./editableTree";
 
 /**
  * @returns true iff `schema` trees should default to being viewed as just their value when possible.
@@ -77,9 +77,13 @@ export function getPrimaryField(
     return { key: EmptyKey, schema: field };
 }
 
-export function isPrimaryField(field: EditableField): boolean {
-    const kind = getFieldKind(field.fieldSchema);
-    return field.fieldKey === EmptyKey && kind.multiplicity === Multiplicity.Sequence;
+export function hasPrimaryField(node: EditableTree): boolean {
+    const primaryField = getPrimaryField(node[typeSymbol]);
+    if (primaryField === undefined) {
+        return false;
+    }
+    const kind = getFieldKind(primaryField.schema);
+    return primaryField.key === EmptyKey && kind.multiplicity === Multiplicity.Sequence;
 }
 
 // TODO: this (and most things in this file) should use ViewSchema, and already have the full kind information.

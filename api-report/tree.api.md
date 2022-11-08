@@ -441,6 +441,9 @@ interface HasPlaceFields {
 }
 
 // @public (undocumented)
+export function hasPrimaryField(node: EditableTree): boolean;
+
+// @public (undocumented)
 export interface ICheckout<TEditBuilder> {
     readonly forest: IForestSubscription;
     runTransaction(transaction: (forest: IForestSubscription, editor: TEditBuilder) => TransactionResult): TransactionResult;
@@ -541,9 +544,6 @@ export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObje
 
 // @public (undocumented)
 export function isNeverField(policy: FullSchemaPolicy, originalData: SchemaData, field: FieldSchema): boolean;
-
-// @public (undocumented)
-export function isPrimaryField(field: EditableField): boolean;
 
 // @public (undocumented)
 export function isPrimitive(schema: TreeSchema): boolean;

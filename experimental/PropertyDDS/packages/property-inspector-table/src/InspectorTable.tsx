@@ -747,7 +747,7 @@ class InspectorTable<
       const tableRows = this.state.tableRows;
       tableRows.forEach((item) => {
         this.traverseTree(item, (item) => {
-          if (item.children && !item.isReference) {
+          if (item.children && !item.isReference && item.children[0] !== undefined) {
             if (item.children[0].context === "d") {
               this.props.fillExpanded({ [item.id]: true }, [item], this.props, this.toTableRowOptions);
             }

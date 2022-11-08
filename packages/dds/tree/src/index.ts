@@ -148,7 +148,7 @@ export {
     valueSymbol,
     indexSymbol,
     // TODO: not yet commited
-    isPrimaryField,
+    hasPrimaryField,
     // end of TODO
     proxyTargetSymbol,
     getField,
