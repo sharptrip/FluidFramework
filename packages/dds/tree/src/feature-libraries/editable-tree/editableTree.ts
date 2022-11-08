@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { fail } from "assert";
 import { assert } from "@fluidframework/common-utils";
 import {
     Value,
@@ -38,7 +37,6 @@ import {
     PrimitiveValue,
     keyIsValidIndex,
     getOwnArrayKeys,
-    assertPrimitiveValueType,
 } from "./utilities";
 import { ProxyContext } from "./editableTreeContext";
 
@@ -326,8 +324,10 @@ export class NodeProxyTarget extends ProxyTarget<Anchor> {
     }
 
     set value(value: Value) {
-        assert(isPrimitive(this.type), "Cannot set a value of a non-primitive field");
-        assertPrimitiveValueType(value, this.type);
+        assert(
+            isPrimitive(this.type) && this.type.value !== ValueSchema.Serializable,
+            "Cannot set a value of a non-primitive field",
+        );
         const path = this.cursor.getPath();
         assert(path !== undefined, "Cannot locate a path to set a value of the node");
         this.context.setNodeValue(path, value);
@@ -389,6 +389,10 @@ export class NodeProxyTarget extends ProxyTarget<Anchor> {
     public createField(fieldKey: FieldKey, newContent: ITreeCursor): EditableField | undefined {
         assert(!this.has(fieldKey), "The field already exists.");
         const fieldKind = this.lookupFieldKind(fieldKey);
+        assert(
+            fieldKind.multiplicity !== Multiplicity.Value,
+            "It is invalid to create fields of kind `value` as they should always exist.",
+        );
         const path = this.cursor.getPath();
         switch (fieldKind.multiplicity) {
             case Multiplicity.Optional: {
@@ -399,35 +403,35 @@ export class NodeProxyTarget extends ProxyTarget<Anchor> {
                 if (this.context.insertNodes(path, fieldKey, 0, newContent))
                     return this.proxifyField(fieldKey, false);
             }
-            case Multiplicity.Value:
-                fail("It is invalid to create fields of kind `value` as they should always exist.");
             default:
-                fail("`Forbidden` fields may not be created.");
         }
+        return undefined;
     }
 
     public deleteField(fieldKey: FieldKey): void {
+        assert(this.has(fieldKey), "The field does not exist.");
         const fieldKind = this.lookupFieldKind(fieldKey);
+        assert(
+            fieldKind.multiplicity !== Multiplicity.Value,
+            "Fields of kind `value` may not be deleted.",
+        );
         const path = this.cursor.getPath();
-        this.cursor.enterField(fieldKey);
-        const length = this.cursor.getFieldLength();
-        this.cursor.exitField();
         switch (fieldKind.multiplicity) {
             case Multiplicity.Optional: {
                 // TODO: `set` an existing optional field to `undefined` is not working
                 // since currently `ModularChangeFamily` does not support invert op for optional fields
-                this.context.deleteNodes(path, fieldKey, 0, length);
+                this.context.deleteNodes(path, fieldKey, 0, 1);
                 // this.context.setOptionalField(path, fieldKey, undefined, false);
                 break;
             }
             case Multiplicity.Sequence: {
+                this.cursor.enterField(fieldKey);
+                const length = this.cursor.getFieldLength();
+                this.cursor.exitField();
                 this.context.deleteNodes(path, fieldKey, 0, length);
                 break;
             }
-            case Multiplicity.Value:
-                fail("Fields of kind `value` may not be deleted.");
             default:
-                fail("`Forbidden` fields may not be deleted.");
         }
     }
 }
@@ -492,7 +496,7 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
     deleteProperty: (target: NodeProxyTarget, key: string | symbol): boolean => {
         if (typeof key === "string" || symbolIsFieldKey(key)) {
             const fieldKey: FieldKey = brand(key);
-            target.deleteField(fieldKey);
+            if (target.has(fieldKey)) target.deleteField(fieldKey);
             return true;
         }
         return false;
@@ -685,14 +689,12 @@ export class FieldProxyTarget extends ProxyTarget<FieldAnchor> implements Editab
     }
 
     public deleteNodes(index: number, count?: number): void {
+        if (this.length === 0) return;
         // TODO: currently for all field kinds the nodes can be deleted by editor using `sequenceField.delete()`.
         // Uncomment when the editor will become more schema-aware.
         // const fieldKind = getFieldKind(this.fieldSchema);
         // assert(fieldKind.multiplicity === Multiplicity.Sequence, "The field must be of a sequence kind.");
-        assert(
-            this.length === 0 || keyIsValidIndex(index, this.length),
-            "Index must be less than length.",
-        );
+        assert(keyIsValidIndex(index, this.length), "Index must be less than length.");
         if (count !== undefined) assert(count >= 0, "Count must be non-negative.");
         const maxCount = this.length - index;
         const _count = count === undefined || count > maxCount ? maxCount : count;
