@@ -12,7 +12,6 @@ import {
     TreeSchemaIdentifier,
     SchemaData,
     GlobalFieldKey,
-    LocalFieldKey,
 } from "../../../schema-stored";
 import {
     EmptyKey,
@@ -96,8 +95,7 @@ export const addressSchema = namedTreeSchema({
 
 export const mapStringSchema = namedTreeSchema({
     name: brand("Map<String>"),
-    extraLocalFields: fieldSchema(FieldKinds.optional, [stringSchema.name]),
-    // currently it has no effect since EditableTree does not support (de-)serialization of `object`s
+    extraLocalFields: fieldSchema(FieldKinds.value, [stringSchema.name]),
     value: ValueSchema.Serializable,
 });
 
@@ -181,13 +179,11 @@ export type AddressType = EditableTree & {
     sequencePhones?: SimplePhonesType;
 };
 
-export type FriendsType = EditableTree & Record<LocalFieldKey, string>;
-
 export type PersonType = EditableTree & {
     name: string;
     age: Int32;
     salary: number;
-    friends: FriendsType;
+    friends: Record<string, string>;
     address: AddressType;
 };
 
