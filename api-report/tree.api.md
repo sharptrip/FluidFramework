@@ -230,7 +230,7 @@ export interface EditableTreeContext {
     // (undocumented)
     newDetachedNode<T extends Brand<any, string> | undefined>(data: T, type: TreeSchemaIdentifier): T & EditableTree;
     prepareForEdit(): void;
-    readonly root: EditableField;
+    root: EditableField;
     readonly unwrappedRoot: UnwrappedEditableField;
 }
 
@@ -343,6 +343,9 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
 // @public
 export type FieldKindIdentifier = Brand<string, "tree.FieldKindIdentifier">;
 
+// @public (undocumented)
+export const fieldKinds: Record<string, FieldKindIdentifier>;
+
 // @public
 export interface FieldLocation {
     // (undocumented)
@@ -437,6 +440,9 @@ interface HasPlaceFields {
     heed?: Effects | [Effects, Effects];
     lineage?: LineageEvent[];
 }
+
+// @public (undocumented)
+export function hasPrimaryField(node: EditableTree): boolean;
 
 // @public (undocumented)
 interface HasReattachFields extends HasOpId, HasPlaceFields {
@@ -543,6 +549,9 @@ export type isAny<T> = boolean extends (T extends {} ? true : false) ? true : fa
 
 // @public
 export function isEditableField(field: UnwrappedEditableField): field is EditableField;
+
+// @public
+export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
 
 // @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
@@ -1203,6 +1212,9 @@ export class SimpleDependee implements Dependee {
 export function singleJsonCursor(root: JsonCompatible): ITreeCursorSynchronous;
 
 // @public (undocumented)
+export function singleTextCursor(root: JsonableTree): ITreeCursorSynchronous;
+
+// @public (undocumented)
 type SizedMark<TNodeChange = NodeChangeType> = Skip_2 | SizedObjectMark<TNodeChange>;
 
 // @public (undocumented)
@@ -1221,6 +1233,9 @@ export interface StoredSchemaRepository<TPolicy extends SchemaPolicy = SchemaPol
 
 // @public (undocumented)
 export function symbolFromKey(key: GlobalFieldKey): GlobalFieldKeySymbol;
+
+// @public (undocumented)
+export function symbolIsFieldKey(key: symbol): key is GlobalFieldKeySymbol;
 
 // @public (undocumented)
 export interface TaggedChange<TChangeset> {
