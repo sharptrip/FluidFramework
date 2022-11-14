@@ -282,17 +282,18 @@ class InspectorTable<
   }
 
   public componentDidMount() {
-    const { data, fillExpanded } = this.props;
+    const { data, fillExpanded, treeContext } = this.props;
     const { expanded } = this.state;
     if (data) {
-      const updatedTableRows = this.props.toTableRows!({ data, id: "" }, this.props, this.toTableRowOptions);
+      const updatedTableRows =
+        this.props.toTableRows!({ data, id: "", treeContext }, this.props, this.toTableRowOptions);
       fillExpanded(expanded, updatedTableRows, this.props, this.toTableRowOptions);
       this.setState({ tableRows: updatedTableRows });
     }
   }
 
   public componentDidUpdate(prevProps: ITableProps, prevState: IInspectorTableState) {
-    const { data, checkoutInProgress, followReferences } = this.props;
+    const { data, checkoutInProgress, followReferences, treeContext } = this.props;
     const { currentResult, expanded, tableRows, searchExpression, sortBy } = this.state;
     let { foundMatches, childToParentMap } = this.state;
     this.toTableRowOptions.followReferences = followReferences;
@@ -309,7 +310,7 @@ class InspectorTable<
     // This has the undesired side effect that we also restart search when the browser window is resized, for example.
     if ((prevProps !== this.props || prevState.sortBy.order !== sortBy.order) && !checkoutInProgress) {
       if (data) {
-        const updatedTableRows = this.props.toTableRows!({ data, id: "" }, this.props,
+        const updatedTableRows = this.props.toTableRows!({ data, id: "", treeContext }, this.props,
           this.toTableRowOptions);
         this.props.fillExpanded(expanded, updatedTableRows, this.props, this.toTableRowOptions);
         // We need to update the table rows directly, because they might be used in the search call below.

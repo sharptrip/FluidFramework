@@ -154,7 +154,7 @@ describe("editable-tree: read-only", () => {
         });
 
         // primitive node of a sequence field is unwrapped into value
-        const nodeDescriptor = Object.getOwnPropertyDescriptor(proxy.address.phones, 0);
+        const nodeDescriptor = Object.getOwnPropertyDescriptor(proxy.address?.phones, 0);
         assert(nodeDescriptor !== undefined);
         assert.deepEqual(nodeDescriptor, {
             configurable: true,
@@ -280,6 +280,7 @@ describe("editable-tree: read-only", () => {
         const [, proxy] = buildTestPerson();
         assert.deepEqual(proxy[typeSymbol], personSchema);
         assert.equal(proxy[typeNameSymbol], personSchema.name);
+        assert(isUnwrappedNode(proxy.address));
         assert.deepEqual(proxy.address[typeSymbol], addressSchema);
         assert.deepEqual(proxy.address[typeNameSymbol], addressSchema.name);
         assert.deepEqual(
@@ -317,7 +318,7 @@ describe("editable-tree: read-only", () => {
     });
 
     it('"in" works as expected', () => {
-        const [, personProxy] = buildTestProxy(personData);
+        const [, personProxy] = buildTestPerson();
         assert(isUnwrappedNode(personProxy));
         // Confirm that methods on ProxyTarget are not leaking through.
         assert.equal("free" in personProxy, false);
@@ -335,7 +336,8 @@ describe("editable-tree: read-only", () => {
         assert("age" in personProxy);
         assert.equal(EmptyKey in personProxy, false);
         assert.equal("child" in personProxy, false);
-        assert.equal("zip" in (personProxy as PersonType).address, false);
+        assert(personProxy.address !== undefined);
+        assert.equal("zip" in personProxy.address, false);
         // Value does not show up when empty:
         assert.equal(valueSymbol in personProxy, false);
 
@@ -604,6 +606,7 @@ describe("editable-tree: read-only", () => {
         assert.equal(proxy.salary, 10420.2);
         const cloned = clone(proxy.friends);
         assert.deepEqual(cloned, { Mat: "Mat" });
+        assert(proxy.address !== undefined);
         assert.deepEqual(Object.keys(proxy.address), ["street", "phones", "sequencePhones"]);
         assert.equal(proxy.address.street, "treeStreet");
         assert.equal(proxy.address.zip, undefined);
@@ -611,6 +614,7 @@ describe("editable-tree: read-only", () => {
 
     it("read upwards", () => {
         const [, proxy] = buildTestPerson();
+        assert(proxy.address !== undefined);
         assert.deepEqual(Object.keys(proxy.address), ["street", "phones", "sequencePhones"]);
         assert.equal(proxy.address.street, "treeStreet");
         assert.equal(proxy.name, "Adam");
@@ -618,6 +622,7 @@ describe("editable-tree: read-only", () => {
 
     it("access array data", () => {
         const [, proxy] = buildTestPerson();
+        assert(proxy.address !== undefined);
         assert(isEditableField(proxy.address.phones));
         assert.equal(proxy.address.phones.length, 4);
         assert.equal(proxy.address.phones[1], 123456879);
@@ -672,6 +677,7 @@ describe("editable-tree: read-only", () => {
 
     it("'getWithoutUnwraping' does not unwrap primary fields", () => {
         const [, proxy] = buildTestPerson();
+        assert(isUnwrappedNode(proxy.address));
         // get the field having a node which follows the primary field schema
         const phonesField = proxy.address[getField](brand("phones"));
         assert(isEditableField(phonesField));

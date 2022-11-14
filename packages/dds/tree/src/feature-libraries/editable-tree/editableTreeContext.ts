@@ -24,9 +24,38 @@ import {
     Delta,
     Dependent,
     afterChangeToken,
+    lookupTreeSchema,
+    MapTree,
+    SchemaDataAndPolicy,
+    TreeSchemaIdentifier,
+    FieldSchema,
 } from "../../core";
+import { Brand, brand } from "../../util";
 import { DefaultChangeset, DefaultEditBuilder } from "../defaultChangeFamily";
-import { ProxyTarget, EditableField, proxifyField, UnwrappedEditableField } from "./editableTree";
+import { singleMapTreeCursor } from "../mapTreeCursor";
+import { Multiplicity } from "../modular-schema";
+import {
+    ProxyTarget,
+    EditableField,
+    proxifyField,
+    UnwrappedEditableField,
+    isUnwrappedNode,
+    nodeProxyHandler,
+    NodeProxyTarget,
+    typeNameSymbol,
+    valueSymbol,
+    EditableTree,
+    EditableTreeOrPrimitive,
+} from "./editableTree";
+import {
+    adaptWithProxy,
+    getFieldSchema,
+    isPrimitiveValue,
+    assertPrimitiveValueType,
+    getPrimaryField,
+    getFieldKind,
+    tryGetNodeType,
+} from "./utilities";
 
 /**
  * A common context of a "forest" of EditableTrees.
@@ -76,6 +105,11 @@ export interface EditableTreeContext {
      * is committed successfully.
      */
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
+
+    newDetachedNode<T extends Brand<any, string> | undefined>(
+        data: T,
+        type: TreeSchemaIdentifier,
+    ): T & EditableTree;
 }
 
 /**
@@ -128,9 +162,6 @@ export class ProxyContext implements EditableTreeContext {
         }
         assert(this.withCursors.size === 0, 0x3c1 /* free should remove all cursors */);
         assert(this.withAnchors.size === 0, 0x3c2 /* free should remove all anchors */);
-        // TODO: write tests & remove this
-        // this.forest.removeDependent(this.observer);
-        // this.afterChangeHandlers.clear();
     }
 
     public get unwrappedRoot(): UnwrappedEditableField {
@@ -209,7 +240,6 @@ export class ProxyContext implements EditableTreeContext {
             this.transactionCheckout !== undefined,
             "`transactionCheckout` is required to edit the EditableTree",
         );
-        this.prepareForEdit();
         const result = runSynchronousTransaction(
             this.transactionCheckout,
             (forest: IForestSubscription, editor: DefaultEditBuilder) => {
@@ -218,6 +248,17 @@ export class ProxyContext implements EditableTreeContext {
             },
         );
         return result === TransactionResult.Apply;
+    }
+
+    public newDetachedNode<T extends Brand<any, string>>(
+        data: T,
+        type: TreeSchemaIdentifier,
+    ): T & EditableTree {
+        const schema = this.forest.schema;
+        const node = mapTreeFromValue(schema, type, data);
+        const cursor = singleMapTreeCursor(node);
+        const target = new NodeProxyTarget(this, cursor);
+        return adaptWithProxy(target, nodeProxyHandler) as T & EditableTree;
     }
 }
 
@@ -234,4 +275,62 @@ export function getEditableTreeContext(
     transactionCheckout?: TransactionCheckout<DefaultEditBuilder, DefaultChangeset>,
 ): EditableTreeContext {
     return new ProxyContext(forest, transactionCheckout);
+}
+
+function mapTreeFromNodes(
+    schema: SchemaDataAndPolicy,
+    fieldSchema: FieldSchema,
+    nodes: EditableTreeOrPrimitive[],
+): MapTree[] {
+    return nodes.map((node) => {
+        if (isUnwrappedNode(node)) {
+            return mapTreeFromValue(schema, node[typeNameSymbol], node[valueSymbol] ?? node);
+        }
+        const nodeType = tryGetNodeType(fieldSchema);
+        return mapTreeFromValue(schema, nodeType, node);
+    });
+}
+
+function mapTreeFromValue(
+    schema: SchemaDataAndPolicy,
+    type: TreeSchemaIdentifier,
+    value: unknown,
+): MapTree {
+    const node: MapTree = { type, fields: new Map() };
+    if (value === undefined) return node;
+    const nodeSchema = lookupTreeSchema(schema, type);
+    if (isPrimitiveValue(value)) {
+        assertPrimitiveValueType(value, nodeSchema);
+        node.value = value;
+    } else if (Array.isArray(value)) {
+        const primary = getPrimaryField(nodeSchema);
+        assert(primary !== undefined, "Expected primary field");
+        node.fields.set(primary.key, mapTreeFromNodes(schema, primary.schema, value));
+    } else {
+        assert(typeof value === "object" && value !== null, "TODO");
+        for (const propertyKey of Reflect.ownKeys(value)) {
+            const childFieldKey: FieldKey = brand(propertyKey);
+            const child = Reflect.get(value, propertyKey);
+            const fieldSchema = getFieldSchema(childFieldKey, schema, nodeSchema);
+            const fieldKind = getFieldKind(fieldSchema);
+            if (fieldKind.multiplicity === Multiplicity.Sequence) {
+                assert(Array.isArray(child), "Expected array");
+                node.fields.set(childFieldKey, mapTreeFromNodes(schema, fieldSchema, child));
+            } else {
+                if (isUnwrappedNode(child)) {
+                    node.fields.set(childFieldKey, [
+                        mapTreeFromValue(
+                            schema,
+                            child[typeNameSymbol],
+                            child[valueSymbol] ?? child,
+                        ),
+                    ]);
+                } else {
+                    const childType = tryGetNodeType(fieldSchema);
+                    node.fields.set(childFieldKey, [mapTreeFromValue(schema, childType, child)]);
+                }
+            }
+        }
+    }
+    return node;
 }

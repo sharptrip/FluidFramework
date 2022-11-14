@@ -17,6 +17,7 @@ import {
     LocalFieldKey,
     SchemaDataAndPolicy,
     lookupGlobalFieldSchema,
+    TreeSchemaIdentifier,
 } from "../../core";
 // TODO:
 // This module currently is assuming use of defaultFieldKinds.
@@ -100,6 +101,13 @@ export function getFieldSchema(
         0x423 /* The field is a local field, a parent schema is required. */,
     );
     return schema.localFields.get(field) ?? schema.extraLocalFields;
+}
+
+export function tryGetNodeType(fieldSchema: FieldSchema): TreeSchemaIdentifier {
+    const types = fieldSchema.types ?? fail("missing field types");
+    assert(types.size === 1, "Cannot resolve the type");
+    const type = [...types][0];
+    return type;
 }
 
 export function getFieldKind(fieldSchema: FieldSchema): FieldKind {
