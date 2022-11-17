@@ -231,7 +231,7 @@ export interface EditableTreeContext {
     newDetachedNode<T extends Brand<any, string> | undefined>(data: T, type: TreeSchemaIdentifier): T & EditableTree;
     prepareForEdit(): void;
     root: EditableField;
-    readonly unwrappedRoot: UnwrappedEditableField;
+    unwrappedRoot: UnwrappedEditableField;
 }
 
 // @public
@@ -556,7 +556,7 @@ export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
 // @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
     readonly context: EditableTreeContext;
-    readonly root: UnwrappedEditableField;
+    root: UnwrappedEditableField;
     readonly storedSchema: StoredSchemaRepository;
 }
 
@@ -1331,7 +1331,7 @@ export const typeNameSymbol: unique symbol;
 export const typeSymbol: unique symbol;
 
 // @public
-export type UnwrappedEditableField = UnwrappedEditableTree | undefined | EditableField;
+export type UnwrappedEditableField = UnwrappedEditableTree | undefined | EditableField | UnwrappedEditableTree[];
 
 // @public
 export type UnwrappedEditableTree = EditableTreeOrPrimitive | EditableField;
