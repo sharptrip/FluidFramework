@@ -4,7 +4,7 @@
  */
 
 import { assert } from "@fluidframework/common-utils";
-import { fail } from "../../util";
+import { brand, fail } from "../../util";
 import {
     EmptyKey,
     FieldKey,
@@ -17,12 +17,19 @@ import {
     LocalFieldKey,
     SchemaDataAndPolicy,
     lookupGlobalFieldSchema,
+    TreeSchemaIdentifier,
+    lookupTreeSchema,
+    MapTree,
+    ITreeCursor,
+    TreeValue,
 } from "../../core";
 // TODO:
 // This module currently is assuming use of defaultFieldKinds.
 // The field kinds should instead come from a view schema registry thats provided somewhere.
 import { fieldKinds } from "../defaultFieldKinds";
-import { FieldKind } from "../modular-schema";
+import { FieldKind, Multiplicity } from "../modular-schema";
+import { singleMapTreeCursor } from "../mapTreeCursor";
+import { ProxyContext } from "./editableTreeContext";
 
 /**
  * @returns true iff `schema` trees should default to being viewed as just their value when possible.
@@ -100,6 +107,17 @@ export function getFieldKind(fieldSchema: FieldSchema): FieldKind {
 }
 
 /**
+ * Returns the type of the child node according to its parent field's schema,
+ * iff the field is not polymorphic i.e. mono-typed.
+ */
+export function tryGetNodeType(fieldSchema: FieldSchema): TreeSchemaIdentifier {
+    const types = fieldSchema.types ?? fail("missing field types");
+    assert(types.size === 1, "Cannot resolve the type");
+    const type = [...types][0];
+    return type;
+}
+
+/**
  * Variant of ProxyHandler covering when the type of the target and implemented interface are different.
  * Only the parts needed so far are included.
  */
@@ -136,4 +154,77 @@ export function keyIsValidIndex(key: string | number, length: number): boolean {
     const index = Number(key);
     if (typeof key === "string" && String(index) !== key) return false;
     return Number.isInteger(index) && 0 <= index && index < length;
+}
+
+export function cursorFromData(
+    context: ProxyContext,
+    fieldSchema: FieldSchema,
+    data: unknown,
+): ITreeCursor {
+    const node = createDetachedNode(context.forest.schema, fieldSchema, data);
+    if (fieldSchema.types !== undefined) {
+        assert(fieldSchema.types.has(node.type), "The type does not match the field schema");
+    }
+    return singleMapTreeCursor(node);
+}
+
+function createDetachedNode(
+    schema: SchemaDataAndPolicy,
+    fieldSchema: FieldSchema,
+    data: unknown,
+): DetachedNode {
+    return data instanceof DetachedNode
+        ? data
+        : new DetachedNode(schema, tryGetNodeType(fieldSchema), data);
+}
+
+export class DetachedNode implements MapTree {
+    public readonly fields: Map<FieldKey, MapTree[]> = new Map();
+    public readonly value?: TreeValue;
+
+    constructor(
+        public readonly schema: SchemaDataAndPolicy,
+        public readonly type: TreeSchemaIdentifier,
+        value: unknown,
+    ) {
+        if (isPrimitiveValue(value)) {
+            assertPrimitiveValueType(value, lookupTreeSchema(this.schema, this.type));
+            this.value = value;
+        } else {
+            this.setFields(value);
+        }
+    }
+
+    private setFields(value: unknown): void {
+        if (value === undefined) return;
+        assert(typeof value === "object" && value !== null, "TODO");
+        const nodeSchema = lookupTreeSchema(this.schema, this.type);
+        const primary = getPrimaryField(nodeSchema);
+        if (Array.isArray(value) || primary !== undefined) {
+            assert(Array.isArray(value), "expected array");
+            assert(primary !== undefined, "expected primary field");
+            this.fields.set(
+                primary.key,
+                value.map((v) => createDetachedNode(this.schema, primary.schema, v)),
+            );
+        } else {
+            for (const propertyKey of Reflect.ownKeys(value)) {
+                const childFieldKey: FieldKey = brand(propertyKey);
+                const childValue = Reflect.get(value, propertyKey);
+                const fieldSchema = getFieldSchema(childFieldKey, this.schema, nodeSchema);
+                const fieldKind = getFieldKind(fieldSchema);
+                if (fieldKind.multiplicity === Multiplicity.Sequence) {
+                    assert(Array.isArray(childValue), "expected array");
+                    this.fields.set(
+                        childFieldKey,
+                        childValue.map((v) => createDetachedNode(this.schema, fieldSchema, v)),
+                    );
+                } else {
+                    this.fields.set(childFieldKey, [
+                        createDetachedNode(this.schema, fieldSchema, childValue),
+                    ]);
+                }
+            }
+        }
+    }
 }

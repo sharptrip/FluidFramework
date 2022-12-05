@@ -23,10 +23,20 @@ import {
     Delta,
     Dependent,
     afterChangeToken,
+    TreeSchemaIdentifier,
 } from "../../core";
+import { Brand, BrandedType } from "../../util";
 import { DefaultChangeset, DefaultEditBuilder } from "../defaultChangeFamily";
 import { runSynchronousTransaction } from "../defaultTransaction";
-import { ProxyTarget, EditableField, proxifyField, UnwrappedEditableField } from "./editableTree";
+import { Multiplicity } from "../modular-schema";
+import {
+    ProxyTarget,
+    EditableField,
+    proxifyField,
+    UnwrappedEditableField,
+    EditableTree,
+} from "./editableTree";
+import { cursorFromData, DetachedNode, getFieldKind } from "./utilities";
 
 /**
  * A common context of a "forest" of EditableTrees.
@@ -46,13 +56,13 @@ export interface EditableTreeContext {
      *
      * Not (yet) supported: create properties, set values and delete properties.
      */
-    readonly root: EditableField;
+    root: EditableField;
 
     /**
      * Same as `root`, but with unwrapped fields.
      * See ${@link UnwrappedEditableField} for what is unwrapped.
      */
-    readonly unwrappedRoot: UnwrappedEditableField;
+    unwrappedRoot: UnwrappedEditableField;
 
     /**
      * Call before editing.
@@ -82,6 +92,18 @@ export interface EditableTreeContext {
      * is committed successfully.
      */
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
+
+    newDetachedNode<T extends Brand<any, string>>(
+        type: TreeSchemaIdentifier,
+        value: T extends BrandedType<infer ValueType, infer Name>
+            ? BrandedType<ValueType, Name>
+            : never,
+    ): T;
+    newDetachedNode<T extends Brand<any, string>>(
+        type: TreeSchemaIdentifier,
+        value: T extends BrandedType<infer ValueType, string> ? ValueType : never,
+    ): T;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: unknown): T;
 }
 
 /**
@@ -145,8 +167,25 @@ export class ProxyContext implements EditableTreeContext {
         return this.getRoot(true);
     }
 
+    public set unwrappedRoot(value: UnwrappedEditableField) {
+        const rootField = this.getRoot(false);
+        if (getFieldKind(rootField.fieldSchema).multiplicity === Multiplicity.Sequence) {
+            assert(Array.isArray(value), "expected array");
+            const cursors = [...value].map((v) => cursorFromData(this, rootField.fieldSchema, v));
+            rootField.replaceNodes(0, cursors);
+        } else {
+            rootField.replaceNodes(0, cursorFromData(this, rootField.fieldSchema, value));
+        }
+    }
+
     public get root(): EditableField {
         return this.getRoot(false);
+    }
+
+    public set root(value: EditableField) {
+        const rootSchema = lookupGlobalFieldSchema(this.forest.schema, rootFieldKey);
+        const cursors = [...value].map((v) => cursorFromData(this, rootSchema, v));
+        this.getRoot(false).replaceNodes(0, cursors);
     }
 
     private getRoot(unwrap: false): EditableField;
@@ -188,6 +227,21 @@ export class ProxyContext implements EditableTreeContext {
         });
     }
 
+    public replaceOptionalField(
+        path: UpPath | undefined,
+        fieldKey: FieldKey,
+        newContent: ITreeCursor,
+        wasEmpty: boolean,
+    ): boolean {
+        return this.runTransaction((editor) => {
+            const field = editor.optionalField(path, fieldKey);
+            if (!wasEmpty) {
+                field.set(undefined, false);
+            }
+            field.set(newContent, true);
+        });
+    }
+
     public insertNodes(
         path: UpPath | undefined,
         fieldKey: FieldKey,
@@ -212,6 +266,20 @@ export class ProxyContext implements EditableTreeContext {
         });
     }
 
+    public replaceNodes(
+        path: UpPath | undefined,
+        fieldKey: FieldKey,
+        index: number,
+        count: number,
+        newContent: ITreeCursor | ITreeCursor[],
+    ): boolean {
+        return this.runTransaction((editor) => {
+            const field = editor.sequenceField(path, fieldKey);
+            field.delete(index, count);
+            field.insert(index, newContent);
+        });
+    }
+
     private runTransaction(transaction: (editor: DefaultEditBuilder) => void): boolean {
         assert(
             this.transactionCheckout !== undefined,
@@ -225,6 +293,14 @@ export class ProxyContext implements EditableTreeContext {
             },
         );
         return result === TransactionResult.Apply;
+    }
+
+    public newDetachedNode<T extends Brand<any, string> | undefined>(
+        type: TreeSchemaIdentifier,
+        data: unknown,
+    ): T & EditableTree {
+        const schema = this.forest.schema;
+        return new DetachedNode(schema, type, data) as unknown as T & EditableTree;
     }
 }
 

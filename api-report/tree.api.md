@@ -208,6 +208,8 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     getNode(index: number): EditableTree;
     insertNodes(index: number, newContent: ITreeCursor | ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
+    // (undocumented)
+    replaceNodes(index: number, newContent: ITreeCursor | ITreeCursor[], count?: number): void;
 }
 
 // @public
@@ -228,9 +230,15 @@ export interface EditableTreeContext {
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
     free(): void;
+    // (undocumented)
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: T extends BrandedType<infer ValueType, infer Name> ? BrandedType<ValueType, Name> : never): T;
+    // (undocumented)
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: T extends BrandedType<infer ValueType, string> ? ValueType : never): T;
+    // (undocumented)
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: unknown): T;
     prepareForEdit(): void;
-    readonly root: EditableField;
-    readonly unwrappedRoot: UnwrappedEditableField;
+    root: EditableField;
+    unwrappedRoot: UnwrappedEditableField;
 }
 
 // @public
@@ -412,6 +420,12 @@ export interface GenericTreeNode<TChild> extends GenericFieldsNode<TChild>, Node
 // @public
 export const getField: unique symbol;
 
+// @public (undocumented)
+export function getPrimaryField(schema: TreeSchema): {
+    key: LocalFieldKey;
+    schema: FieldSchema;
+} | undefined;
+
 // @public
 export type GlobalFieldKey = Brand<string, "tree.GlobalFieldKey">;
 
@@ -552,7 +566,7 @@ export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
 // @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
     readonly context: EditableTreeContext;
-    readonly root: UnwrappedEditableField;
+    root: UnwrappedEditableField;
     readonly storedSchema: StoredSchemaRepository;
 }
 

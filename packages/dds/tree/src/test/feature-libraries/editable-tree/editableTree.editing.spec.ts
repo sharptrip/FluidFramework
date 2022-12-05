@@ -3,6 +3,9 @@
  * Licensed under the MIT License.
  */
 
+// Allow defining a custom "String" type:
+/* eslint-disable @typescript-eslint/ban-types */
+
 import { strict as assert } from "assert";
 import { validateAssertionError } from "@fluidframework/test-runtime-utils";
 import {
@@ -20,7 +23,7 @@ import {
     ValueSchema,
 } from "../../../core";
 import { ISharedTree } from "../../../shared-tree";
-import { brand } from "../../../util";
+import { brand, clone } from "../../../util";
 import {
     singleTextCursor,
     isUnwrappedNode,
@@ -33,12 +36,23 @@ import {
 } from "../../../feature-libraries";
 import { ITestTreeProvider, TestTreeProvider } from "../../utils";
 import {
-    ComplexPhoneType,
+    addressSchema,
+    Address,
+    complexPhoneSchema,
+    Float64,
     fullSchemaData,
+    Int32,
+    int32Schema,
     personData,
-    PersonType,
+    Person,
+    phonesSchema,
+    Phones,
     schemaMap,
+    simplePhonesSchema,
+    SimplePhones,
+    String,
     stringSchema,
+    ComplexPhone,
 } from "./mockData";
 
 const globalFieldKey: GlobalFieldKey = brand("foo");
@@ -88,23 +102,131 @@ const testCases: (readonly [string, FieldKey])[] = [
 ];
 
 describe("editable-tree: editing", () => {
+    it("create using assignment", async () => {
+        const [, trees] = await createSharedTrees(fullSchemaData, [personData]);
+
+        const person = trees[0].root as Person;
+        const context = trees[0].context;
+        delete person.age;
+
+        {
+            person.age = brand(32);
+
+            const phones: Phones = brand([context.newDetachedNode(int32Schema.name, 12345)]);
+            person.address = brand({
+                street: brand("foo"),
+                phones,
+                sequencePhones: brand([brand("999")]),
+            });
+            assert(person.address !== undefined);
+
+            // TODO: this is to reveal the issue in `newDetachedNode` API
+            const zipNum: Float64 = brand(123);
+            const zip: Int32 = context.newDetachedNode(int32Schema.name, zipNum);
+            person.address.zip = zip;
+
+            const clonedAddress = clone(person.address);
+            assert.deepEqual(clonedAddress, {
+                street: "foo",
+                zip: 123,
+                phones: {
+                    "0": 12345,
+                },
+                sequencePhones: {
+                    "0": "999",
+                },
+            });
+
+            person.address.sequencePhones = brand([brand("111")]);
+            person.address.phones = brand([context.newDetachedNode(stringSchema.name, "54321")]);
+            assert(person.address.phones !== undefined);
+            const simplePhones = context.newDetachedNode<SimplePhones>(
+                simplePhonesSchema.name,
+                brand([brand("555")]),
+            );
+            person.address.phones[1] = simplePhones;
+            person.address.phones[2] = context.newDetachedNode(int32Schema.name, 3);
+            const clonedPerson = clone(person);
+            assert.deepEqual(clonedPerson, {
+                name: "Adam",
+                age: 32,
+                adult: true,
+                salary: 10420.2,
+                friends: {
+                    Mat: "Mat",
+                },
+                address: {
+                    street: "foo",
+                    zip: 123,
+                    phones: {
+                        "0": "54321",
+                        "1": {
+                            "0": "555",
+                        },
+                        "2": 3,
+                    },
+                    sequencePhones: {
+                        "0": "111",
+                    },
+                },
+            });
+            person.address.phones[1] = context.newDetachedNode<ComplexPhone>(
+                complexPhoneSchema.name,
+                brand({
+                    number: "123" as String,
+                    prefix: "456" as String,
+                    extraPhones: brand(["1234567" as String]),
+                }),
+            );
+            assert.deepEqual(clone(person.address.phones), {
+                "0": "54321",
+                "1": { number: "123", prefix: "456", extraPhones: { "0": "1234567" } },
+                "2": 3,
+            });
+        }
+
+        {
+            const zip: String = context.newDetachedNode<String>(
+                stringSchema.name,
+                brand<String>("999"),
+            );
+            person.address = context.newDetachedNode(
+                addressSchema.name,
+                brand<Address>({
+                    street: brand("foo"),
+                    zip,
+                }),
+            );
+            const cloned = clone(person.address);
+            assert.deepEqual(cloned, { street: "foo", zip: "999" });
+            assert(isUnwrappedNode(person.address));
+            person.address.phones = context.newDetachedNode<Phones>(phonesSchema.name, [
+                context.newDetachedNode<String>(stringSchema.name, "999"),
+            ]);
+            person.address.sequencePhones = brand([
+                context.newDetachedNode(stringSchema.name, "12345"),
+            ]);
+        }
+    });
+
     it("assert set primitive value using assignment", async () => {
         const [, trees] = await createSharedTrees(fullSchemaData, [personData]);
-        const person = trees[0].root as PersonType;
+        const person = trees[0].root as Person;
         const nameNode = person[getField](brand("name")).getNode(0);
         const ageNode = person[getField](brand("age")).getNode(0);
-        const phonesField = person.address.phones;
-        assert(isEditableField(phonesField));
 
         assert.throws(
-            () => (person.friends[valueSymbol] = { kate: "kate" }),
+            () => {
+                assert(person.friends !== undefined);
+                person.friends[valueSymbol] = { kate: "kate" };
+            },
             (e) => validateAssertionError(e, "The value is not primitive"),
             "Expected exception was not thrown",
         );
         assert.throws(
             () => {
-                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                phonesField[2] = {} as ComplexPhoneType;
+                assert(person.address !== undefined);
+                person.address[valueSymbol] = 123;
             },
             (e) => validateAssertionError(e, "Cannot set a value of a non-primitive field"),
             "Expected exception was not thrown",
