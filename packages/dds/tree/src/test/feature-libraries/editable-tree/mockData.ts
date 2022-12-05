@@ -70,14 +70,6 @@ export const complexPhoneSchema = namedTreeSchema({
     extraLocalFields: emptyField,
 });
 
-export const extraPhonesSchema = namedTreeSchema({
-    name: brand("Test:ExtraPhones-1.0.0"),
-    localFields: {
-        [EmptyKey]: fieldSchema(FieldKinds.sequence, [stringSchema.name]),
-    },
-    extraLocalFields: emptyField,
-});
-
 export const phonesSchema = namedTreeSchema({
     name: brand("Test:Phones-1.0.0"),
     localFields: {
