@@ -341,6 +341,9 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
 // @public
 export type FieldKindIdentifier = Brand<string, "tree.FieldKindIdentifier">;
 
+// @public (undocumented)
+export const fieldKinds: Record<string, FieldKindIdentifier>;
+
 // @public
 export interface FieldLocation {
     // (undocumented)
@@ -541,6 +544,9 @@ export type isAny<T> = boolean extends (T extends {} ? true : false) ? true : fa
 
 // @public
 export function isEditableField(field: UnwrappedEditableField): field is EditableField;
+
+// @public
+export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
 
 // @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
@@ -1219,6 +1225,9 @@ export interface StoredSchemaRepository<TPolicy extends SchemaPolicy = SchemaPol
 
 // @public (undocumented)
 export function symbolFromKey(key: GlobalFieldKey): GlobalFieldKeySymbol;
+
+// @public (undocumented)
+export function symbolIsFieldKey(key: symbol): key is GlobalFieldKeySymbol;
 
 // @public (undocumented)
 export interface TaggedChange<TChangeset> {
