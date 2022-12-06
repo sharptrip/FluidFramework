@@ -281,7 +281,7 @@ export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
 
             const fieldType = {
                 kind,
-                types: context.types,
+                types: context.types ?? new Set([context.typeid]),
             };
             switch (context.context) {
                 case "map":
