@@ -214,6 +214,7 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     getNode(index: number): EditableTree;
     insertNodes(index: number, newContent: ITreeCursor | ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
+    replaceNodes(index: number, newContent: ITreeCursor | ITreeCursor[], count?: number): void;
 }
 
 // @public
@@ -222,6 +223,7 @@ export interface EditableTree extends Iterable<EditableField> {
     [getField](fieldKey: FieldKey): EditableField;
     readonly [indexSymbol]: number;
     readonly [proxyTargetSymbol]: object;
+    [replaceField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): void;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
     readonly [typeSymbol]: TreeSchema;
@@ -234,9 +236,16 @@ export interface EditableTreeContext {
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
     free(): void;
+    // (undocumented)
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: T extends BrandedType<infer ValueType, infer Name> ? BrandedType<ValueType, Name> : never): T;
+    // (undocumented)
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: T extends BrandedType<infer ValueType, string> ? ValueType : never): T;
+    // (undocumented)
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: unknown): T;
     prepareForEdit(): void;
-    readonly root: EditableField;
-    readonly unwrappedRoot: UnwrappedEditableField;
+    root: EditableField;
+    readonly schema: SchemaDataAndPolicy;
+    unwrappedRoot: UnwrappedEditableField;
 }
 
 // @public
@@ -567,7 +576,7 @@ export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
 // @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
     readonly context: EditableTreeContext;
-    readonly root: UnwrappedEditableField;
+    root: UnwrappedEditableField;
     readonly storedSchema: StoredSchemaRepository;
 }
 
