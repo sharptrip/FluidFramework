@@ -4,7 +4,7 @@
  */
 
 import { assert } from "@fluidframework/common-utils";
-import { fail } from "../../util";
+import { brand, fail } from "../../util";
 import {
     EmptyKey,
     FieldKey,
@@ -17,12 +17,19 @@ import {
     LocalFieldKey,
     SchemaDataAndPolicy,
     lookupGlobalFieldSchema,
+    TreeSchemaIdentifier,
+    lookupTreeSchema,
+    TreeValue,
+    getMapTreeField,
+    MapTree,
+    ITreeCursor,
 } from "../../core";
 // TODO:
 // This module currently is assuming use of defaultFieldKinds.
 // The field kinds should instead come from a view schema registry thats provided somewhere.
 import { fieldKinds } from "../defaultFieldKinds";
-import { FieldKind } from "../modular-schema";
+import { FieldKind, Multiplicity } from "../modular-schema";
+import { singleMapTreeCursor } from "../mapTreeCursor";
 
 /**
  * @returns true iff `schema` trees should default to being viewed as just their value when possible.
@@ -105,6 +112,17 @@ export function getFieldKind(fieldSchema: FieldSchema): FieldKind {
 }
 
 /**
+ * Asserts that the field is not polymorphic i.e. mono-typed and returns this single type.
+ */
+export function tryGetNodeType(fieldSchema: FieldSchema): TreeSchemaIdentifier {
+    if (fieldSchema.types === undefined) debugger;
+    const types = fieldSchema.types ?? fail("missing field types");
+    assert(types.size === 1, "cannot resolve the type");
+    const type = [...types][0];
+    return type;
+}
+
+/**
  * Variant of ProxyHandler covering when the type of the target and implemented interface are different.
  * Only the parts needed so far are included.
  */
@@ -141,4 +159,99 @@ export function keyIsValidIndex(key: string | number, length: number): boolean {
     const index = Number(key);
     if (typeof key === "string" && String(index) !== key) return false;
     return Number.isInteger(index) && 0 <= index && index < length;
+}
+
+/**
+ * Attempts to wrap an arbitrary data into a cursor, trying to resolve data types according to the given schema.
+ *
+ * Note that the name of this function as well as its return type do not specify the tree format on purpose
+ * to encourage a development of support for pluggable formats/cursors in the EditableTree API.
+ */
+export function tryGetCursorFor(
+    schema: SchemaDataAndPolicy,
+    fieldSchema: FieldSchema,
+    data: unknown,
+): ITreeCursor {
+    const node = DetachedNode.create(schema, fieldSchema, data);
+    return singleMapTreeCursor(node);
+}
+
+/**
+ * This implementation of the MapTree is written to wrap an arbitrary data with respect to the tree schema.
+ *
+ * It is used as an intermediate storage for the user data,
+ * whenever a user utilizes simple assignments to change an EditableTree,
+ * as methods of the EditableTree accept only cursors as an input data.
+ */
+export class DetachedNode implements MapTree {
+    /**
+     * A helper function to create new DetachedNode instances in the cases,
+     * when the node type is unknown upfront.
+     */
+    static create(
+        schema: SchemaDataAndPolicy,
+        fieldSchema: FieldSchema,
+        data: unknown,
+    ): DetachedNode {
+        if (data instanceof DetachedNode) {
+            if (fieldSchema.types !== undefined) {
+                assert(
+                    fieldSchema.types.has(data.type),
+                    "The data type does not match the field schema.",
+                );
+            }
+            return data;
+        }
+        return new DetachedNode(schema, tryGetNodeType(fieldSchema), data);
+    }
+
+    public readonly fields: Map<FieldKey, MapTree[]> = new Map();
+    public readonly value?: TreeValue;
+
+    constructor(
+        public readonly schema: SchemaDataAndPolicy,
+        public readonly type: TreeSchemaIdentifier,
+        data: unknown,
+    ) {
+        if (isPrimitiveValue(data)) {
+            assertPrimitiveValueType(data, lookupTreeSchema(this.schema, this.type));
+            this.value = data;
+        } else {
+            this.setFields(data);
+        }
+    }
+
+    /**
+     * Transforms data into the fields of MapTree.
+     */
+    private setFields(data: unknown): void {
+        if (data === undefined) return;
+        assert(typeof data === "object" && data !== null, "Data should not be null.");
+        const nodeSchema = lookupTreeSchema(this.schema, this.type);
+        const primary = getPrimaryField(nodeSchema);
+        if (Array.isArray(data) || primary !== undefined) {
+            assert(Array.isArray(data), "expected array");
+            assert(primary !== undefined, "expected primary field");
+            const primaryField = getMapTreeField(this, primary.key, true);
+            primaryField.push(
+                ...data.map((v) => DetachedNode.create(this.schema, primary.schema, v)),
+            );
+        } else {
+            for (const propertyKey of Reflect.ownKeys(data)) {
+                const childFieldKey: FieldKey = brand(propertyKey);
+                const childField = getMapTreeField(this, childFieldKey, true);
+                const childValue = Reflect.get(data, propertyKey);
+                const fieldSchema = getFieldSchema(childFieldKey, this.schema, nodeSchema);
+                const fieldKind = getFieldKind(fieldSchema);
+                if (fieldKind.multiplicity === Multiplicity.Sequence) {
+                    assert(Array.isArray(childValue), "expected array");
+                    childField.push(
+                        ...childValue.map((v) => DetachedNode.create(this.schema, fieldSchema, v)),
+                    );
+                } else {
+                    childField.push(DetachedNode.create(this.schema, fieldSchema, childValue));
+                }
+            }
+        }
+    }
 }
