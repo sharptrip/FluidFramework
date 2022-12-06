@@ -3,9 +3,6 @@
  * Licensed under the MIT License.
  */
 
-// Allow defining a custom "String" type:
-/* eslint-disable @typescript-eslint/ban-types */
-
 import { emptyField, FieldKinds, EditableTree, EditableField } from "../../../feature-libraries";
 import {
     namedTreeSchema,
@@ -179,31 +176,30 @@ export const fullSchemaData: SchemaData = {
 
 export type Float64 = Brand<number, "editable-tree.Float64"> & EditableTree;
 export type Int32 = Brand<number, "editable-tree.Int32"> & EditableTree;
-export type String = Brand<string, "editable-tree.String"> & EditableTree;
 export type Bool = Brand<boolean, "editable-tree.Bool"> & EditableTree;
 
 export type ComplexPhone = EditableTree &
     Brand<
         {
-            number: String;
-            prefix: String;
+            number: string;
+            prefix: string;
             extraPhones?: SimplePhones;
         },
         "editable-tree.Test:Phone-1.0.0"
     >;
 
-export type SimplePhones = EditableField & Brand<String[], "editable-tree.Test:SimplePhones-1.0.0">;
+export type SimplePhones = EditableField & Brand<string[], "editable-tree.Test:SimplePhones-1.0.0">;
 
 export type Phones = EditableField &
-    Brand<(Int32 | String | ComplexPhone | SimplePhones)[], "editable-tree.Test:Phones-1.0.0">;
+    Brand<(Int32 | string | ComplexPhone | SimplePhones)[], "editable-tree.Test:Phones-1.0.0">;
 
 export type Address = EditableTree &
     Brand<
         {
-            zip: String | Int32;
-            street?: String;
-            city?: String;
-            country?: String;
+            zip: string | Int32;
+            street?: string;
+            city?: string;
+            country?: string;
             phones?: Phones;
             sequencePhones?: SimplePhones;
         },
@@ -211,12 +207,12 @@ export type Address = EditableTree &
     >;
 
 export type Friends = EditableTree &
-    Brand<Record<LocalFieldKey, String>, "editable-tree.Map<String>">;
+    Brand<Record<LocalFieldKey, string>, "editable-tree.Map<String>">;
 
 export type Person = EditableTree &
     Brand<
         {
-            name: String;
+            name: string;
             age?: Int32;
             adult?: Bool;
             salary?: Float64 | Int32;
