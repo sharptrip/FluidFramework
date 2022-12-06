@@ -149,6 +149,7 @@ export {
     EditableField,
     isPrimitiveValue,
     isPrimitive,
+    getPrimaryField,
     typeSymbol,
     typeNameSymbol,
     valueSymbol,
