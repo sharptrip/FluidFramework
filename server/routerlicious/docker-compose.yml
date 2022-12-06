@@ -19,6 +19,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     deli:
         build:
             context: .
@@ -29,6 +30,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     scriptorium:
         build:
             context: .
@@ -39,6 +41,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     copier:
         build:
             context: .
@@ -49,6 +52,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     scribe:
         build:
             context: .
@@ -59,6 +63,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     foreman:
         build:
             context: .
@@ -69,6 +74,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     riddler:
         build:
             context: .
@@ -81,6 +87,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     historian:
         image: mcr.microsoft.com/fluidframework/routerlicious/historian:latest
         expose:
@@ -90,6 +97,7 @@ services:
             - NODE_ENV=development
             - IS_FLUID_SERVER=true
         restart: always
+        platform: linux/amd64
     gitrest:
         image: mcr.microsoft.com/fluidframework/routerlicious/gitrest:latest
         environment:
@@ -99,6 +107,7 @@ services:
         volumes:
             - git:/home/node/documents
         restart: always
+        platform: linux/amd64
     git:
         image: mcr.microsoft.com/fluidframework/routerlicious/gitssh:latest
         ports:
@@ -125,7 +134,7 @@ services:
     redis:
         image: "redis:alpine"
     mongodb:
-        image: "mongo:3.4.3"
+        image: "mongo:5.0.9"
     rabbitmq:
         image: "rabbitmq:alpine"
 volumes:
