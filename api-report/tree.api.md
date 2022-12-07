@@ -214,6 +214,7 @@ export interface EditableField extends ArrayLike<UnwrappedEditableTree> {
     getNode(index: number): EditableTree;
     insertNodes(index: number, newContent: ITreeCursor | ITreeCursor[]): void;
     readonly primaryType?: TreeSchemaIdentifier;
+    replaceNodes(index: number, newContent: ITreeCursor | ITreeCursor[], count?: number): void;
 }
 
 // @public
@@ -222,6 +223,7 @@ export interface EditableTree extends Iterable<EditableField> {
     [getField](fieldKey: FieldKey): EditableField;
     readonly [indexSymbol]: number;
     readonly [proxyTargetSymbol]: object;
+    [replaceField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): void;
     [Symbol.iterator](): IterableIterator<EditableField>;
     readonly [typeNameSymbol]: TreeSchemaIdentifier;
     readonly [typeSymbol]: TreeSchema;
@@ -234,9 +236,13 @@ export interface EditableTreeContext {
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
     free(): void;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: T extends BrandedType<infer ValueType, infer Name> ? BrandedType<ValueType, Name> : never): T;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: T extends BrandedType<infer ValueType, string> ? ValueType : never): T;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: unknown): T;
     prepareForEdit(): void;
-    readonly root: EditableField;
-    readonly unwrappedRoot: UnwrappedEditableField;
+    root: EditableField;
+    readonly schema: SchemaDataAndPolicy;
+    unwrappedRoot: UnwrappedEditableField;
 }
 
 // @public
@@ -348,6 +354,9 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
 // @public
 export type FieldKindIdentifier = Brand<string, "tree.FieldKindIdentifier">;
 
+// @public (undocumented)
+export const fieldKinds: Record<string, FieldKindIdentifier>;
+
 // @public
 export interface FieldLocation {
     // (undocumented)
@@ -414,6 +423,12 @@ export interface GenericTreeNode<TChild> extends GenericFieldsNode<TChild>, Node
 
 // @public
 export const getField: unique symbol;
+
+// @public
+export function getPrimaryField(schema: TreeSchema): {
+    key: LocalFieldKey;
+    schema: FieldSchema;
+} | undefined;
 
 // @public
 export type GlobalFieldKey = Brand<string, "tree.GlobalFieldKey">;
@@ -553,9 +568,12 @@ export type isAny<T> = boolean extends (T extends {} ? true : false) ? true : fa
 export function isEditableField(field: UnwrappedEditableField): field is EditableField;
 
 // @public
+export function isGlobalFieldKey(key: FieldKey): key is GlobalFieldKeySymbol;
+
+// @public
 export interface ISharedTree extends ICheckout<IDefaultEditBuilder>, ISharedObject, AnchorLocator {
     readonly context: EditableTreeContext;
-    readonly root: UnwrappedEditableField;
+    root: UnwrappedEditableField;
     readonly storedSchema: StoredSchemaRepository;
 }
 
@@ -1060,6 +1078,9 @@ export interface RepairDataStore<TTree = Delta.ProtoNode> extends ReadonlyRepair
 }
 
 // @public
+export const replaceField: unique symbol;
+
+// @public
 export type RevisionTag = Brand<number, "rebaser.RevisionTag">;
 
 // @public
@@ -1255,6 +1276,9 @@ export interface StoredSchemaRepository<TPolicy extends SchemaPolicy = SchemaPol
 
 // @public (undocumented)
 export function symbolFromKey(key: GlobalFieldKey): GlobalFieldKeySymbol;
+
+// @public (undocumented)
+export function symbolIsFieldKey(key: symbol): key is GlobalFieldKeySymbol;
 
 // @public (undocumented)
 export interface TaggedChange<TChangeset> {
