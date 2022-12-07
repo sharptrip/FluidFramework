@@ -15,7 +15,7 @@ import {
     EditableTreeContext,
     indexSymbol,
     keyFromSymbol,
-    fieldKinds,
+    FullSchemaPolicy,
     isEditableField,
     EditableField,
     isGlobalFieldKey,
@@ -263,7 +263,8 @@ function forEachNode<T>(
     addOnIfSequenceField?: (result: T, parent: EditableField | EditableTree, pathPrefix: string, treeContext?: EditableTreeContext) => void,
 ): T {
     assert(isEditableField(field), "Expected field");
-    const isSequence = field.fieldSchema.kind === fieldKinds.sequence;
+    const [,, SequenceKind] = (treeContext?.schema.policy as FullSchemaPolicy).fieldKinds.keys();
+    const isSequence = field.fieldSchema.kind === SequenceKind;
     for (let index = 0; index < field.length; index++) {
         const node = field.getNode(index);
         fn(result, field, node, pathPrefix, isSequence, treeContext);

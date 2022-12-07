@@ -154,9 +154,6 @@ export {
     typeNameSymbol,
     valueSymbol,
     indexSymbol,
-    // TODO: not yet commited
-    fieldKinds,
-    // end of TODO
     proxyTargetSymbol,
     getField,
     createField,

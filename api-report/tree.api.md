@@ -354,9 +354,6 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
 // @public
 export type FieldKindIdentifier = Brand<string, "tree.FieldKindIdentifier">;
 
-// @public (undocumented)
-export const fieldKinds: Record<string, FieldKindIdentifier>;
-
 // @public
 export interface FieldLocation {
     // (undocumented)

@@ -17,7 +17,7 @@ import {
     TreeSchema,
     TreeSchemaIdentifier,
     ValueSchema,
-    fieldKinds,
+    FullSchemaPolicy,
 } from "@fluid-internal/tree";
 import {
     PropertyFactory,
@@ -60,7 +60,8 @@ type Context = {
     types?: Set<TreeSchemaIdentifier>;
 };
 
-export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
+export function convertPSetSchema(policy: FullSchemaPolicy, rootFieldSchema: FieldSchema): SchemaData {
+    const [ValueKind, OptionalKind, SequenceKind] = policy.fieldKinds.keys();
     const treeSchema = new Map();
     const rootTypes = rootFieldSchema.types ?? fail("Expected root types");
 
@@ -199,7 +200,7 @@ export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
                         localFields: new Map(),
                         globalFields: new Set(),
                         extraLocalFields: {
-                            kind: fieldKinds.optional,
+                            kind: OptionalKind,
                         },
                         extraGlobalFields: false,
                         value: ValueSchema.Nothing,
@@ -242,16 +243,16 @@ export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
                                 if (!localFields.has(fieldKey)) {
                                     localFields.set(fieldKey, {
                                         kind: property.optional
-                                            ? fieldKinds.optional
-                                            : fieldKinds.value,
+                                            ? OptionalKind
+                                            : ValueKind,
                                         types: new Set([currentTypeid]),
                                     });
                                 } else {
                                     const types = localFields.get(fieldKey)?.types ?? fail("never");
                                     localFields.set(fieldKey, {
                                         kind: property.optional
-                                            ? fieldKinds.optional
-                                            : fieldKinds.value,
+                                            ? OptionalKind
+                                            : ValueKind,
                                         types: new Set([...types, currentTypeid]),
                                     });
                                 }
@@ -266,7 +267,7 @@ export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
                             context.typeid,
                             "NodeProperty"
                         )
-                            ? { kind: fieldKinds.optional }
+                            ? { kind: OptionalKind }
                             : emptyField,
                         extraGlobalFields: false,
                         value: ValueSchema.Nothing,
@@ -276,8 +277,8 @@ export function convertPSetSchema(rootFieldSchema: FieldSchema): SchemaData {
         } else {
             const kind: FieldKindIdentifier =
                 context.context === "array"
-                    ? fieldKinds.sequence
-                    : fieldKinds.optional;
+                    ? SequenceKind
+                    : OptionalKind;
 
             const fieldType = {
                 kind,
