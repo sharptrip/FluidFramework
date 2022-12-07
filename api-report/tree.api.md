@@ -236,12 +236,9 @@ export interface EditableTreeContext {
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
     free(): void;
-    // (undocumented)
-    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: T extends BrandedType<infer ValueType, infer Name> ? BrandedType<ValueType, Name> : never): T;
-    // (undocumented)
-    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: T extends BrandedType<infer ValueType, string> ? ValueType : never): T;
-    // (undocumented)
-    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: unknown): T;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: T extends BrandedType<infer ValueType, infer Name> ? BrandedType<ValueType, Name> : never): T;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: T extends BrandedType<infer ValueType, string> ? ValueType : never): T;
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: unknown): T;
     prepareForEdit(): void;
     root: EditableField;
     readonly schema: SchemaDataAndPolicy;
@@ -1079,6 +1076,9 @@ export function recordDependency(dependent: ObservingDependent | undefined, depe
 export interface RepairDataStore<TTree = Delta.ProtoNode> extends ReadonlyRepairDataStore<TTree> {
     capture(change: Delta.Root, revision: RevisionTag): void;
 }
+
+// @public
+export const replaceField: unique symbol;
 
 // @public
 export type RevisionTag = Brand<number, "rebaser.RevisionTag">;

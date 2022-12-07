@@ -615,6 +615,7 @@ describe("editable-tree: read-only", () => {
         const [, proxy] = buildTestPerson();
         assert(proxy.address !== undefined);
         assert.deepEqual(Object.keys(proxy.address), ["zip", "street", "phones", "sequencePhones"]);
+        assert.equal(proxy.address.city, undefined);
         assert.equal(proxy.address.street, "treeStreet");
         assert.equal(proxy.name, "Adam");
     });

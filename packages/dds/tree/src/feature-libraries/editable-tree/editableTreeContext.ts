@@ -100,18 +100,38 @@ export interface EditableTreeContext {
      */
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
 
-    // TODO: documentation
+    /**
+     * Types an arbitrary data with the given `TreeSchemaIdentifier` and wraps it into a format,
+     * which can be accepted by the EditableTree when using simple assignments.
+     *
+     * Use it whenever the field is polymorphic, to explicitly define the type of your data.
+     */
     newDetachedNode<T extends Brand<any, string>>(
         type: TreeSchemaIdentifier,
-        value: T extends BrandedType<infer ValueType, infer Name>
+        data: T extends BrandedType<infer ValueType, infer Name>
             ? BrandedType<ValueType, Name>
             : never,
     ): T;
+    /**
+     * Types an arbitrary data with the given `TreeSchemaIdentifier` and wraps it into a format,
+     * which can be accepted by the EditableTree when using simple assignments.
+     *
+     * Use it whenever the field is polymorphic, to explicitly define the type of your data.
+     */
     newDetachedNode<T extends Brand<any, string>>(
         type: TreeSchemaIdentifier,
-        value: T extends BrandedType<infer ValueType, string> ? ValueType : never,
+        data: T extends BrandedType<infer ValueType, string> ? ValueType : never,
     ): T;
-    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, value: unknown): T;
+    /**
+     * _Type-unsafe overload of the method allowing to change EditableTrees using simple assignments in contexts,
+     * where proper typing is not possible or not important._
+     *
+     * Types an arbitrary data with the given `TreeSchemaIdentifier` and wraps it into a format,
+     * which can be accepted by the EditableTree when using simple assignments.
+     *
+     * Use it whenever the field is polymorphic, to explicitly define the type of your data.
+     */
+    newDetachedNode<T extends Brand<any, string>>(type: TreeSchemaIdentifier, data: unknown): T;
 }
 
 /**

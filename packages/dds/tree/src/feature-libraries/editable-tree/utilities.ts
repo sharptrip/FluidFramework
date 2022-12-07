@@ -20,7 +20,6 @@ import {
     TreeSchemaIdentifier,
     lookupTreeSchema,
     TreeValue,
-    getMapTreeField,
     MapTree,
     ITreeCursor,
 } from "../../core";
@@ -115,6 +114,7 @@ export function getFieldKind(fieldSchema: FieldSchema): FieldKind {
  * Asserts that the field is not polymorphic i.e. mono-typed and returns this single type.
  */
 export function tryGetNodeType(fieldSchema: FieldSchema): TreeSchemaIdentifier {
+    if (fieldSchema.types === undefined) debugger;
     const types = fieldSchema.types ?? fail("missing field types");
     assert(types.size === 1, "cannot resolve the type");
     const type = [...types][0];
@@ -163,8 +163,8 @@ export function keyIsValidIndex(key: string | number, length: number): boolean {
 /**
  * Attempts to wrap an arbitrary data into a cursor, trying to resolve data types according to the given schema.
  *
- * Note that the name of this function as well as its return type do not specify
- * the tree format on purpose to encourage a development of plaggable formats/cursors.
+ * Note that the name of this function as well as its return type do not specify the tree format on purpose
+ * to encourage a development of support for pluggable formats/cursors in the EditableTree API.
  */
 export function tryGetCursorFor(
     schema: SchemaDataAndPolicy,
@@ -175,10 +175,68 @@ export function tryGetCursorFor(
     return singleMapTreeCursor(node);
 }
 
+/**
+ * This implementation of the MapTree is written to wrap an arbitrary data with respect to the tree schema.
+ *
+ * It is used as an intermediate storage for the user data,
+ * whenever a user utilizes simple assignments to change an EditableTree,
+ * as methods of the EditableTree accept only cursors as an input data.
+ */
 export class DetachedNode implements MapTree {
+    public readonly value?: TreeValue;
+    private readonly data?: object;
+
+    constructor(
+        public readonly schema: SchemaDataAndPolicy,
+        public readonly type: TreeSchemaIdentifier,
+        data: unknown,
+    ) {
+        if (isPrimitiveValue(data)) {
+            assertPrimitiveValueType(data, lookupTreeSchema(this.schema, this.type));
+            this.value = data;
+        } else {
+            assert(typeof data === "object" && data !== null, "Data should not be null.");
+            this.data = data;
+        }
+    }
+
     /**
-     * A helper to create new DetachedNode instances in the cases,
-     * when the node type is unknown upfront.
+     * Gets the fields of this node.
+     */
+    get fields(): Map<FieldKey, DetachedNode[]> {
+        const fields: Map<FieldKey, DetachedNode[]> = new Map();
+        if (this.data === undefined) return fields;
+        const nodeSchema = lookupTreeSchema(this.schema, this.type);
+        const primary = getPrimaryField(nodeSchema);
+        if (Array.isArray(this.data) || primary !== undefined) {
+            assert(primary !== undefined, "expected primary field");
+            fields.set(primary.key, this.createField(primary.schema, this.data));
+        } else {
+            for (const propertyKey of Reflect.ownKeys(this.data)) {
+                const childFieldKey: FieldKey = brand(propertyKey);
+                const childValue = Reflect.get(this.data, propertyKey);
+                const fieldSchema = getFieldSchema(childFieldKey, this.schema, nodeSchema);
+                fields.set(childFieldKey, this.createField(fieldSchema, childValue));
+            }
+        }
+        return fields;
+    }
+
+    /**
+     * Creates the field of this node.
+     */
+    private createField(fieldSchema: FieldSchema, data: unknown): DetachedNode[] {
+        const fieldKind = getFieldKind(fieldSchema);
+        if (fieldKind.multiplicity === Multiplicity.Sequence) {
+            assert(Array.isArray(data), "expected array");
+            return data.map((v) => DetachedNode.create(this.schema, fieldSchema, v));
+        } else {
+            return [DetachedNode.create(this.schema, fieldSchema, data)];
+        }
+    }
+
+    /**
+     * A helper function to create new nodes in cases, when the node type is unknown upfront.
      */
     static create(
         schema: SchemaDataAndPolicy,
@@ -195,52 +253,5 @@ export class DetachedNode implements MapTree {
             return data;
         }
         return new DetachedNode(schema, tryGetNodeType(fieldSchema), data);
-    }
-
-    public readonly fields: Map<FieldKey, MapTree[]> = new Map();
-    public readonly value?: TreeValue;
-
-    constructor(
-        public readonly schema: SchemaDataAndPolicy,
-        public readonly type: TreeSchemaIdentifier,
-        data: unknown,
-    ) {
-        if (isPrimitiveValue(data)) {
-            assertPrimitiveValueType(data, lookupTreeSchema(this.schema, this.type));
-            this.value = data;
-        } else {
-            this.setFields(data);
-        }
-    }
-
-    private setFields(data: unknown): void {
-        if (data === undefined) return;
-        assert(typeof data === "object" && data !== null, "Data should not be null.");
-        const nodeSchema = lookupTreeSchema(this.schema, this.type);
-        const primary = getPrimaryField(nodeSchema);
-        if (Array.isArray(data) || primary !== undefined) {
-            assert(Array.isArray(data), "expected array");
-            assert(primary !== undefined, "expected primary field");
-            const primaryField = getMapTreeField(this, primary.key, true);
-            primaryField.push(
-                ...data.map((v) => DetachedNode.create(this.schema, primary.schema, v)),
-            );
-        } else {
-            for (const propertyKey of Reflect.ownKeys(data)) {
-                const childFieldKey: FieldKey = brand(propertyKey);
-                const childField = getMapTreeField(this, childFieldKey, true);
-                const childValue = Reflect.get(data, propertyKey);
-                const fieldSchema = getFieldSchema(childFieldKey, this.schema, nodeSchema);
-                const fieldKind = getFieldKind(fieldSchema);
-                if (fieldKind.multiplicity === Multiplicity.Sequence) {
-                    assert(Array.isArray(childValue), "expected array");
-                    childField.push(
-                        ...childValue.map((v) => DetachedNode.create(this.schema, fieldSchema, v)),
-                    );
-                } else {
-                    childField.push(DetachedNode.create(this.schema, fieldSchema, childValue));
-                }
-            }
-        }
     }
 }
