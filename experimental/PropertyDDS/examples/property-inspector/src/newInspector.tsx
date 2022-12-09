@@ -12,7 +12,6 @@ import {
     EditableTree,
     typeNameSymbol,
     valueSymbol,
-    EditableTreeContext,
     indexSymbol,
     keyFromSymbol,
     FullSchemaPolicy,
@@ -30,6 +29,7 @@ import {
     ContextuallyTypedNodeDataObject,
     MarkedArrayLike,
     ContextuallyTypedNodeData,
+    ISharedTree,
 } from "@fluid-internal/tree";
 import {
     IDataCreationOptions,
@@ -38,13 +38,9 @@ import {
     ModalManager,
     ModalRoot,
     fetchRegisteredTemplates,
-    IToTableRowsProps,
-    IToTableRowsOptions,
     nameCellRenderer,
     typeCellRenderer,
     valueCellRenderer,
-    // NewDataForm,
-    // getShortId,
     IEditableTreeRow,
     IExpandedMap,
 } from "@fluid-experimental/property-inspector-table";
@@ -132,8 +128,6 @@ export const handleDataCreationOptionGeneration = (
 const tableProps: Partial<IInspectorTableProps> = {
     columns: ["name", "value", "type"],
     dataCreationHandler: async (rowData: IEditableTreeRow, name: string, typeid: string, context: string) => {
-        const { treeContext } = rowData;
-        assert(treeContext !== undefined, "tree context required");
         // avoid `undefined` as not supported by schema and UI
         const value = defaultPrimitiveValues[typeid];
         if (isUnwrappedNode(rowData.parent)) {
@@ -158,11 +152,14 @@ const tableProps: Partial<IInspectorTableProps> = {
     },
 };
 
+type nodeAction<T> = (result: T, parent: EditableField, pathPrefix: string, node: EditableTree, isSequence: boolean) => void;
+type addOnAction<T> = (result: T, parent: EditableField | EditableTree, pathPrefix: string) => void;
+
 function expandNode(
     expanded: IExpandedMap,
     parent: EditableField,
-    data: EditableTree,
     pathPrefix: string,
+    data: EditableTree,
 ): void {
     const id = getRowId(parent.fieldKey, data[indexSymbol], pathPrefix);
     const nodeType = data[typeSymbol];
@@ -196,28 +193,27 @@ function stringifyKey(fieldKey: FieldKey): string {
 function nodeToRows(
     rows: IEditableTreeRow[],
     parent: EditableField,
-    node: EditableTree,
     pathPrefix: string,
+    data: EditableTree,
     isSequenceNode = false,
-    treeContext?: EditableTreeContext,
 ): void {
     const fieldKey = parent.fieldKey;
-    const nodeIndex = node[indexSymbol];
+    const nodeIndex = data[indexSymbol];
     const id = getRowId(fieldKey, nodeIndex, pathPrefix);
     // TODO: this is a workaround, which must be replaced with the `EditableTreeUpPath` (not yet implemented)
     // in order to get, if the field is a root field.
     // For `EditableTreeUpPath`, see https://github.com/microsoft/FluidFramework/pull/12810#issuecomment-1303949419
     const keyAsString = pathPrefix === "" ? "/" : stringifyKey(fieldKey);
     const name = isSequenceNode ? `[${nodeIndex}]` : keyAsString;
-    const children = forEachField(nodeToRows, [], { data: node, treeContext }, id, addNewDataLine);
+    const children = forEachField(nodeToRows, [], { data }, id, addNewDataLine);
     // TODO: currently, the whole story around arrays is not well defined neither implemented.
     // Prevent to create fields under a node already having a primary field.
-    const nodeType = node[typeSymbol];
+    const nodeType = data[typeSymbol];
     if (!(isPrimitive(nodeType) || getPrimaryField(nodeType) !== undefined) || nodeType.value === ValueSchema.Serializable) {
-        addNewDataLine(children, node, id, treeContext);
+        addNewDataLine(children, data, id);
     }
-    const value = node[valueSymbol];
-    const typeid = node[typeNameSymbol];
+    const value = data[valueSymbol];
+    const typeid = data[typeNameSymbol];
     rows.push({
         id,
         name,
@@ -227,9 +223,8 @@ function nodeToRows(
         value,
         typeid,
         parent,
-        data: node,
+        data,
         isEditableTree: true,
-        treeContext,
     });
 }
 
@@ -237,7 +232,6 @@ function addNewDataLine(
     rows: IEditableTreeRow[],
     parent: EditableField | EditableTree,
     pathPrefix: string,
-    treeContext?: EditableTreeContext,
 ): void {
     rows.push({
         id: `${pathPrefix}/Add`,
@@ -246,41 +240,44 @@ function addNewDataLine(
         value: "",
         typeid: "",
         name: "",
-        treeContext,
         isEditableTree: true,
     });
 }
 
 function forEachField<T>(
-    fn: (result: T, parent: EditableField, node: EditableTree, pathPrefix: string, isSequence: boolean, treeContext?: EditableTreeContext) => void,
+    nodeAction: nodeAction<T>,
     data: T,
-    { data: node, treeContext }: Pick<IEditableTreeRow, "data"> & Partial<IEditableTreeRow>,
+    { data: node }: Partial<IEditableTreeRow>,
     pathPrefix: string,
-    addOnIfSequenceField?: (result: T, parent: EditableField | EditableTree, pathPrefix: string, treeContext?: EditableTreeContext) => void,
+    addOnIfSequenceField?: addOnAction<T>,
 ): T {
     assert(isUnwrappedNode(node), "Expected node");
     for (const field of node) {
-        forEachNode(fn, { data: field, treeContext }, data, pathPrefix, addOnIfSequenceField);
+        forEachNode(nodeAction, { data: field }, data, pathPrefix, addOnIfSequenceField);
     }
     return data;
 }
 
+function isSequenceField(field: EditableField): boolean {
+    const [,, SequenceKind] = (field.context.schema.policy as FullSchemaPolicy).fieldKinds.keys();
+    return field.fieldSchema.kind === SequenceKind;
+}
+
 function forEachNode<T>(
-    fn: (result: T, parent: EditableField, node: EditableTree, pathPrefix: string, isSequence: boolean, treeContext?: EditableTreeContext) => void,
-    { data: field, treeContext }: Pick<IEditableTreeRow, "data"> & Partial<IEditableTreeRow>,
+    nodeAction: nodeAction<T>,
+    { data: field }: Partial<IEditableTreeRow>,
     result: T,
     pathPrefix = "",
-    addOnIfSequenceField?: (result: T, parent: EditableField | EditableTree, pathPrefix: string, treeContext?: EditableTreeContext) => void,
+    addOnIfSequenceField?: addOnAction<T>,
 ): T {
     assert(isEditableField(field), "Expected field");
-    const [,, SequenceKind] = (treeContext?.schema.policy as FullSchemaPolicy).fieldKinds.keys();
-    const isSequence = field.fieldSchema.kind === SequenceKind;
+    const isSequence = isSequenceField(field);
     for (let index = 0; index < field.length; index++) {
         const node = field.getNode(index);
-        fn(result, field, node, pathPrefix, isSequence, treeContext);
+        nodeAction(result, field, pathPrefix, node, isSequence);
     }
     if (isSequence && addOnIfSequenceField !== undefined) {
-        addOnIfSequenceField(result, field, pathPrefix, treeContext);
+        addOnIfSequenceField(result, field, pathPrefix);
     }
     return result;
 }
@@ -292,12 +289,7 @@ const editableTreeTableProps: Partial<IInspectorTableProps> = {
         value: valueCellRenderer,
         type: typeCellRenderer,
     },
-    toTableRows: (
-        rowData: IEditableTreeRow,
-        props: IToTableRowsProps,
-        options: Partial<IToTableRowsOptions> = {},
-        pathPrefix: string = "",
-    ): IEditableTreeRow[] => {
+    toTableRows: (rowData: IEditableTreeRow): IEditableTreeRow[] => {
         return forEachNode(nodeToRows, rowData, [], "", addNewDataLine);
     },
 };
@@ -320,8 +312,7 @@ function TabPanel(props: TabPanelProps) {
 
 export const InspectorApp = (props: any) => {
     const classes = useStyles();
-    const { data: context } = props;
-    const { root } = context;
+    const { data } = props;
 
     // const [json, setJson] = useState(editableTree);
     const [tabIndex, setTabIndex] = useState(0);
@@ -366,8 +357,7 @@ export const InspectorApp = (props: any) => {
                                                     width={width}
                                                     height={height}
                                                     {...props}
-                                                    data={root}
-                                                    treeContext={context}
+                                                    data={data}
                                                 />
                                             </TabPanel>
                                         </div>
@@ -382,16 +372,11 @@ export const InspectorApp = (props: any) => {
     );
 };
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type InspectorAppData = {
-    context: EditableTreeContext;
-};
-
-export function renderApp(data: InspectorAppData, element: HTMLElement) {
+export function renderApp(data: ISharedTree, element: HTMLElement) {
     const { context } = data;
     const render = () => {
         context.clear();
-        ReactDOM.render(<InspectorApp data={context} />, element);
+        ReactDOM.render(<InspectorApp data={context.root} />, element);
     };
     context.attachAfterChangeHandler(render);
     render();

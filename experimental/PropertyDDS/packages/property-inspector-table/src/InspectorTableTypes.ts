@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { EditableField, EditableTree, EditableTreeContext, Value } from "@fluid-internal/tree";
+import { EditableField, EditableTree, Value } from "@fluid-internal/tree";
 import { BaseProxifiedProperty } from "@fluid-experimental/property-proxy";
 import { BaseProperty } from "@fluid-experimental/property-properties";
 
@@ -117,7 +117,6 @@ export interface IEditableTreeRow extends IRowData<EditableTree | EditableField>
   parent: EditableTree | EditableField;
   value?: Value;
   name: string;
-  treeContext?: EditableTreeContext;
 }
 
 export function isEditableTreeRow(data: IInspectorRow | IEditableTreeRow): data is IEditableTreeRow {
