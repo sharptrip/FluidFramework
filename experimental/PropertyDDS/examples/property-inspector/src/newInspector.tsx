@@ -190,7 +190,7 @@ function stringifyKey(fieldKey: FieldKey): string {
     return fieldKey;
 }
 
-function nodeToRows(
+function nodeToTableRow(
     rows: IEditableTreeRow[],
     parent: EditableField,
     pathPrefix: string,
@@ -205,7 +205,7 @@ function nodeToRows(
     // For `EditableTreeUpPath`, see https://github.com/microsoft/FluidFramework/pull/12810#issuecomment-1303949419
     const keyAsString = pathPrefix === "" ? "/" : stringifyKey(fieldKey);
     const name = isSequenceNode ? `[${nodeIndex}]` : keyAsString;
-    const children = forEachField(nodeToRows, [], { data }, id, addNewDataLine);
+    const children = forEachField(nodeToTableRow, [], { data }, id, addNewDataLine);
     // TODO: currently, the whole story around arrays is not well defined neither implemented.
     // Prevent to create fields under a node already having a primary field.
     const nodeType = data[typeSymbol];
@@ -290,7 +290,7 @@ const editableTreeTableProps: Partial<IInspectorTableProps> = {
         type: typeCellRenderer,
     },
     toTableRows: (rowData: IEditableTreeRow): IEditableTreeRow[] => {
-        return forEachNode(nodeToRows, rowData, [], "", addNewDataLine);
+        return forEachNode(nodeToTableRow, rowData, [], "", addNewDataLine);
     },
 };
 
