@@ -19,6 +19,7 @@ export {
     getField,
     createField,
     replaceField,
+    editableTreeContextSymbol,
 } from "./editableTree";
 
 export { EditableTreeContext, getEditableTreeContext } from "./editableTreeContext";
