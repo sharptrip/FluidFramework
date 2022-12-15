@@ -242,6 +242,8 @@ export interface EditableTree extends Iterable<EditableField>, ContextuallyTyped
 
 // @public
 export interface EditableTreeContext {
+    // (undocumented)
+    abortTransaction(): void;
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
     // (undocumented)

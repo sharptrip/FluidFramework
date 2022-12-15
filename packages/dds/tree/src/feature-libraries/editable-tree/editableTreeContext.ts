@@ -127,6 +127,7 @@ export interface EditableTreeContext {
 
     openTransaction(): void;
     commitTransaction(): void;
+    abortTransaction(): void;
     get hasOpenTransaction(): boolean;
 }
 
@@ -401,7 +402,26 @@ export class ProxyContext implements EditableTreeContext {
             "`transactionCheckout` is required to edit the EditableTree",
         );
         assert(this.hasOpenTransaction, "no open transaction, nothing to commit");
-        const submitEdit = this.transactionCheckout.submitEdit.bind(this.transactionCheckout);
+        const changeFamily = this.transactionCheckout.changeFamily;
+        const changes = this.rollbackChanges();
+        if (changes.length > 0) {
+            const edit = changeFamily.rebaser.compose(changes.map((c) => makeAnonChange(c)));
+            this.transactionCheckout.submitEdit(edit);
+        }
+        this.editor = undefined;
+    }
+
+    abortTransaction(): void {
+        assert(this.hasOpenTransaction, "no open transaction, nothing to roll back");
+        this.rollbackChanges();
+        this.editor = undefined;
+    }
+
+    private rollbackChanges(): ModularChangeset[] {
+        assert(
+            this.transactionCheckout !== undefined,
+            "`transactionCheckout` is required to edit the EditableTree",
+        );
         const changeFamily = this.transactionCheckout.changeFamily;
         const changes = this.editor?.getChanges() ?? [];
         if (changes.length > 0) {
@@ -415,10 +435,8 @@ export class ProxyContext implements EditableTreeContext {
                 changeFamily.rebaser.rebaseAnchors(this.forest.anchors, inverse);
                 this.forest.applyDelta(changeFamily.intoDelta(inverse));
             }
-            const edit = changeFamily.rebaser.compose(changes.map((c) => makeAnonChange(c)));
-            submitEdit(edit);
         }
-        this.editor = undefined;
+        return changes;
     }
 
     private runTransaction(transaction: Transaction): boolean {
