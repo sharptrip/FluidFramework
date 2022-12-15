@@ -364,8 +364,12 @@ export class ProxyContext implements EditableTreeContext {
             forest.applyDelta(changeFamily.intoDelta(edit));
         }, forest.anchors);
         // apply sequenced change, but now on top of the forest state before the transaction has been opened
-        changeFamily.rebaser.rebaseAnchors(this.forest.anchors, sequencedChange.change);
-        this.forest.applyDelta(changeFamily.intoDelta(sequencedChange.change));
+        // we don't use `editor.apply` here since we don't want this change to be included
+        // into our "local changes"
+        {
+            changeFamily.rebaser.rebaseAnchors(this.forest.anchors, sequencedChange.change);
+            this.forest.applyDelta(changeFamily.intoDelta(sequencedChange.change));
+        }
         // Apply local changes rebased on the new sequenced change.
         // Also, in general, sequenced changes are handled by the SharedTree, so if handled properly
         // here by the time they arrive, we don't have to track them, only to rebase
