@@ -366,14 +366,15 @@ export class ProxyContext implements EditableTreeContext {
         // apply sequenced change, but now on top of the forest state before the transaction has been opened
         changeFamily.rebaser.rebaseAnchors(this.forest.anchors, sequencedChange.change);
         this.forest.applyDelta(changeFamily.intoDelta(sequencedChange.change));
-        // apply local changes rebased on the new sequenced change
-        for (const change of localChanges) {
-            // Also, in general, sequenced changes are handled by the SharedTree, so if handled properly
-            // here by the time they arrive, we don't have to track them, only to rebase
-            // our local changes over the most recent one.
-            const rebased = changeFamily.rebaser.rebase(change, sequencedChange);
+        // Apply local changes rebased on the new sequenced change.
+        // Also, in general, sequenced changes are handled by the SharedTree, so if handled properly
+        // here by the time they arrive, we don't have to track them, only to rebase
+        // our local changes over the most recent one.
+        localChanges.reduce((over, change, index) => {
+            const rebased = changeFamily.rebaser.rebase(change, over);
             editor.apply(rebased);
-        }
+            return tagChange(rebased, brand(index));
+        }, sequencedChange);
         this.editor = editor;
     }
 
