@@ -22,7 +22,11 @@ export {
     editableTreeContextSymbol,
 } from "./editableTree";
 
-export { EditableTreeContext, getEditableTreeContext } from "./editableTreeContext";
+export {
+    EditableTreeContext,
+    getEditableTreeContext,
+    EditableTreeIndex,
+} from "./editableTreeContext";
 
 export {
     PrimitiveValue,

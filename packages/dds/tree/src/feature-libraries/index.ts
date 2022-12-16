@@ -16,6 +16,7 @@ export {
     EditableField,
     EditableTree,
     EditableTreeContext,
+    EditableTreeIndex,
     EditableTreeOrPrimitive,
     getEditableTreeContext,
     typeSymbol,
