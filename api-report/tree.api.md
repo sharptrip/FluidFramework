@@ -217,6 +217,7 @@ export interface DetachedField extends Opaque<Brand<string, "tree.DetachedField"
 // @public
 export interface EditableField extends MarkedArrayLike<UnwrappedEditableTree | ContextuallyTypedNodeData> {
     readonly [proxyTargetSymbol]: object;
+    readonly context: EditableTreeContext;
     deleteNodes(index: number, count?: number): void;
     readonly fieldKey: FieldKey;
     readonly fieldSchema: FieldSchema;
@@ -229,6 +230,7 @@ export interface EditableField extends MarkedArrayLike<UnwrappedEditableTree | C
 // @public
 export interface EditableTree extends Iterable<EditableField>, ContextuallyTypedNodeDataObject {
     [createField](fieldKey: FieldKey, newContent: ITreeCursor | ITreeCursor[]): void;
+    readonly [editableTreeContextSymbol]: EditableTreeContext;
     [getField](fieldKey: FieldKey): EditableField;
     readonly [indexSymbol]: number;
     readonly [proxyTargetSymbol]: object;
@@ -242,9 +244,17 @@ export interface EditableTree extends Iterable<EditableField>, ContextuallyTyped
 
 // @public
 export interface EditableTreeContext {
+    // (undocumented)
+    abortTransaction(): void;
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
+    // (undocumented)
+    commitTransaction(): void;
     free(): void;
+    // (undocumented)
+    get hasOpenTransaction(): boolean;
+    // (undocumented)
+    openTransaction(): void;
     prepareForEdit(): void;
     get root(): EditableField;
     set root(data: ContextuallyTypedNodeData | undefined);
@@ -252,6 +262,9 @@ export interface EditableTreeContext {
     get unwrappedRoot(): UnwrappedEditableField;
     set unwrappedRoot(data: ContextuallyTypedNodeData | undefined);
 }
+
+// @public
+export const editableTreeContextSymbol: unique symbol;
 
 // @public
 export type EditableTreeOrPrimitive = EditableTree | PrimitiveValue;
