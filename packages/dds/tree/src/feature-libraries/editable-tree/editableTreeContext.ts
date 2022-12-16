@@ -132,7 +132,7 @@ export interface EditableTreeContext {
 
 type Command = (editor: DefaultEditBuilder) => TransactionResult;
 
-class TransactionHandler {
+abstract class TransactionHandler {
     private _hasOpenTransaction: boolean = false;
 
     constructor(
@@ -181,7 +181,14 @@ class TransactionHandler {
 
     abortTransaction(): void {
         assert(this.hasOpenTransaction, "no open transaction, nothing to roll back");
+        assert(
+            this.transactionCheckout !== undefined,
+            "`transactionCheckout` is required to edit the EditableTree",
+        );
         this.rollbackChanges();
+        const changeFamily = this.transactionCheckout.changeFamily;
+        const edit = changeFamily.rebaser.compose([].map((c) => makeAnonChange(c)));
+        this.transactionCheckout.submitEdit(edit);
         this._hasOpenTransaction = false;
     }
 
@@ -222,8 +229,11 @@ class TransactionHandler {
         for (const change of editor.getChanges()) {
             this.editManager.addLocalChange(change);
         }
+        this.handleAfterChange();
         return result === TransactionResult.Apply;
     }
+
+    public abstract handleAfterChange(): void;
 
     private runSynchronousTransaction(command: Command): boolean {
         assert(
@@ -345,7 +355,7 @@ export class ProxyContext extends TransactionHandler implements EditableTreeCont
         this.afterChangeHandlers.add(afterChangeHandler);
     }
 
-    private handleAfterChange(): void {
+    public handleAfterChange(): void {
         for (const afterChangeHandler of this.afterChangeHandlers) {
             afterChangeHandler(this);
         }
