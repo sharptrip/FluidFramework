@@ -47,7 +47,7 @@ import {
     applyTypesFromContext,
     getPossibleTypes,
 } from "./utilities";
-import { ProxyContext } from "./editableTreeContext";
+import { EditableTreeContext, ProxyContext } from "./editableTreeContext";
 
 /**
  * A symbol for extracting target from {@link EditableTree} proxies.
@@ -98,6 +98,13 @@ export const createField: unique symbol = Symbol("editable-tree:createField()");
 export const replaceField: unique symbol = Symbol("editable-tree:replaceField()");
 
 /**
+ * A symbol to get the common {@link EditableTreeContext} of {@link EditableTree}s
+ * in contexts where string keys are already in use for fields.
+ */
+// TODO: add test coverage
+export const editableTreeContextSymbol: unique symbol = Symbol("editable-tree:context");
+
+/**
  * A tree which can be traversed and edited.
  *
  * When iterating, only visits non-empty fields.
@@ -116,6 +123,11 @@ export const replaceField: unique symbol = Symbol("editable-tree:replaceField()"
  * or using a simple assignment operator (see `EditableTreeContext.unwrappedRoot` for more details).
  */
 export interface EditableTree extends Iterable<EditableField>, ContextuallyTypedNodeDataObject {
+    /**
+     * The common context of EditableTrees.
+     */
+    readonly [editableTreeContextSymbol]: EditableTreeContext;
+
     /**
      * The name of the node type.
      */
@@ -321,6 +333,11 @@ export interface EditableField
      * all the insertions will be preserved.
      */
     replaceNodes(index: number, newContent: ITreeCursor | ITreeCursor[], count?: number): void;
+
+    /**
+     * The common context of EditableTrees.
+     */
+    readonly context: EditableTreeContext;
 }
 
 /**
@@ -612,6 +629,8 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
                 return target.createField.bind(target);
             case replaceField:
                 return target.replaceField.bind(target);
+            case editableTreeContextSymbol:
+                return target.context;
             default:
                 return undefined;
         }
@@ -688,6 +707,7 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
             case getField:
             case createField:
             case replaceField:
+            case editableTreeContextSymbol:
                 return true;
             case valueSymbol:
                 // Could do `target.value !== ValueSchema.Nothing`
@@ -776,6 +796,13 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
                     configurable: true,
                     enumerable: false,
                     value: target.replaceField.bind(target),
+                    writable: false,
+                };
+            case editableTreeContextSymbol:
+                return {
+                    configurable: true,
+                    enumerable: false,
+                    value: target.context,
                     writable: false,
                 };
             default:
@@ -936,6 +963,7 @@ const editableFieldPropertySetWithoutLength = new Set<string>([
     "fieldKey",
     "fieldSchema",
     "primaryType",
+    "context",
 ]);
 /**
  * The set of `EditableField` properties exposed by `fieldProxyHandler`.

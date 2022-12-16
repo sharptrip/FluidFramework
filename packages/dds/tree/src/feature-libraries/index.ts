@@ -34,6 +34,7 @@ export {
     getField,
     createField,
     replaceField,
+    editableTreeContextSymbol,
     ContextuallyTypedNodeDataObject,
     ContextuallyTypedNodeData,
     MarkedArrayLike,
