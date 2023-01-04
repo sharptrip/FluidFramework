@@ -242,9 +242,17 @@ export interface EditableTree extends Iterable<EditableField>, ContextuallyTyped
 
 // @public
 export interface EditableTreeContext {
+    // (undocumented)
+    abortTransaction(): void;
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
     clear(): void;
+    // (undocumented)
+    commitTransaction(): void;
     free(): void;
+    // (undocumented)
+    get hasOpenTransaction(): boolean;
+    // (undocumented)
+    openTransaction(): void;
     prepareForEdit(): void;
     get root(): EditableField;
     set root(data: ContextuallyTypedNodeData | undefined);

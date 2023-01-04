@@ -24,8 +24,13 @@ import {
     Dependent,
     afterChangeToken,
     SchemaDataAndPolicy,
+    makeAnonChange,
+    tagChange,
+    EditManager,
 } from "../../core";
-import { DefaultChangeset, DefaultEditBuilder } from "../defaultChangeFamily";
+import { brand } from "../../util";
+import { ModularChangeset } from "../modular-schema";
+import { DefaultChangeFamily, DefaultChangeset, DefaultEditBuilder } from "../defaultChangeFamily";
 import { runSynchronousTransaction } from "../defaultTransaction";
 import { singleMapTreeCursor } from "../mapTreeCursor";
 import { ProxyTarget, EditableField, proxifyField, UnwrappedEditableField } from "./editableTree";
@@ -118,6 +123,119 @@ export interface EditableTreeContext {
      * is committed successfully.
      */
     attachAfterChangeHandler(afterChangeHandler: (context: EditableTreeContext) => void): void;
+
+    openTransaction(): void;
+    commitTransaction(): void;
+    abortTransaction(): void;
+    get hasOpenTransaction(): boolean;
+}
+
+type Command = (editor: DefaultEditBuilder) => TransactionResult;
+
+class TransactionHandler {
+    private _hasOpenTransaction: boolean = false;
+
+    constructor(
+        public readonly forest: IEditableForest,
+        private readonly transactionCheckout?: TransactionCheckout<
+            DefaultEditBuilder,
+            DefaultChangeset
+        >,
+        private readonly editManager?: EditManager<DefaultChangeset, DefaultChangeFamily>,
+    ) {}
+
+    get hasOpenTransaction(): boolean {
+        return this._hasOpenTransaction;
+    }
+
+    openTransaction(): void {
+        assert(!this.hasOpenTransaction, "already running");
+        assert(
+            this.transactionCheckout !== undefined,
+            "`transactionCheckout` is required to edit the EditableTree",
+        );
+        this._hasOpenTransaction = true;
+    }
+
+    processTransaction(command: Command): boolean {
+        if (this.hasOpenTransaction) {
+            return this.editTransaction(command);
+        }
+        return this.runSynchronousTransaction(command);
+    }
+
+    commitTransaction(): void {
+        assert(this.hasOpenTransaction, "no open transaction, nothing to commit");
+        assert(
+            this.transactionCheckout !== undefined,
+            "`transactionCheckout` is required to edit the EditableTree",
+        );
+        const changes = this.rollbackChanges();
+        if (changes.length > 0) {
+            const changeFamily = this.transactionCheckout.changeFamily;
+            const edit = changeFamily.rebaser.compose(changes.map((c) => makeAnonChange(c)));
+            this.transactionCheckout.submitEdit(edit);
+        }
+        this._hasOpenTransaction = false;
+    }
+
+    abortTransaction(): void {
+        assert(this.hasOpenTransaction, "no open transaction, nothing to roll back");
+        this.rollbackChanges();
+        this._hasOpenTransaction = false;
+    }
+
+    private rollbackChanges(): ModularChangeset[] {
+        assert(
+            this.transactionCheckout !== undefined,
+            "`transactionCheckout` is required to edit the EditableTree",
+        );
+        const changeFamily = this.transactionCheckout.changeFamily;
+        const changes: ModularChangeset[] = [];
+        const inverses: ModularChangeset[] = [];
+        const localChanges = this.editManager?.getLocalChanges() ?? [];
+        for (let index = 0; index < localChanges.length; index++) {
+            const change = localChanges[index] as ModularChangeset;
+            inverses.unshift(changeFamily.rebaser.invert(tagChange(change, brand(index))));
+            changes.push(change);
+        }
+        // Roll back changes
+        for (const inverse of inverses) {
+            changeFamily.rebaser.rebaseAnchors(this.forest.anchors, inverse);
+            this.forest.applyDelta(changeFamily.intoDelta(inverse));
+        }
+        return changes;
+    }
+
+    private editTransaction(command: Command): boolean {
+        assert(this.editManager !== undefined, "requires `EditManager` to edit the transaction");
+        assert(
+            this.transactionCheckout !== undefined,
+            "`transactionCheckout` is required to edit the EditableTree",
+        );
+        const changeFamily = this.transactionCheckout.changeFamily;
+        const forest = this.forest;
+        const editor = changeFamily.buildEditor((edit) => {
+            forest.applyDelta(changeFamily.intoDelta(edit));
+        }, forest.anchors);
+        const result = command(editor);
+        for (const change of editor.getChanges()) {
+            this.editManager.addLocalChange(change);
+        }
+        return result === TransactionResult.Apply;
+    }
+
+    private runSynchronousTransaction(command: Command): boolean {
+        assert(
+            this.transactionCheckout !== undefined,
+            0x45a /* `transactionCheckout` is required to edit the EditableTree */,
+        );
+        const result = runSynchronousTransaction(
+            this.transactionCheckout,
+            (forest: IForestSubscription, editor: DefaultEditBuilder) => command(editor),
+        );
+        return result === TransactionResult.Apply;
+    }
 }
 
 /**
@@ -125,7 +243,7 @@ export interface EditableTreeContext {
  *
  * `transactionCheckout` is required to edit the EditableTrees.
  */
-export class ProxyContext implements EditableTreeContext {
+export class ProxyContext extends TransactionHandler implements EditableTreeContext {
     public readonly withCursors: Set<ProxyTarget<Anchor | FieldAnchor>> = new Set();
     public readonly withAnchors: Set<ProxyTarget<Anchor | FieldAnchor>> = new Set();
     private readonly observer: Dependent;
@@ -137,11 +255,10 @@ export class ProxyContext implements EditableTreeContext {
      */
     constructor(
         public readonly forest: IEditableForest,
-        private readonly transactionCheckout?: TransactionCheckout<
-            DefaultEditBuilder,
-            DefaultChangeset
-        >,
+        transactionCheckout?: TransactionCheckout<DefaultEditBuilder, DefaultChangeset>,
+        editManager?: EditManager<DefaultChangeset, DefaultChangeFamily>,
     ) {
+        super(forest, transactionCheckout, editManager);
         this.observer = new SimpleObservingDependent(
             (token?: InvalidationToken, delta?: Delta.Root): void => {
                 if (token === afterChangeToken) {
@@ -235,7 +352,10 @@ export class ProxyContext implements EditableTreeContext {
     }
 
     public setNodeValue(path: UpPath, value: Value): boolean {
-        return this.runTransaction((editor) => editor.setValue(path, value));
+        return this.processTransaction((editor) => {
+            editor.setValue(path, value);
+            return TransactionResult.Apply;
+        });
     }
 
     public setValueField(
@@ -243,9 +363,10 @@ export class ProxyContext implements EditableTreeContext {
         fieldKey: FieldKey,
         newContent: ITreeCursor,
     ): boolean {
-        return this.runTransaction((editor) => {
+        return this.processTransaction((editor) => {
             const field = editor.valueField(path, fieldKey);
             field.set(newContent);
+            return TransactionResult.Apply;
         });
     }
 
@@ -255,9 +376,10 @@ export class ProxyContext implements EditableTreeContext {
         newContent: ITreeCursor | undefined,
         wasEmpty: boolean,
     ): boolean {
-        return this.runTransaction((editor) => {
+        return this.processTransaction((editor) => {
             const field = editor.optionalField(path, fieldKey);
             field.set(newContent, wasEmpty);
+            return TransactionResult.Apply;
         });
     }
 
@@ -267,9 +389,10 @@ export class ProxyContext implements EditableTreeContext {
         index: number,
         newContent: ITreeCursor | ITreeCursor[],
     ): boolean {
-        return this.runTransaction((editor) => {
+        return this.processTransaction((editor) => {
             const field = editor.sequenceField(path, fieldKey);
             field.insert(index, newContent);
+            return TransactionResult.Apply;
         });
     }
 
@@ -279,9 +402,10 @@ export class ProxyContext implements EditableTreeContext {
         index: number,
         count: number,
     ): boolean {
-        return this.runTransaction((editor) => {
+        return this.processTransaction((editor) => {
             const field = editor.sequenceField(path, fieldKey);
             field.delete(index, count);
+            return TransactionResult.Apply;
         });
     }
 
@@ -292,26 +416,12 @@ export class ProxyContext implements EditableTreeContext {
         count: number,
         newContent: ITreeCursor | ITreeCursor[],
     ): boolean {
-        return this.runTransaction((editor) => {
+        return this.processTransaction((editor) => {
             const field = editor.sequenceField(path, fieldKey);
             field.delete(index, count);
             field.insert(index, newContent);
+            return TransactionResult.Apply;
         });
-    }
-
-    private runTransaction(transaction: (editor: DefaultEditBuilder) => void): boolean {
-        assert(
-            this.transactionCheckout !== undefined,
-            0x45a /* `transactionCheckout` is required to edit the EditableTree */,
-        );
-        const result = runSynchronousTransaction(
-            this.transactionCheckout,
-            (forest: IForestSubscription, editor: DefaultEditBuilder) => {
-                transaction(editor);
-                return TransactionResult.Apply;
-            },
-        );
-        return result === TransactionResult.Apply;
     }
 }
 
@@ -326,6 +436,7 @@ export class ProxyContext implements EditableTreeContext {
 export function getEditableTreeContext(
     forest: IEditableForest,
     transactionCheckout?: TransactionCheckout<DefaultEditBuilder, DefaultChangeset>,
+    editManager?: EditManager<DefaultChangeset, DefaultChangeFamily>,
 ): EditableTreeContext {
-    return new ProxyContext(forest, transactionCheckout);
+    return new ProxyContext(forest, transactionCheckout, editManager);
 }
