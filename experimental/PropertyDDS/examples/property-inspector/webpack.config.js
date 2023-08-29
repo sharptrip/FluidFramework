@@ -10,7 +10,7 @@ module.exports = (env) => {
 	const htmlTemplate = "./src/index.html";
 	return {
 		devtool: "inline-source-map",
-		entry: "./src/app.tsx",
+		entry: "./src/app2.tsx",
 		mode: "development",
 		devServer: {
 			port: 9000,

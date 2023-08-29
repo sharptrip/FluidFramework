@@ -2,6 +2,7 @@
 	"extends": "@fluidframework/build-common/ts-common-config.json",
 	"compilerOptions": {
 		"allowSyntheticDefaultImports": true,
+		"noUnusedLocals": false,
 		"target": "es6",
 		"module": "esnext",
 		"outDir": "dist",

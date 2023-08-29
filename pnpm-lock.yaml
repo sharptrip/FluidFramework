@@ -4328,7 +4328,10 @@ importers:
       '@fluid-experimental/property-inspector-table': workspace:~
       '@fluid-experimental/property-properties': workspace:~
       '@fluid-experimental/property-proxy': workspace:~
+      '@fluid-experimental/property-shared-tree-interop': workspace:~
+      '@fluid-experimental/tree2': workspace:~
       '@fluidframework/aqueduct': workspace:~
+      '@fluidframework/azure-client': workspace:~
       '@fluidframework/build-common': ^2.0.0
       '@fluidframework/build-tools': ^0.23.0
       '@fluidframework/common-utils': ^1.1.1
@@ -4397,7 +4400,10 @@ importers:
       '@fluid-experimental/property-inspector-table': link:../../packages/property-inspector-table
       '@fluid-experimental/property-properties': link:../../packages/property-properties
       '@fluid-experimental/property-proxy': link:../../packages/property-proxy
+      '@fluid-experimental/property-shared-tree-interop': link:../../packages/property-shared-tree-interop
+      '@fluid-experimental/tree2': link:../../../dds/tree2
       '@fluidframework/aqueduct': link:../../../../packages/framework/aqueduct
+      '@fluidframework/azure-client': link:../../../../azure/packages/azure-client
       '@fluidframework/common-utils': 1.1.1
       '@fluidframework/container-definitions': link:../../../../packages/common/container-definitions
       '@fluidframework/container-loader': link:../../../../packages/loader/container-loader
@@ -4823,9 +4829,11 @@ importers:
       '@fluid-experimental/property-dds': workspace:~
       '@fluid-experimental/property-properties': workspace:~
       '@fluid-experimental/property-proxy': workspace:~
+      '@fluid-experimental/tree2': workspace:~
       '@fluid-tools/webpack-fluid-loader': workspace:~
       '@fluidframework/build-common': ^2.0.0
       '@fluidframework/build-tools': ^0.23.0
+      '@fluidframework/common-utils': ^1.1.1
       '@hig/fonts': ^1.0.2
       '@material-ui/core': 4.12.4
       '@material-ui/lab': 4.0.0-alpha.61
@@ -4888,6 +4896,13 @@ importers:
       webpack-dev-server: ~4.6.0
       webpack-merge: ^5.8.0
     dependencies:
+      '@fluid-experimental/property-binder': link:../property-binder
+      '@fluid-experimental/property-changeset': link:../property-changeset
+      '@fluid-experimental/property-dds': link:../property-dds
+      '@fluid-experimental/property-properties': link:../property-properties
+      '@fluid-experimental/property-proxy': link:../property-proxy
+      '@fluid-experimental/tree2': link:../../../dds/tree2
+      '@fluidframework/common-utils': 1.1.1
       '@hig/fonts': 1.1.0
       '@material-ui/core': 4.12.4_gzv7pa6nrbev3fs6gyzn7sadkq
       '@material-ui/lab': 4.0.0-alpha.61_5ywzebzghivvobqcm5a7bi6ptu
@@ -4905,11 +4920,6 @@ importers:
       require-from-string: 2.0.2
     devDependencies:
       '@babel/core': 7.21.8
-      '@fluid-experimental/property-binder': link:../property-binder
-      '@fluid-experimental/property-changeset': link:../property-changeset
-      '@fluid-experimental/property-dds': link:../property-dds
-      '@fluid-experimental/property-properties': link:../property-properties
-      '@fluid-experimental/property-proxy': link:../property-proxy
       '@fluid-tools/webpack-fluid-loader': link:../../../../packages/tools/webpack-fluid-loader
       '@fluidframework/build-common': 2.0.0
       '@fluidframework/build-tools': 0.23.0_2wska3rv6ra5ajbmktsvyxwga4

@@ -7,6 +7,7 @@ import { StaticCodeLoader, TinyliciousModelLoader } from "@fluid-example/example
 import { PropertyFactory } from "@fluid-experimental/property-properties";
 import { registerSchemas } from "@fluid-example/schemas";
 
+import { personPropertyDDSSchemas } from "./demoData";
 import { PropertyTreeContainerRuntimeFactory, IPropertyTreeAppModel } from "./containerCode";
 import { renderApp } from "./inspector";
 
@@ -20,6 +21,7 @@ async function start() {
 	// It's important to register schemas before loading an existing document
 	// in order to process the changeset.
 	registerSchemas(PropertyFactory);
+	PropertyFactory.register(Object.values(personPropertyDDSSchemas));
 
 	const tinyliciousModelLoader = new TinyliciousModelLoader<IPropertyTreeAppModel>(
 		new StaticCodeLoader(new PropertyTreeContainerRuntimeFactory()),
