@@ -165,6 +165,7 @@ export {
 	valueSymbol,
 	proxyTargetSymbol,
 	getField,
+	forEachField,
 	contextSymbol,
 	ContextuallyTypedNodeDataObject,
 	ContextuallyTypedNodeData,

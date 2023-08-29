@@ -71,6 +71,12 @@ export const on: unique symbol = Symbol("editable-tree:on");
 export const treeStatus: unique symbol = Symbol("editable-tree:treeStatus()");
 
 /**
+ * A symbol to visit each field of {@link EditableTree}.
+ * @alpha
+ */
+export const forEachField: unique symbol = Symbol("editable-tree:forEachField()");
+
+/**
  * A tree of an unknown type.
  * This only includes operations that are safe to do without knowing the schema for the tree, so it does not include any editing.
  *
@@ -143,6 +149,11 @@ export interface UntypedTreeCore<TContext = UntypedTreeContext, TField = Untyped
 		eventName: K,
 		listener: EditableTreeEvents[K],
 	): () => void;
+
+	/**
+	 * Applies `f` to each field of this node.
+	 */
+	[forEachField]<T, O>(f: (field: TField, data: T, options: O) => T, data: T, options: O): T;
 }
 
 /**
@@ -218,6 +229,11 @@ export interface UntypedField<
 	 * Gets the {@link TreeStatus} of the parentNode of this field.
 	 */
 	treeStatus(): TreeStatus;
+
+	/**
+	 * Applies `f` to each node of this field.
+	 */
+	forEachNode<T, O>(f: (node: TChild, data: T, options: O) => T, data: T, options: O): T;
 }
 
 /**

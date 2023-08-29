@@ -40,6 +40,7 @@ import {
 	typeSymbol,
 	contextSymbol,
 	treeStatus,
+	forEachField,
 } from "../untypedTree";
 import {
 	AdaptingProxyHandler,
@@ -276,6 +277,18 @@ export class NodeProxyTarget extends ProxyTarget<Anchor> {
 				unreachableCase(eventName);
 		}
 	}
+
+	public forEachField<T, O>(
+		f: (field: EditableField, data: T, options: O) => T,
+		data: T,
+		options: O,
+	): T {
+		const result = data;
+		for (const field of this) {
+			f(field, result, options);
+		}
+		return result;
+	}
 }
 
 /**
@@ -314,6 +327,8 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
 				return target.on.bind(target);
 			case localNodeKeySymbol:
 				return getLocalNodeKey(target);
+			case forEachField:
+				return target.forEachField.bind(target);
 			default:
 				return undefined;
 		}
@@ -358,6 +373,7 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
 			case parentField:
 			case on:
 			case contextSymbol:
+			case forEachField:
 				return true;
 			case localNodeKeySymbol:
 				return target.context.nodeKeyFieldKey !== undefined;
@@ -460,6 +476,13 @@ const nodeProxyHandler: AdaptingProxyHandler<NodeProxyTarget, EditableTree> = {
 					configurable: true,
 					enumerable: false,
 					value: getLocalNodeKey(target),
+					writable: false,
+				};
+			case forEachField:
+				return {
+					configurable: true,
+					enumerable: false,
+					value: target.forEachField.bind(target),
 					writable: false,
 				};
 			default:

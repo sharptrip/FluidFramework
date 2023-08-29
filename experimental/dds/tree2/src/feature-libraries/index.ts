@@ -203,6 +203,7 @@ export {
 	on,
 	contextSymbol,
 	treeStatus,
+	forEachField,
 } from "./untypedTree";
 
 // Split into separate import and export for compatibility with API-Extractor.

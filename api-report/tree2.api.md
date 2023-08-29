@@ -486,13 +486,12 @@ export interface EditableTree extends Iterable<EditableField>, Omit<UntypedTreeC
 }
 
 // @alpha
-export interface EditableTreeContext extends ISubscribable<ForestEvents> {
+export interface EditableTreeContext extends TreeDataContext, ISubscribable<ForestEvents> {
     clear(): void;
     fieldSource?(key: FieldKey, schema: FieldStoredSchema): undefined | FieldGenerator;
     free(): void;
     prepareForEdit(): void;
     get root(): EditableField;
-    readonly schema: SchemaData;
     setContent(data: NewFieldContent): void;
     get unwrappedRoot(): UnwrappedEditableField;
 }
@@ -744,6 +743,9 @@ export interface Forbidden extends BrandedFieldKind<typeof forbiddenFieldKindIde
 
 // @alpha
 export const forbiddenFieldKindIdentifier = "Forbidden";
+
+// @alpha
+export const forEachField: unique symbol;
 
 // @alpha
 export interface ForestEvents {
@@ -1992,6 +1994,7 @@ export interface UntypedField<TContext = UntypedTreeContext, TChild = UntypedTre
     readonly context: TContext;
     readonly fieldKey: FieldKey;
     readonly fieldSchema: FieldStoredSchema;
+    forEachNode<T, O>(f: (node: TChild, data: T, options: O) => T, data: T, options: O): T;
     getNode(index: number): TChild;
     readonly parent?: TParent;
     treeStatus(): TreeStatus;
@@ -2040,6 +2043,7 @@ export interface UntypedTreeContext extends ISubscribable<ForestEvents> {
 // @alpha
 export interface UntypedTreeCore<TContext = UntypedTreeContext, TField = UntypedField<TContext>> extends Iterable<TField> {
     readonly [contextSymbol]: TContext;
+    [forEachField]<T, O>(f: (field: TField, data: T, options: O) => T, data: T, options: O): T;
     [getField](fieldKey: FieldKey): TField;
     // (undocumented)
     [on]<K extends keyof EditableTreeEvents>(eventName: K, listener: EditableTreeEvents[K]): () => void;

@@ -17,7 +17,7 @@ import {
 import { ISubscribable } from "../../events";
 import { DefaultEditBuilder } from "../default-field-kinds";
 import { NodeKeyManager } from "../node-key";
-import { FieldGenerator, NewFieldContent } from "../contextuallyTyped";
+import { FieldGenerator, NewFieldContent, TreeDataContext } from "../contextuallyTyped";
 import { EditableField, UnwrappedEditableField } from "./editableTreeTypes";
 import { makeField, unwrappedField } from "./editableField";
 import { ProxyTarget } from "./ProxyTarget";
@@ -27,7 +27,7 @@ import { ProxyTarget } from "./ProxyTarget";
  * It handles group operations like transforming cursors into anchors for edits.
  * @alpha
  */
-export interface EditableTreeContext extends ISubscribable<ForestEvents> {
+export interface EditableTreeContext extends TreeDataContext, ISubscribable<ForestEvents> {
 	/**
 	 * Gets the root field of the tree.
 	 */
@@ -70,12 +70,6 @@ export interface EditableTreeContext extends ISubscribable<ForestEvents> {
 	 * This might be changed in the future once the low-level editing API is available.
 	 */
 	setContent(data: NewFieldContent): void;
-
-	/**
-	 * Schema used within this context.
-	 * All data must conform to these schema.
-	 */
-	readonly schema: SchemaData;
 
 	/**
 	 * Call before editing.
