@@ -15,6 +15,7 @@ import {
 	ReferenceProperty,
 } from "@fluid-experimental/property-properties";
 import { BaseProxifiedProperty, PropertyProxy } from "@fluid-experimental/property-proxy";
+import { isEditableField } from "@fluid-experimental/tree2";
 import Tooltip from "@material-ui/core/Tooltip";
 import memoize from "memoize-one";
 import React from "react";
@@ -26,10 +27,12 @@ import { InspectorMessages, minRowWidth, rowWidthInterval } from "./constants";
 import { HashCalculator } from "./HashCalculator";
 import {
 	ColumnRendererType,
+	IEditableTreeRow,
 	IExpandedMap,
 	IInspectorRow,
 	IInspectorSearchMatch,
 	IPropertyToTableRowOptions,
+	isEditableTreeRow,
 	IToTableRowsOptions,
 	IToTableRowsProps,
 	SearchResult,
@@ -753,10 +756,18 @@ export const handleReferencePropertyEdit = async (rowData: IInspectorRow, newPat
 	parentProp!.getRoot().getWorkspace()!.commit();
 };
 
-export const generateForm = (rowData: IInspectorRow, handleCreateData: any) => {
-	if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
-		handleCreateData(rowData, "", rowData.parent!.getTypeid(), "single");
-		return false;
+export const generateForm = (rowData: IInspectorRow | IEditableTreeRow, handleCreateData: any) => {
+	if (!isEditableTreeRow(rowData)) {
+		if (rowData.parent!.getContext() === "array" && rowData.parent!.isPrimitiveType()) {
+			handleCreateData(rowData, "", rowData.parent!.getTypeid(), "single");
+			return false;
+		}
+	} else {
+		if (rowData.context === "array" && isEditableField(rowData.parent)) {
+			// && isEditableField(rowData.parent) && isPrimitiveSchema(rowData.parent.fieldSchema.)
+			// handleCreateData(rowData, "", rowData.parent!.getTypeid(), "single");
+			return false;
+		}
 	}
 	return true;
 };
@@ -806,7 +817,7 @@ export function typeCellRenderer({
 	const { checkoutInProgress, width } = tableProps;
 	if (checkoutInProgress) {
 		return getCellSkeleton(width);
-	} else if (!rowData.typeid) {
+	} else if (!rowData.typeid || rowData.isNewDataRow) {
 		return null;
 	} else {
 		return <TypeColumn rowData={rowData} />;
@@ -844,7 +855,7 @@ const getRandomWidth = (width: number) => {
 const getCellSkeleton = (width: number) =>
 	ThemedSkeleton(<Skeleton width={getRandomWidth(width)} />);
 const determineCellClassName = (
-	rowData: IInspectorRow,
+	rowData: IInspectorRow | IEditableTreeRow,
 	columnIndex: number,
 	classes: any,
 	searchResults: SearchResult,

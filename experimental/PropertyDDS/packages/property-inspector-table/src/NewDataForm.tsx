@@ -3,6 +3,15 @@
  * Licensed under the MIT License.
  */
 
+import { assert } from "@fluidframework/common-utils";
+import {
+	Any,
+	getPrimaryField,
+	isEditableField,
+	isEditableTree,
+	typeNameSymbol,
+	typeSymbol,
+} from "@fluid-experimental/tree2";
 import { ContainerProperty, PropertyFactory } from "@fluid-experimental/property-properties";
 import Button from "@material-ui/core/Button";
 import InputAdornment from "@material-ui/core/InputAdornment";
@@ -27,7 +36,7 @@ import {
 } from "./DecoratedSelect";
 import { ErrorPopup } from "./ErrorPopup";
 import { ErrorTooltip } from "./ErrorTooltip";
-import { IInspectorRow } from "./InspectorTableTypes";
+import { IInspectorRow, IEditableTreeRow, isEditableTreeRow } from "./InspectorTableTypes";
 import { SvgIcon } from "./SVGIcon";
 import { TypeIcon } from "./TypeIcon";
 
@@ -117,7 +126,12 @@ export interface INewDataFormProps {
 	/**
 	 * Callback that is executed on create.
 	 */
-	onDataCreate: (rowData: IInspectorRow, name: string, typeid: string, context: string) => void;
+	onDataCreate: (
+		rowData: IInspectorRow | IEditableTreeRow,
+		name: string,
+		typeid: string,
+		context: string,
+	) => void;
 	/**
 	 * The available options.
 	 */
@@ -125,7 +139,7 @@ export interface INewDataFormProps {
 	/**
 	 * Data Inspector row data for current row
 	 */
-	rowData: IInspectorRow;
+	rowData: IInspectorRow | IEditableTreeRow;
 }
 
 /**
@@ -155,14 +169,76 @@ const setContext: IDecoratedSelectOptionType = {
 	icon: <TypeIcon typeId={"Set"} />,
 };
 
+const getSiblingIDs = (rowData: IInspectorRow | IEditableTreeRow): string[] => {
+	if (isEditableTreeRow(rowData)) {
+		return isEditableTree(rowData.parent)
+			? [...rowData.parent]
+					.filter((field) => field.fieldKey in rowData.parent)
+					.map((field) => field.fieldKey)
+			: [];
+	}
+	return rowData.parent ? (rowData.parent as ContainerProperty).getIds() : [];
+};
+
 export const NewDataForm: React.FunctionComponent<INewDataFormProps> = (props) => {
 	const { options, onDataCreate, onCancelCreate, rowData } = props;
 	const classes = useStyles();
-	const [inputName, setInputName] = useState("");
 	const [isCreating, setCreating] = useState(false);
+	// TODO: all changes in this file are very rough. A good implementation with EditableTree
+	// will probably require new UIs to create fields / nodes.
+	// It could be a node or a field of EditableTree. A field means we are in a sequence i.e.:
+	// - we are in a field, and fields have no types
+	// - we can insert nodes only within the sequence or as an append to the tail
+	// - since currently UI does not support "inline" inserts, we always append meaning
+	// that the only possible name is a length of the sequence.
+	const [inputName, setInputName] = useState(
+		!isCreating && isEditableTreeRow(rowData) && isEditableField(rowData.parent)
+			? String(rowData.parent.length)
+			: "",
+	);
 	const [isNamedProp, setIsNamedProp] = useState(false);
 
-	const siblingIds = rowData.parent ? (rowData.parent as ContainerProperty).getIds() : [];
+	let parentTypeId;
+	let parentContext = "single";
+	let isNewNode = false;
+	if (isEditableTreeRow(rowData)) {
+		if (!isCreating) {
+			if (isEditableTree(rowData.parent)) {
+				parentTypeId = rowData.parent[typeNameSymbol];
+				const contextAndType = parentTypeId.split("<");
+				if (contextAndType.length > 1) {
+					parentContext = contextAndType[0];
+					parentTypeId = contextAndType[1].replace(/>/g, "");
+				}
+			} else if (isEditableField(rowData.parent)) {
+				isNewNode = true;
+				// If it is an array, `rowData.parent` must be a primary field.
+				// We have to derive a "base" array type from the parent node type of `rowData.parent`
+				// since arrays are currently non-polymorphic, but support inherited types.
+				const parentNode = rowData.parent.parent;
+				if (
+					isEditableTree(parentNode) &&
+					getPrimaryField(parentNode[typeSymbol]) !== undefined
+				) {
+					parentTypeId = parentNode[typeNameSymbol];
+					const contextAndType = parentTypeId.split("<");
+					if (contextAndType.length > 1) {
+						parentContext = contextAndType[0];
+						parentTypeId = contextAndType[1].replace(/>/g, "");
+					}
+				} else {
+					assert(
+						rowData.parent.fieldSchema.types?.size === 1,
+						"Polymorphic fields are not supported yet",
+					);
+					parentTypeId = [...rowData.parent.fieldSchema.types][0];
+				}
+			}
+		}
+	} else {
+		parentTypeId = rowData.parent!.getTypeid();
+		parentContext = rowData.parent!.getContext();
+	}
 
 	// Reshape the 'options' array which into an object suitable for consumption by react-select.
 	// Also into each option add an SVG icon corresponding to its label.
@@ -180,15 +256,19 @@ export const NewDataForm: React.FunctionComponent<INewDataFormProps> = (props) =
 		...subType,
 		options: subType.options.filter((typ: IDecoratedSelectOptionType) => {
 			const parentTypes = PropertyFactory.getAllParentsForTemplate(typ.value);
-			return typ.value === parentTypeId || parentTypes.includes(parentTypeId);
+			return (
+				typ.value === parentTypeId ||
+				parentTypes.includes(parentTypeId) ||
+				parentTypeId === undefined ||
+				parentTypeId === Any
+			);
 		}),
 	});
 
 	// Choose default value depending on the context
 	// For "single" context or when parent is undefined we choose the first option from the "options" property
 	// For sets, maps and arrays we need to extract the typeid of parent collection and set contextOptions only to single
-	if (rowData.parent && rowData.parent.getContext() !== "single") {
-		const parentTypeId = rowData.parent.getTypeid();
+	if (parentContext !== "single" || isNewNode) {
 		typeOptions = allTypeOptions.map(excludeUninheritedTemplates(parentTypeId));
 		const allOptions = typeOptions.reduce<IDecoratedSelectOptionType[]>(
 			(acc, group) => acc.concat(group.options),
@@ -209,7 +289,7 @@ export const NewDataForm: React.FunctionComponent<INewDataFormProps> = (props) =
 		// sets can be created only for properties inheriting from NamedProperty
 		if (
 			rowData.parent &&
-			rowData.parent.getContext() === "single" &&
+			parentContext === "single" &&
 			(selectedTypeOption.value === "NamedProperty" || parentTypes.includes("NamedProperty"))
 		) {
 			setIsNamedProp(true);
@@ -256,7 +336,7 @@ export const NewDataForm: React.FunctionComponent<INewDataFormProps> = (props) =
 		</Button>
 	);
 
-	const isSiblingFound = siblingIds.includes(inputName);
+	const isSiblingFound = !isCreating && getSiblingIDs(rowData).includes(inputName);
 	const createBtn = (
 		<Button
 			id="createDataButton"
@@ -267,7 +347,7 @@ export const NewDataForm: React.FunctionComponent<INewDataFormProps> = (props) =
 			disabled={
 				isSiblingFound ||
 				(rowData.parent &&
-					!notNamedCollections.includes(rowData.parent.getContext()) &&
+					!notNamedCollections.includes(parentContext) &&
 					!inputName.trim())
 			}
 			onClick={handleCreateData}
@@ -309,7 +389,7 @@ export const NewDataForm: React.FunctionComponent<INewDataFormProps> = (props) =
 	);
 
 	const nameInput = (height: number, width: number) => {
-		if (rowData.parent && notNamedCollections.includes(rowData.parent!.getContext())) {
+		if (rowData.parent && (notNamedCollections.includes(parentContext) || isNewNode)) {
 			return <div />;
 		}
 		const selectedTypeOrCollectionLabel =
